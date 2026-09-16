@@ -19,7 +19,8 @@
     "Data Guru": "guru.html",
     "Kelas / Rombel": "kelas.html",
     "Mata Pelajaran": "mapel.html",
-    "Jadwal Pelajaran": "jadwal.html"
+    "Jadwal Pelajaran": "jadwal.html",
+    "Absensi Guru": "absensi-guru.html"
   };
 
   document.addEventListener("click", function (event) {
