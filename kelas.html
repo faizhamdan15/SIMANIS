@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kelas / Rombel — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+<style>
+.class-toolbar{display:grid;grid-template-columns:1.2fr .55fr .55fr;gap:12px;margin-bottom:16px}.class-toolbar input,.class-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:12px 13px;background:#fff;outline:none}.class-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.class-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 6px 18px rgba(5,79,50,.05)}.class-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.class-card h3{margin:0;color:var(--green-950);font-size:18px}.class-card p{margin:5px 0;color:var(--muted);font-size:11px}.class-meta{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0}.class-meta div{background:#f8fbf9;border-radius:10px;padding:9px;font-size:10px}.class-actions{display:flex;gap:7px;flex-wrap:wrap}.grade-pill{display:inline-flex;padding:5px 8px;border-radius:999px;background:var(--green-100);color:var(--green-800);font-size:10px;font-weight:800}.status-off{background:#ffe2de;color:#a52d22}@media(max-width:1000px){.class-cards{grid-template-columns:repeat(2,1fr)}}@media(max-width:700px){.class-toolbar{grid-template-columns:1fr}.class-cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Kelas / Rombel...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Kelas / Rombel</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+    <main class="main">
+      <section class="page-head"><div><h2>Kelas / Rombel</h2><p>Kelola 13 rombongan belajar aktif Tahun Pelajaran 2026/2027.</p></div><div class="action-row"><button id="addClassBtn" class="primary-btn" style="width:auto">+ Tambah Kelas</button></div></section>
+      <section class="stats">
+        <article class="stat"><div class="stat-head"><span>Rombel Aktif</span><span class="stat-icon">🏫</span></div><div id="statClasses" class="stat-value">-</div><div class="stat-sub">Kelas aktif</div></article>
+        <article class="stat"><div class="stat-head"><span>Total Siswa</span><span class="stat-icon">👥</span></div><div id="statStudents" class="stat-value">-</div><div class="stat-sub">Siswa terdaftar</div></article>
+        <article class="stat"><div class="stat-head"><span>Wali Kelas</span><span class="stat-icon">✓</span></div><div id="statHomeroom" class="stat-value">-</div><div class="stat-sub">Rombel memiliki wali kelas</div></article>
+        <article class="stat"><div class="stat-head"><span>Slot Jadwal</span><span class="stat-icon">📚</span></div><div id="statSlots" class="stat-value">-</div><div class="stat-sub">Total slot per minggu</div></article>
+      </section>
+      <section class="class-toolbar"><input id="searchInput" type="search" placeholder="Cari nama kelas atau wali kelas..." /><select id="gradeFilter"><option value="">Semua Tingkat</option><option value="10">Kelas X</option><option value="11">Kelas XI</option><option value="12">Kelas XII</option></select><select id="statusFilter"><option value="AKTIF">Aktif</option><option value="SEMUA">Semua</option><option value="NONAKTIF">Nonaktif</option></select></section>
+      <section id="classCards" class="class-cards"></section>
+    </main>
+  </section>
+</div>
+<div id="classModal" class="modal-backdrop hidden"><div class="modal"><div class="modal-head"><h3 id="modalTitle">Tambah Kelas</h3><button id="closeModalBtn" class="modal-close">✕</button></div><form id="classForm"><div class="modal-body"><div class="form-grid"><input id="classId" type="hidden"/><label class="full"><span>Nama Kelas *</span><input id="className" required placeholder="Contoh: X Sains 1" /></label><label><span>Tingkat</span><select id="gradeLevel"><option value="10">X</option><option value="11">XI</option><option value="12">XII</option></select></label><label><span>Peminatan/Jurusan</span><input id="major" placeholder="SAINS / IPA / IPS / kosong" /></label><label class="full"><span>Wali Kelas</span><select id="homeroomTeacher"><option value="">Belum ditentukan</option></select></label><label><span>Status</span><select id="isActive"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></label></div><div id="formMessage" class="form-message"></div></div><div class="modal-actions"><button type="button" id="cancelBtn" class="secondary-btn">Batal</button><button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button></div></form></div></div>
+<script src="config.js"></script><script src="sdk-loader.js"></script><script src="kelas.js"></script>
+</body>
+</html>
