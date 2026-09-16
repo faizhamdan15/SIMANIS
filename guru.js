@@ -6,7 +6,7 @@ const pageSize = 25;
 function esc(s){return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");}
 function formatRole(role){ return (role || "-").replaceAll("_"," "); }
 function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date());}
-function routeFor(code){if(code==="DASHBOARD") return "dashboard.html";if(code==="ADMINISTRASI_KEPALA") return "administrasi.html";if(code==="DATA_SISWA") return "siswa.html";if(code==="DATA_GURU") return "guru.html";return "#";}
+function routeFor(code){if(code==="DASHBOARD") return "dashboard.html";if(code==="ADMINISTRASI_KEPALA") return "administrasi.html";if(code==="DATA_SISWA") return "siswa.html";if(code==="DATA_GURU") return "guru.html";if(code==="KELAS") return "kelas.html";return "#";}
 function dayOrder(day){return {SENIN:1,SELASA:2,RABU:3,KAMIS:4,SABTU:5,AHAD:6}[day] || 99;}
 async function loadProfile(user){const rows=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);const p=rows?.[0];if(!p) throw new Error("Profil pengguna tidak ditemukan.");if(!p.is_active) throw new Error("Akun SIMANIS tidak aktif.");return p;}
 async function loadMenu(){const modules=await api.db.rpc("get_my_modules",{});$("sidebarMenu").innerHTML=(modules||[]).map(m=>`<a href="${routeFor(m.code)}" class="nav-item ${m.code==="DATA_GURU"?"active":""}"><span class="nav-dot"></span><span>${esc(m.name)}</span></a>`).join("");document.querySelectorAll('.nav-item[href="#"]').forEach(a=>a.addEventListener("click",e=>{e.preventDefault();alert(`Modul "${a.textContent.trim()}" akan diaktifkan bertahap.`);}));}
