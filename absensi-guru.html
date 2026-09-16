@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Absensi Guru — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .att-toolbar{display:grid;grid-template-columns:.7fr 1.2fr .65fr .65fr;gap:10px;margin-bottom:16px}
+    .att-toolbar input,.att-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}
+    .att-table-wrap{overflow:auto;background:#fff;border:1px solid var(--line);border-radius:16px}
+    .att-table{width:100%;border-collapse:collapse;min-width:1120px}.att-table th,.att-table td{padding:11px 10px;border-bottom:1px solid #edf2ef;text-align:left;font-size:11px;vertical-align:top}.att-table th{font-size:10px;color:var(--muted);background:#fbfdfc;text-transform:uppercase;letter-spacing:.03em}
+    .att-name{font-weight:800;color:var(--green-950)}.muted-small{font-size:9px;color:var(--muted);margin-top:3px}
+    .att-status{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800;white-space:nowrap}.st-HADIR{background:#dff4e7;color:#08743f}.st-TERLAMBAT{background:#fff0c9;color:#8a5a00}.st-IZIN,.st-SAKIT,.st-DINAS{background:#e9efff;color:#365aaf}.st-ALFA{background:#ffe2de;color:#a52d22}.st-BELUM_ABSEN{background:#f1f3f2;color:#65736b}.st-TIDAK_ADA_JADWAL{background:#f4f4f4;color:#7c7c7c}
+    .att-actions{display:flex;gap:6px;flex-wrap:wrap}.att-actions button{border:1px solid #d7e2dc;background:#fff;border-radius:9px;padding:7px 8px;font-size:9px;font-weight:800;color:var(--green-900);cursor:pointer}.att-actions .primary{background:var(--green-800);color:#fff;border-color:var(--green-800)}
+    .att-cards{display:none}.att-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px}.att-card-head{display:flex;justify-content:space-between;gap:10px}.att-card h4{margin:0;font-size:13px;color:var(--green-950)}.att-card p{margin:4px 0;font-size:10px;color:var(--muted)}.att-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0}.att-card-grid div{background:#f8fbf9;border-radius:9px;padding:8px;font-size:9px}
+    .attendance-note{font-size:10px;color:var(--muted);margin-top:6px}.date-caption{font-size:11px;color:var(--muted);margin-bottom:12px}
+    @media(max-width:850px){.att-toolbar{grid-template-columns:1fr 1fr}.att-table-wrap{display:none}.att-cards{display:grid;gap:10px}}
+    @media(max-width:520px){.att-toolbar{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Absensi Guru...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Absensi Guru</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+    <main class="main">
+      <section class="page-head"><div><h2>Absensi Guru</h2><p>Kehadiran guru berbasis jadwal mengajar. Guru tanpa jadwal tidak dihitung alfa.</p></div></section>
+      <section class="stats">
+        <article class="stat"><div class="stat-head"><span>Terjadwal</span><span class="stat-icon">📚</span></div><div id="statScheduled" class="stat-value">-</div><div class="stat-sub">Guru punya jadwal</div></article>
+        <article class="stat"><div class="stat-head"><span>Hadir</span><span class="stat-icon">✓</span></div><div id="statPresent" class="stat-value">-</div><div class="stat-sub">Hadir + terlambat</div></article>
+        <article class="stat"><div class="stat-head"><span>Izin / Sakit / Dinas</span><span class="stat-icon">📝</span></div><div id="statExcused" class="stat-value">-</div><div class="stat-sub">Keterangan tercatat</div></article>
+        <article class="stat"><div class="stat-head"><span>Belum / Alfa</span><span class="stat-icon">!</span></div><div id="statMissing" class="stat-value">-</div><div class="stat-sub">Pada guru terjadwal</div></article>
+      </section>
+      <section class="att-toolbar">
+        <input id="attendanceDate" type="date" />
+        <input id="searchInput" type="search" placeholder="Cari nama atau kode guru..." />
+        <select id="scheduleFilter"><option value="SCHEDULED">Punya Jadwal</option><option value="ALL">Semua Guru</option><option value="NONE">Tanpa Jadwal</option></select>
+        <select id="statusFilter"><option value="">Semua Status</option><option value="HADIR">Hadir</option><option value="TERLAMBAT">Terlambat</option><option value="IZIN">Izin</option><option value="SAKIT">Sakit</option><option value="DINAS">Dinas</option><option value="BELUM_ABSEN">Belum Absen</option><option value="ALFA">Alfa</option><option value="TIDAK_ADA_JADWAL">Tidak Ada Jadwal</option></select>
+      </section>
+      <div id="dateCaption" class="date-caption"></div>
+      <section class="att-table-wrap"><table class="att-table"><thead><tr><th>Kode</th><th>Guru</th><th>Jadwal</th><th>Status</th><th>Masuk</th><th>Pulang</th><th>Terlambat</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody id="attendanceBody"></tbody></table></section>
+      <section id="attendanceCards" class="att-cards"></section>
+    </main>
+  </section>
+</div>
+
+<div id="attendanceModal" class="modal-backdrop hidden"><div class="modal">
+  <div class="modal-head"><h3 id="modalTitle">Kelola Absensi</h3><button id="closeModalBtn" class="modal-close">✕</button></div>
+  <form id="attendanceForm"><div class="modal-body">
+    <input id="teacherId" type="hidden" />
+    <div id="teacherInfo" class="notice"></div>
+    <div class="form-grid">
+      <label><span>Status</span><select id="attendanceStatus"><option value="HADIR">Hadir</option><option value="TERLAMBAT">Terlambat</option><option value="IZIN">Izin</option><option value="SAKIT">Sakit</option><option value="DINAS">Dinas</option><option value="ALFA">Alfa</option></select></label>
+      <label><span>Tanggal</span><input id="modalDate" type="date" readonly /></label>
+      <label><span>Jam Masuk</span><input id="checkInTime" type="time" /></label>
+      <label><span>Jam Pulang</span><input id="checkOutTime" type="time" /></label>
+      <label class="full"><span>Catatan</span><textarea id="attendanceNote" rows="3" placeholder="Keterangan izin, sakit, dinas, atau catatan lainnya"></textarea></label>
+    </div><div id="formMessage" class="form-message"></div>
+  </div><div class="modal-actions"><button type="button" id="clearBtn" class="secondary-btn">Hapus Catatan</button><button type="button" id="cancelBtn" class="secondary-btn">Batal</button><button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button></div></form>
+</div></div>
+
+<script src="config.js"></script><script src="sdk-loader.js"></script><script src="absensi-guru.js"></script>
+</body>
+</html>
