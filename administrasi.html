@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Administrasi Kepala Madrasah — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Administrasi Kepala...</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand">
+      <img src="logo.png" alt="Logo">
+      <div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div>
+    </div>
+    <div class="nav-title">MENU</div>
+    <nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer">
+      <div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div>
+      <button id="logoutBtn" class="logout-btn">Keluar</button>
+    </div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar">
+      <div><h1>SIMANIS</h1><p>Administrasi Kepala Madrasah · TA 2026/2027</p></div>
+      <div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div>
+    </header>
+
+    <main class="main">
+      <section class="admin-hero">
+        <h2>Administrasi Kepala Madrasah</h2>
+        <p>Kontrol kelengkapan 141 dokumen administrasi MA Nurul Islam dalam satu dashboard.</p>
+        <div class="progress-row">
+          <div class="progress-track"><div id="overallFill" class="progress-fill"></div></div>
+          <div id="overallText" class="progress-number">0 / 141</div>
+        </div>
+      </section>
+
+      <section class="stats">
+        <article class="stat"><div class="stat-head"><span>Lengkap</span><span class="stat-icon">✓</span></div><div id="statComplete" class="stat-value">0</div><div class="stat-sub">Dokumen lengkap</div></article>
+        <article class="stat"><div class="stat-head"><span>Draft</span><span class="stat-icon">📝</span></div><div id="statDraft" class="stat-value">0</div><div class="stat-sub">Sedang disiapkan</div></article>
+        <article class="stat"><div class="stat-head"><span>Perlu Revisi</span><span class="stat-icon">↻</span></div><div id="statRevision" class="stat-value">0</div><div class="stat-sub">Perlu ditindaklanjuti</div></article>
+        <article class="stat"><div class="stat-head"><span>Belum Ada</span><span class="stat-icon">!</span></div><div id="statMissing" class="stat-value">141</div><div class="stat-sub">Belum tersedia</div></article>
+      </section>
+
+      <section id="categoryGrid" class="admin-category-grid"></section>
+
+      <section class="admin-toolbar">
+        <input id="docSearch" type="search" placeholder="Cari dokumen..." />
+        <select id="statusFilter">
+          <option value="">Semua Status</option>
+          <option value="BELUM_ADA">Belum Ada</option>
+          <option value="DRAFT">Draft</option>
+          <option value="PERLU_REVISI">Perlu Revisi</option>
+          <option value="LENGKAP">Lengkap</option>
+        </select>
+      </section>
+
+      <section class="card">
+        <div class="card-title">
+          <h3 id="listTitle">Daftar Dokumen</h3>
+          <span id="listCount">0 dokumen</span>
+        </div>
+        <div id="docList" class="doc-list"></div>
+      </section>
+    </main>
+  </section>
+</div>
+
+<input id="filePicker" class="file-hidden" type="file"
+  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" />
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script src="administrasi.js"></script>
+</body>
+</html>

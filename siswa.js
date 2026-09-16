@@ -33,6 +33,7 @@ function localDateID() {
 
 function routeFor(code) {
   if (code === "DASHBOARD") return "dashboard.html";
+  if (code === "ADMINISTRASI_KEPALA") return "administrasi.html";
   if (code === "DATA_SISWA") return "siswa.html";
   return "#";
 }
