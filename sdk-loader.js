@@ -21,7 +21,8 @@
     "Mata Pelajaran": "mapel.html",
     "Jadwal Pelajaran": "jadwal.html",
     "Absensi Guru": "absensi-guru.html",
-    "Absensi Siswa": "absensi-siswa.html"
+    "Absensi Siswa": "absensi-siswa.html",
+    "Nilai": "nilai.html"
   };
 
   document.addEventListener("click", function (event) {
