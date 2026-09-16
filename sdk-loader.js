@@ -10,6 +10,32 @@
   const base = cfg.SUPABASE_URL.replace(/\/$/, "");
   const apikey = cfg.SUPABASE_PUBLISHABLE_KEY;
 
+  // Router pusat untuk semua sidebar SIMANIS. Ini membuat halaman lama tetap
+  // dapat membuka modul baru walaupun routeFor() lokal belum diperbarui.
+  const ROUTES_BY_LABEL = {
+    "Dashboard": "dashboard.html",
+    "Administrasi Kepala Madrasah": "administrasi.html",
+    "Data Siswa": "siswa.html",
+    "Data Guru": "guru.html",
+    "Kelas / Rombel": "kelas.html",
+    "Mata Pelajaran": "mapel.html"
+  };
+
+  document.addEventListener("click", function (event) {
+    const item = event.target.closest?.(".nav-item");
+    if (!item) return;
+
+    const label = (item.textContent || "").replace(/\s+/g, " ").trim();
+    const route = ROUTES_BY_LABEL[label];
+    if (!route) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const current = location.pathname.split("/").pop() || "index.html";
+    if (current !== route) location.href = route;
+  }, true);
+
   function readSession() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
