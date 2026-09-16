@@ -18,94 +18,47 @@
       <img src="logo.png" alt="Logo">
       <div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div>
     </div>
-
     <div class="nav-title">MENU</div>
     <nav id="sidebarMenu"></nav>
-
     <div class="sidebar-footer">
-      <div class="user-mini">
-        <strong id="sideUserName">-</strong>
-        <span id="sideUserRole">-</span>
-      </div>
+      <div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div>
       <button id="logoutBtn" class="logout-btn">Keluar</button>
     </div>
   </aside>
 
   <section class="content">
     <header class="topbar">
-      <div>
-        <h1>SIMANIS</h1>
-        <p>Sistem Informasi MA Nurul Islam · Satu Sistem, Semua Layanan Madrasah</p>
-      </div>
-      <div class="topbar-right">
-        <strong id="headerUser">-</strong>
-        <span id="currentDate">-</span>
-      </div>
+      <div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Satu Sistem, Semua Layanan Madrasah</p></div>
+      <div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div>
     </header>
 
     <main class="main">
       <section class="hero">
-        <div>
-          <h2 id="welcomeTitle">Selamat Datang!</h2>
-          <p>Kelola data madrasah secara terintegrasi, akurat, dan mudah dipantau dalam satu sistem.</p>
-        </div>
+        <div><h2 id="welcomeTitle">Selamat Datang!</h2><p>Kelola data madrasah secara terintegrasi, akurat, dan mudah dipantau dalam satu sistem.</p></div>
         <div class="hero-badge">TA 2026/2027 · GANJIL</div>
       </section>
 
       <section class="stats">
-        <article class="stat">
-          <div class="stat-head"><span>Total Siswa</span><span class="stat-icon">👥</span></div>
-          <div id="statStudents" class="stat-value">-</div>
-          <div class="stat-sub">Siswa aktif</div>
-        </article>
-        <article class="stat">
-          <div class="stat-head"><span>Total Guru</span><span class="stat-icon">👨‍🏫</span></div>
-          <div id="statTeachers" class="stat-value">-</div>
-          <div class="stat-sub">Guru aktif</div>
-        </article>
-        <article class="stat">
-          <div class="stat-head"><span>Total Kelas</span><span class="stat-icon">🏫</span></div>
-          <div id="statClasses" class="stat-value">-</div>
-          <div class="stat-sub">Rombel aktif</div>
-        </article>
-        <article class="stat">
-          <div class="stat-head"><span>Kehadiran Hari Ini</span><span class="stat-icon">✓</span></div>
-          <div id="statAttendance" class="stat-value">0%</div>
-          <div id="attendanceSub" class="stat-sub">Belum ada absensi siswa</div>
-        </article>
+        <article class="stat"><div class="stat-head"><span>Total Siswa</span><span class="stat-icon">👥</span></div><div id="statStudents" class="stat-value">-</div><div class="stat-sub">Siswa aktif</div></article>
+        <article class="stat"><div class="stat-head"><span>Total Guru</span><span class="stat-icon">👨‍🏫</span></div><div id="statTeachers" class="stat-value">-</div><div class="stat-sub">Guru aktif</div></article>
+        <article class="stat"><div class="stat-head"><span>Total Kelas</span><span class="stat-icon">🏫</span></div><div id="statClasses" class="stat-value">-</div><div class="stat-sub">Rombel aktif</div></article>
+        <article class="stat"><div class="stat-head"><span>Kehadiran Hari Ini</span><span class="stat-icon">✓</span></div><div id="statAttendance" class="stat-value">0%</div><div id="attendanceSub" class="stat-sub">Belum ada absensi siswa</div></article>
       </section>
 
       <section class="grid-2">
-        <article class="card">
-          <div class="card-title"><h3>Grafik Kehadiran Siswa</h3><span>7 hari terakhir</span></div>
-          <div id="attendanceChart" class="chart-bars"></div>
-        </article>
-
-        <article class="card">
-          <div class="card-title"><h3>Jadwal Hari Ini</h3><span id="todayName">-</span></div>
-          <div id="todaySchedule" class="schedule-list"></div>
-        </article>
+        <article class="card"><div class="card-title"><h3>Grafik Kehadiran Siswa</h3><span>7 hari terakhir</span></div><div id="attendanceChart" class="chart-bars"></div></article>
+        <article class="card"><div class="card-title"><h3>Jadwal Hari Ini</h3><span id="todayName">-</span></div><div id="todaySchedule" class="schedule-list"></div></article>
       </section>
 
       <section class="grid-2">
         <article class="card">
           <div class="card-title"><h3>Berita Madrasah Terbaru</h3><span>Modul Publikasi</span></div>
-          <div id="newsSection" class="news-grid">
-            <div class="news-card">
-              <div class="news-thumb">BERITA</div>
-              <div class="news-body"><span>Segera hadir</span><h4>Modul berita SIMANIS siap dihubungkan.</h4><p>Konten akan tampil otomatis setelah tabel berita dibuat.</p></div>
-            </div>
-            <div class="news-card">
-              <div class="news-thumb">PRESTASI</div>
-              <div class="news-body"><span>Segera hadir</span><h4>Prestasi siswa dan madrasah.</h4><p>Terhubung ke dashboard publikasi.</p></div>
-            </div>
-            <div class="news-card">
-              <div class="news-thumb">AGENDA</div>
-              <div class="news-body"><span>Segera hadir</span><h4>Agenda dan pengumuman terbaru.</h4><p>Data akan tampil secara realtime.</p></div>
-            </div>
+          <div class="news-grid">
+            <div class="news-card"><div class="news-thumb">BERITA</div><div class="news-body"><span>Segera hadir</span><h4>Modul berita SIMANIS siap dihubungkan.</h4><p>Konten akan tampil otomatis setelah tabel berita dibuat.</p></div></div>
+            <div class="news-card"><div class="news-thumb">PRESTASI</div><div class="news-body"><span>Segera hadir</span><h4>Prestasi siswa dan madrasah.</h4><p>Terhubung ke dashboard publikasi.</p></div></div>
+            <div class="news-card"><div class="news-thumb">AGENDA</div><div class="news-body"><span>Segera hadir</span><h4>Agenda dan pengumuman terbaru.</h4><p>Data akan tampil secara realtime.</p></div></div>
           </div>
         </article>
-
         <article class="card">
           <div class="card-title"><h3>Ringkasan Sistem</h3><span>Realtime</span></div>
           <div class="simple-list">
@@ -119,8 +72,8 @@
   </section>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="sdk-loader.js"></script>
 <script src="dashboard.js"></script>
 </body>
 </html>
