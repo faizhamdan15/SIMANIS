@@ -4,6 +4,12 @@ function formatRole(role) {
   return (role || "-").replaceAll("_", " ");
 }
 
+function routeFor(code) {
+  if (code === "DASHBOARD") return "dashboard.html";
+  if (code === "DATA_SISWA") return "siswa.html";
+  return "#";
+}
+
 function todayCode() {
   const d = new Intl.DateTimeFormat("id-ID", {
     timeZone: "Asia/Jakarta",
@@ -31,14 +37,9 @@ function localDateID() {
   }).format(new Date());
 }
 
-function qs(params) {
-  return Object.entries(params)
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-    .join("&");
-}
-
 async function loadProfile(api, user) {
-  const rows = await api.db.select("profiles",
+  const rows = await api.db.select(
+    "profiles",
     `select=id,full_name,role,is_active,teacher_id&id=eq.${encodeURIComponent(user.id)}&limit=1`
   );
   const p = rows?.[0];
@@ -57,17 +58,22 @@ async function loadMenu(api) {
   }
 
   menu.innerHTML = data.map(m => `
-    <a href="${m.code === "DASHBOARD" ? "dashboard.html" : "#"}"
+    <a href="${routeFor(m.code)}"
        class="nav-item ${m.code === "DASHBOARD" ? "active" : ""}">
       <span class="nav-dot"></span><span>${m.name}</span>
     </a>
   `).join("");
+
+  menu.querySelectorAll('a[href="#"]').forEach(a => {
+    a.addEventListener("click", e => {
+      e.preventDefault();
+      alert(`Modul "${a.textContent.trim()}" akan kita aktifkan pada tahap berikutnya.`);
+    });
+  });
 }
 
 async function loadStats(api, profile) {
-  const [
-    students, teachers, classes, subjects, schedules
-  ] = await Promise.all([
+  const [students, teachers, classes, subjects, schedules] = await Promise.all([
     api.db.count("students", "status=eq.AKTIF"),
     api.db.count("teachers", "is_active=eq.true"),
     api.db.count("classes", "is_active=eq.true"),
@@ -104,6 +110,7 @@ async function loadTodaySchedule(api) {
 
   try {
     const data = await api.db.select("v_schedule_detail", query);
+
     if (!data?.length) {
       $("todaySchedule").innerHTML =
         '<div class="placeholder">Belum ada jadwal untuk hari ini.</div>';
@@ -119,6 +126,7 @@ async function loadTodaySchedule(api) {
         </div>
       </div>
     `).join("");
+
   } catch (err) {
     $("todaySchedule").innerHTML =
       `<div class="placeholder">Jadwal gagal dimuat: ${err.message}</div>`;
@@ -147,6 +155,7 @@ function loadAttendanceChart() {
     }
 
     const user = await api.auth.getUser();
+
     if (!user) {
       location.replace("index.html");
       return;

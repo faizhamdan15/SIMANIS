@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Data Siswa — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Data Siswa...</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand">
+      <img src="logo.png" alt="Logo">
+      <div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div>
+    </div>
+
+    <div class="nav-title">MENU</div>
+    <nav id="sidebarMenu"></nav>
+
+    <div class="sidebar-footer">
+      <div class="user-mini">
+        <strong id="sideUserName">-</strong>
+        <span id="sideUserRole">-</span>
+      </div>
+      <button id="logoutBtn" class="logout-btn">Keluar</button>
+    </div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar">
+      <div>
+        <h1>SIMANIS</h1>
+        <p>Sistem Informasi MA Nurul Islam · Data Siswa</p>
+      </div>
+      <div class="topbar-right">
+        <strong id="headerUser">-</strong>
+        <span id="currentDate">-</span>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="page-head">
+        <div>
+          <h2>Data Siswa</h2>
+          <p>Kelola data siswa aktif dan penempatan kelas Semester Ganjil 2026/2027.</p>
+        </div>
+        <div class="action-row">
+          <button id="addStudentBtn" class="primary-btn" style="width:auto">+ Tambah Siswa</button>
+        </div>
+      </section>
+
+      <section class="stats">
+        <article class="stat">
+          <div class="stat-head"><span>Siswa Aktif</span><span class="stat-icon">👥</span></div>
+          <div id="statTotal" class="stat-value">-</div>
+          <div class="stat-sub">Seluruh siswa aktif</div>
+        </article>
+        <article class="stat">
+          <div class="stat-head"><span>Laki-laki</span><span class="stat-icon">♂</span></div>
+          <div id="statMale" class="stat-value">-</div>
+          <div class="stat-sub">Data jenis kelamin terisi</div>
+        </article>
+        <article class="stat">
+          <div class="stat-head"><span>Perempuan</span><span class="stat-icon">♀</span></div>
+          <div id="statFemale" class="stat-value">-</div>
+          <div class="stat-sub">Data jenis kelamin terisi</div>
+        </article>
+        <article class="stat">
+          <div class="stat-head"><span>Belum Ada Kelas</span><span class="stat-icon">!</span></div>
+          <div id="statUnassigned" class="stat-value">-</div>
+          <div class="stat-sub">Perlu penempatan kelas</div>
+        </article>
+      </section>
+
+      <section class="toolbar">
+        <input id="searchInput" type="search" placeholder="Cari nama, NIS atau NISN..." />
+        <select id="classFilter"><option value="">Semua Kelas</option></select>
+        <select id="genderFilter">
+          <option value="">Semua JK</option>
+          <option value="L">Laki-laki</option>
+          <option value="P">Perempuan</option>
+          <option value="EMPTY">Belum diisi</option>
+        </select>
+      </section>
+
+      <section class="table-card">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Nama Siswa</th>
+                <th>NIS / NISN</th>
+                <th>JK</th>
+                <th>Kelas</th>
+                <th>No. Urut</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="studentTableBody"></tbody>
+          </table>
+        </div>
+
+        <div id="studentCards" class="student-cards"></div>
+
+        <div class="table-foot">
+          <span id="tableInfo">-</span>
+          <div class="action-row">
+            <button id="prevBtn" class="secondary-btn">← Sebelumnya</button>
+            <button id="nextBtn" class="secondary-btn">Berikutnya →</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </section>
+</div>
+
+<div id="studentModal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">Tambah Siswa</h3>
+      <button id="closeModalBtn" class="modal-close">✕</button>
+    </div>
+
+    <form id="studentForm">
+      <div class="modal-body">
+        <div class="notice">NIS dan NISN boleh dikosongkan sementara. Nama siswa wajib diisi.</div>
+        <div class="form-grid">
+          <input id="studentId" type="hidden" />
+          <input id="enrollmentId" type="hidden" />
+
+          <label class="full">
+            <span>Nama Lengkap *</span>
+            <input id="fullName" required />
+          </label>
+
+          <label>
+            <span>NIS</span>
+            <input id="nis" />
+          </label>
+
+          <label>
+            <span>NISN</span>
+            <input id="nisn" />
+          </label>
+
+          <label>
+            <span>Jenis Kelamin</span>
+            <select id="gender">
+              <option value="">Belum diisi</option>
+              <option value="L">Laki-laki</option>
+              <option value="P">Perempuan</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Kelas</span>
+            <select id="classId">
+              <option value="">Belum ditempatkan</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Nomor Urut</span>
+            <input id="rollNumber" type="number" min="1" />
+          </label>
+
+          <label>
+            <span>Tahun Masuk</span>
+            <input id="admissionYear" type="number" min="2000" max="2100" />
+          </label>
+
+          <label>
+            <span>Tempat Lahir</span>
+            <input id="birthPlace" />
+          </label>
+
+          <label>
+            <span>Tanggal Lahir</span>
+            <input id="birthDate" type="date" />
+          </label>
+
+          <label>
+            <span>Nama Ayah</span>
+            <input id="fatherName" />
+          </label>
+
+          <label>
+            <span>Nama Ibu</span>
+            <input id="motherName" />
+          </label>
+
+          <label>
+            <span>Nama Wali</span>
+            <input id="guardianName" />
+          </label>
+
+          <label>
+            <span>No. HP Wali</span>
+            <input id="guardianPhone" />
+          </label>
+
+          <label class="full">
+            <span>Alamat</span>
+            <textarea id="address"></textarea>
+          </label>
+        </div>
+        <div id="formMessage" class="form-message"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="cancelBtn" class="secondary-btn">Batal</button>
+        <button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script src="siswa.js"></script>
+</body>
+</html>
