@@ -9,6 +9,7 @@ function routeFor(code) {
   if (code === "ADMINISTRASI_KEPALA") return "administrasi.html";
   if (code === "DATA_SISWA") return "siswa.html";
   if (code === "DATA_GURU") return "guru.html";
+  if (code === "KELAS") return "kelas.html";
   return "#";
 }
 
