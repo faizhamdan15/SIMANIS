@@ -10,15 +10,16 @@
   const base = cfg.SUPABASE_URL.replace(/\/$/, "");
   const apikey = cfg.SUPABASE_PUBLISHABLE_KEY;
 
-  // Router pusat untuk semua sidebar SIMANIS. Ini membuat halaman lama tetap
-  // dapat membuka modul baru walaupun routeFor() lokal belum diperbarui.
+  // Router pusat untuk semua sidebar SIMANIS. Halaman lama tetap dapat
+  // membuka modul baru walaupun routeFor() lokal belum diperbarui.
   const ROUTES_BY_LABEL = {
     "Dashboard": "dashboard.html",
     "Administrasi Kepala Madrasah": "administrasi.html",
     "Data Siswa": "siswa.html",
     "Data Guru": "guru.html",
     "Kelas / Rombel": "kelas.html",
-    "Mata Pelajaran": "mapel.html"
+    "Mata Pelajaran": "mapel.html",
+    "Jadwal Pelajaran": "jadwal.html"
   };
 
   document.addEventListener("click", function (event) {
@@ -51,10 +52,7 @@
   }
 
   function authHeaders(accessToken, extra = {}) {
-    const h = {
-      "apikey": apikey,
-      ...extra
-    };
+    const h = { "apikey": apikey, ...extra };
     if (accessToken) h["Authorization"] = `Bearer ${accessToken}`;
     return h;
   }
@@ -64,13 +62,8 @@
     let body = null;
     try { body = text ? JSON.parse(text) : null; } catch { body = text; }
     if (!res.ok) {
-      const msg =
-        body?.msg ||
-        body?.message ||
-        body?.error_description ||
-        body?.error ||
-        (typeof body === "string" ? body : null) ||
-        `HTTP ${res.status}`;
+      const msg = body?.msg || body?.message || body?.error_description || body?.error ||
+        (typeof body === "string" ? body : null) || `HTTP ${res.status}`;
       throw new Error(msg);
     }
     return { body, res };
@@ -83,7 +76,6 @@
       body: JSON.stringify({ email, password })
     });
     const { body } = await parseResponse(res);
-
     const session = {
       access_token: body.access_token,
       refresh_token: body.refresh_token,
@@ -98,14 +90,12 @@
 
   async function refreshSession(session) {
     if (!session?.refresh_token) return null;
-
     const res = await fetch(`${base}/auth/v1/token?grant_type=refresh_token`, {
       method: "POST",
       headers: authHeaders(null, { "Content-Type": "application/json" }),
       body: JSON.stringify({ refresh_token: session.refresh_token })
     });
     const { body } = await parseResponse(res);
-
     const next = {
       access_token: body.access_token,
       refresh_token: body.refresh_token || session.refresh_token,
@@ -121,15 +111,10 @@
   async function getSession() {
     let session = readSession();
     if (!session) return null;
-
     const now = Math.floor(Date.now() / 1000);
     if (!session.expires_at || session.expires_at <= now + 60) {
-      try {
-        session = await refreshSession(session);
-      } catch {
-        saveSession(null);
-        return null;
-      }
+      try { session = await refreshSession(session); }
+      catch { saveSession(null); return null; }
     }
     return session;
   }
@@ -137,10 +122,7 @@
   async function getUser() {
     const session = await getSession();
     if (!session?.access_token) return null;
-
-    const res = await fetch(`${base}/auth/v1/user`, {
-      headers: authHeaders(session.access_token)
-    });
+    const res = await fetch(`${base}/auth/v1/user`, { headers: authHeaders(session.access_token) });
     const { body } = await parseResponse(res);
     session.user = body;
     saveSession(session);
@@ -151,10 +133,7 @@
     const session = readSession();
     try {
       if (session?.access_token) {
-        await fetch(`${base}/auth/v1/logout`, {
-          method: "POST",
-          headers: authHeaders(session.access_token)
-        });
+        await fetch(`${base}/auth/v1/logout`, { method: "POST", headers: authHeaders(session.access_token) });
       }
     } catch (_) {}
     saveSession(null);
@@ -163,7 +142,6 @@
   async function rest(path, options = {}) {
     const session = await getSession();
     if (!session?.access_token) throw new Error("Sesi login tidak ditemukan.");
-
     const res = await fetch(`${base}/rest/v1/${path}`, {
       ...options,
       headers: {
@@ -193,25 +171,16 @@
     const suffix = query ? `?${query}&select=id` : `?select=id`;
     const session = await getSession();
     if (!session?.access_token) throw new Error("Sesi login tidak ditemukan.");
-
     const res = await fetch(`${base}/rest/v1/${table}${suffix}`, {
       method: "GET",
-      headers: {
-        ...authHeaders(session.access_token),
-        "Prefer": "count=exact",
-        "Range": "0-0"
-      }
+      headers: { ...authHeaders(session.access_token), "Prefer": "count=exact", "Range": "0-0" }
     });
     if (!res.ok) {
       const txt = await res.text();
       let msg = txt;
-      try {
-        const j = JSON.parse(txt);
-        msg = j.message || j.error || txt;
-      } catch (_) {}
+      try { const j = JSON.parse(txt); msg = j.message || j.error || txt; } catch (_) {}
       throw new Error(msg || `HTTP ${res.status}`);
     }
-
     const cr = res.headers.get("content-range") || "";
     const total = cr.includes("/") ? cr.split("/").pop() : "0";
     return total === "*" ? 0 : Number(total || 0);
