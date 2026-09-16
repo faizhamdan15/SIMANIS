@@ -14,29 +14,19 @@ toggle.addEventListener("click", () => {
   toggle.textContent = pwd.type === "password" ? "Lihat" : "Sembunyikan";
 });
 
-window.addEventListener("error", (e) => {
-  console.error(e.error || e.message);
-});
-
-window.addEventListener("unhandledrejection", (e) => {
-  console.error(e.reason);
-});
-
 (async function bootLogin() {
   try {
-    showMessage("Menyiapkan koneksi...", true);
-    const { supabase } = await window.simanisReady;
+    const api = await window.simanisReady;
+    const existing = await api.auth.getSession();
 
-    const { data, error } = await supabase.auth.getSession();
-    if (error) console.warn(error);
-
-    if (data?.session) {
+    if (existing) {
       location.replace("dashboard.html");
       return;
     }
 
-    showMessage("");
     btn.disabled = false;
+    btn.textContent = "Masuk";
+    showMessage("");
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -54,38 +44,25 @@ window.addEventListener("unhandledrejection", (e) => {
       showMessage("Menghubungkan ke SIMANIS...", true);
 
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (error) {
-          showMessage(
-            error.message === "Invalid login credentials"
-              ? "Email atau password salah."
-              : "Login gagal: " + error.message
-          );
-          return;
-        }
-
-        if (!data?.session) {
-          showMessage("Login belum menghasilkan sesi. Silakan coba lagi.");
-          return;
-        }
-
+        await api.auth.signIn(email, password);
         showMessage("Login berhasil. Membuka dashboard...", true);
         location.replace("dashboard.html");
       } catch (err) {
-        console.error(err);
-        showMessage("Tidak dapat terhubung ke Supabase. Periksa koneksi lalu coba lagi.");
+        const text = String(err.message || err);
+        if (/invalid login credentials/i.test(text)) {
+          showMessage("Email atau password salah.");
+        } else if (/failed to fetch/i.test(text)) {
+          showMessage("Koneksi ke server Supabase gagal. Coba ganti jaringan atau muat ulang.");
+        } else {
+          showMessage("Login gagal: " + text);
+        }
       } finally {
         btn.disabled = false;
         btn.textContent = "Masuk";
       }
     });
   } catch (err) {
-    console.error(err);
-    showMessage(err.message || "Gagal menyiapkan koneksi SIMANIS.");
+    showMessage("SIMANIS gagal disiapkan: " + (err.message || err));
     btn.disabled = true;
   }
 })();

@@ -1,61 +1,198 @@
 (function () {
-  const urls = [
-    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
-    "https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"
-  ];
+  const cfg = window.SIMANIS_CONFIG;
+  const STORAGE_KEY = "simanis-session";
 
-  window.simanisReady = new Promise((resolve, reject) => {
-    let i = 0;
+  if (!cfg?.SUPABASE_URL || !cfg?.SUPABASE_PUBLISHABLE_KEY) {
+    window.simanisReady = Promise.reject(new Error("Konfigurasi SIMANIS tidak lengkap."));
+    return;
+  }
 
-    function tryNext() {
-      if (window.supabase && window.supabase.createClient) {
-        init();
-        return;
-      }
+  const base = cfg.SUPABASE_URL.replace(/\/$/, "");
+  const apikey = cfg.SUPABASE_PUBLISHABLE_KEY;
 
-      if (i >= urls.length) {
-        reject(new Error("Library Supabase gagal dimuat. Periksa koneksi internet lalu muat ulang halaman."));
-        return;
-      }
-
-      const s = document.createElement("script");
-      s.src = urls[i++];
-      s.async = true;
-      s.onload = () => {
-        if (window.supabase && window.supabase.createClient) init();
-        else tryNext();
-      };
-      s.onerror = tryNext;
-      document.head.appendChild(s);
+  function readSession() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
     }
+  }
 
-    function init() {
+  function saveSession(session) {
+    if (session) localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    else localStorage.removeItem(STORAGE_KEY);
+  }
+
+  function authHeaders(accessToken, extra = {}) {
+    const h = {
+      "apikey": apikey,
+      ...extra
+    };
+    if (accessToken) h["Authorization"] = `Bearer ${accessToken}`;
+    return h;
+  }
+
+  async function parseResponse(res) {
+    const text = await res.text();
+    let body = null;
+    try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+    if (!res.ok) {
+      const msg =
+        body?.msg ||
+        body?.message ||
+        body?.error_description ||
+        body?.error ||
+        (typeof body === "string" ? body : null) ||
+        `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return { body, res };
+  }
+
+  async function signIn(email, password) {
+    const res = await fetch(`${base}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: authHeaders(null, { "Content-Type": "application/json" }),
+      body: JSON.stringify({ email, password })
+    });
+    const { body } = await parseResponse(res);
+
+    const session = {
+      access_token: body.access_token,
+      refresh_token: body.refresh_token,
+      expires_in: body.expires_in,
+      expires_at: Math.floor(Date.now() / 1000) + (body.expires_in || 3600),
+      token_type: body.token_type || "bearer",
+      user: body.user
+    };
+    saveSession(session);
+    return session;
+  }
+
+  async function refreshSession(session) {
+    if (!session?.refresh_token) return null;
+
+    const res = await fetch(`${base}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: authHeaders(null, { "Content-Type": "application/json" }),
+      body: JSON.stringify({ refresh_token: session.refresh_token })
+    });
+    const { body } = await parseResponse(res);
+
+    const next = {
+      access_token: body.access_token,
+      refresh_token: body.refresh_token || session.refresh_token,
+      expires_in: body.expires_in,
+      expires_at: Math.floor(Date.now() / 1000) + (body.expires_in || 3600),
+      token_type: body.token_type || "bearer",
+      user: body.user || session.user
+    };
+    saveSession(next);
+    return next;
+  }
+
+  async function getSession() {
+    let session = readSession();
+    if (!session) return null;
+
+    const now = Math.floor(Date.now() / 1000);
+    if (!session.expires_at || session.expires_at <= now + 60) {
       try {
-        const cfg = window.SIMANIS_CONFIG;
-        if (!cfg?.SUPABASE_URL || !cfg?.SUPABASE_PUBLISHABLE_KEY) {
-          throw new Error("Konfigurasi Supabase tidak ditemukan.");
-        }
-
-        const client = window.supabase.createClient(
-          cfg.SUPABASE_URL,
-          cfg.SUPABASE_PUBLISHABLE_KEY,
-          {
-            auth: {
-              persistSession: true,
-              autoRefreshToken: true,
-              detectSessionInUrl: true,
-              storageKey: "simanis-auth"
-            }
-          }
-        );
-
-        window.simanis = { supabase: client };
-        resolve(window.simanis);
-      } catch (err) {
-        reject(err);
+        session = await refreshSession(session);
+      } catch {
+        saveSession(null);
+        return null;
       }
     }
+    return session;
+  }
 
-    tryNext();
+  async function getUser() {
+    const session = await getSession();
+    if (!session?.access_token) return null;
+
+    const res = await fetch(`${base}/auth/v1/user`, {
+      headers: authHeaders(session.access_token)
+    });
+    const { body } = await parseResponse(res);
+    session.user = body;
+    saveSession(session);
+    return body;
+  }
+
+  async function signOut() {
+    const session = readSession();
+    try {
+      if (session?.access_token) {
+        await fetch(`${base}/auth/v1/logout`, {
+          method: "POST",
+          headers: authHeaders(session.access_token)
+        });
+      }
+    } catch (_) {}
+    saveSession(null);
+  }
+
+  async function rest(path, options = {}) {
+    const session = await getSession();
+    if (!session?.access_token) throw new Error("Sesi login tidak ditemukan.");
+
+    const res = await fetch(`${base}/rest/v1/${path}`, {
+      ...options,
+      headers: {
+        ...authHeaders(session.access_token),
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      }
+    });
+    return parseResponse(res);
+  }
+
+  async function rpc(fn, payload = {}) {
+    const { body } = await rest(`rpc/${encodeURIComponent(fn)}`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    return body;
+  }
+
+  async function select(table, query = "") {
+    const suffix = query ? `?${query}` : "";
+    const { body } = await rest(`${table}${suffix}`, { method: "GET" });
+    return body;
+  }
+
+  async function count(table, query = "") {
+    const suffix = query ? `?${query}&select=id` : `?select=id`;
+    const session = await getSession();
+    if (!session?.access_token) throw new Error("Sesi login tidak ditemukan.");
+
+    const res = await fetch(`${base}/rest/v1/${table}${suffix}`, {
+      method: "GET",
+      headers: {
+        ...authHeaders(session.access_token),
+        "Prefer": "count=exact",
+        "Range": "0-0"
+      }
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      let msg = txt;
+      try {
+        const j = JSON.parse(txt);
+        msg = j.message || j.error || txt;
+      } catch (_) {}
+      throw new Error(msg || `HTTP ${res.status}`);
+    }
+
+    const cr = res.headers.get("content-range") || "";
+    const total = cr.includes("/") ? cr.split("/").pop() : "0";
+    return total === "*" ? 0 : Number(total || 0);
+  }
+
+  window.simanisReady = Promise.resolve({
+    auth: { signIn, getSession, getUser, signOut, refreshSession },
+    db: { rest, rpc, select, count }
   });
 })();
