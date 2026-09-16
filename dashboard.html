@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat SIMANIS...</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand">
+      <img src="logo.png" alt="Logo">
+      <div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div>
+    </div>
+
+    <div class="nav-title">MENU</div>
+    <nav id="sidebarMenu"></nav>
+
+    <div class="sidebar-footer">
+      <div class="user-mini">
+        <strong id="sideUserName">-</strong>
+        <span id="sideUserRole">-</span>
+      </div>
+      <button id="logoutBtn" class="logout-btn">Keluar</button>
+    </div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar">
+      <div>
+        <h1>SIMANIS</h1>
+        <p>Sistem Informasi MA Nurul Islam · Satu Sistem, Semua Layanan Madrasah</p>
+      </div>
+      <div class="topbar-right">
+        <strong id="headerUser">-</strong>
+        <span id="currentDate">-</span>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="hero">
+        <div>
+          <h2 id="welcomeTitle">Selamat Datang!</h2>
+          <p>Kelola data madrasah secara terintegrasi, akurat, dan mudah dipantau dalam satu sistem.</p>
+        </div>
+        <div class="hero-badge">TA 2026/2027 · GANJIL</div>
+      </section>
+
+      <section class="stats">
+        <article class="stat">
+          <div class="stat-head"><span>Total Siswa</span><span class="stat-icon">👥</span></div>
+          <div id="statStudents" class="stat-value">-</div>
+          <div class="stat-sub">Siswa aktif</div>
+        </article>
+        <article class="stat">
+          <div class="stat-head"><span>Total Guru</span><span class="stat-icon">👨‍🏫</span></div>
+          <div id="statTeachers" class="stat-value">-</div>
+          <div class="stat-sub">Guru aktif</div>
+        </article>
+        <article class="stat">
+          <div class="stat-head"><span>Total Kelas</span><span class="stat-icon">🏫</span></div>
+          <div id="statClasses" class="stat-value">-</div>
+          <div class="stat-sub">Rombel aktif</div>
+        </article>
+        <article class="stat">
+          <div class="stat-head"><span>Kehadiran Hari Ini</span><span class="stat-icon">✓</span></div>
+          <div id="statAttendance" class="stat-value">0%</div>
+          <div id="attendanceSub" class="stat-sub">Belum ada absensi siswa</div>
+        </article>
+      </section>
+
+      <section class="grid-2">
+        <article class="card">
+          <div class="card-title"><h3>Grafik Kehadiran Siswa</h3><span>7 hari terakhir</span></div>
+          <div id="attendanceChart" class="chart-bars"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-title"><h3>Jadwal Hari Ini</h3><span id="todayName">-</span></div>
+          <div id="todaySchedule" class="schedule-list"></div>
+        </article>
+      </section>
+
+      <section class="grid-2">
+        <article class="card">
+          <div class="card-title"><h3>Berita Madrasah Terbaru</h3><span>Modul Publikasi</span></div>
+          <div id="newsSection" class="news-grid">
+            <div class="news-card">
+              <div class="news-thumb">BERITA</div>
+              <div class="news-body"><span>Segera hadir</span><h4>Modul berita SIMANIS siap dihubungkan.</h4><p>Konten akan tampil otomatis setelah tabel berita dibuat.</p></div>
+            </div>
+            <div class="news-card">
+              <div class="news-thumb">PRESTASI</div>
+              <div class="news-body"><span>Segera hadir</span><h4>Prestasi siswa dan madrasah.</h4><p>Terhubung ke dashboard publikasi.</p></div>
+            </div>
+            <div class="news-card">
+              <div class="news-thumb">AGENDA</div>
+              <div class="news-body"><span>Segera hadir</span><h4>Agenda dan pengumuman terbaru.</h4><p>Data akan tampil secara realtime.</p></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-title"><h3>Ringkasan Sistem</h3><span>Realtime</span></div>
+          <div class="simple-list">
+            <div class="simple-item"><div>📚</div><div><strong id="summarySchedules">-</strong><small>Slot jadwal per minggu</small></div></div>
+            <div class="simple-item"><div>📘</div><div><strong id="summarySubjects">-</strong><small>Mata pelajaran aktif</small></div></div>
+            <div class="simple-item"><div>🔐</div><div><strong id="summaryRole">-</strong><small>Hak akses akun Anda</small></div></div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>
