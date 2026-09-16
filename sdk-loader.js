@@ -20,7 +20,8 @@
     "Kelas / Rombel": "kelas.html",
     "Mata Pelajaran": "mapel.html",
     "Jadwal Pelajaran": "jadwal.html",
-    "Absensi Guru": "absensi-guru.html"
+    "Absensi Guru": "absensi-guru.html",
+    "Absensi Siswa": "absensi-siswa.html"
   };
 
   document.addEventListener("click", function (event) {
