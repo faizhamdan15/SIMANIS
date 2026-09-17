@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id);
 let api,profile,rows=[],categories=[],modulePerm={can_view:false,can_create:false,can_update:false,can_delete:false};
-let feePlans=[],activePlan=null,bills=[],studentPayments=[],classes=[];
+let feePlans=[],activePlan=null,bills=[],studentPayments=[],classes=[],classRates=[];
 let selectedBillId=null;
 const STORAGE_BUCKET="keuangan-bukti";
 const MAX_FILE_SIZE=10*1024*1024;
@@ -34,12 +34,13 @@ async function loadMenu(){
   document.querySelectorAll('.nav-item[href="#"]').forEach(a=>a.onclick=e=>{e.preventDefault();alert(`Modul "${a.textContent.trim()}" akan diaktifkan bertahap.`)});
 }
 async function loadMaster(){
-  const [cat,plans,cls]=await Promise.all([
+  const [cat,plans,cls,rates]=await Promise.all([
     api.db.select("finance_categories","select=id,code,name,transaction_type,sort_order,is_active&is_active=eq.true&order=sort_order.asc,name.asc"),
     api.db.select("education_fee_plans","select=id,academic_year_id,name,default_amount,is_active,academic_years(name,is_active)&is_active=eq.true&order=created_at.desc"),
-    api.db.select("classes","select=id,name,grade_level&is_active=eq.true&order=grade_level.asc,name.asc")
+    api.db.select("classes","select=id,name,grade_level&is_active=eq.true&order=grade_level.asc,name.asc"),
+    api.db.select("education_fee_class_rates","select=id,plan_id,class_id,amount&order=created_at.asc")
   ]);
-  categories=cat||[];feePlans=plans||[];classes=cls||[];
+  categories=cat||[];feePlans=plans||[];classes=cls||[];classRates=rates||[];
   activePlan=feePlans.find(p=>p.academic_years?.is_active)||feePlans[0]||null;
   renderCategoryOptions();
   $("studentClassFilter").innerHTML='<option value="">Semua Kelas</option>'+classes.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
@@ -57,9 +58,8 @@ async function loadData(){
 function renderPlanCard(){
   $("planName").textContent=activePlan?.name||"Iuran Pendidikan";
   $("planYear").textContent=activePlan?.academic_years?.name?`Tahun Pelajaran ${activePlan.academic_years.name}`:"Tahun Pelajaran -";
-  $("planAmount").textContent=money(activePlan?.default_amount||0);
-  $("setPlanAmountBtn").style.display=canUpdate()?"":"none";
   $("syncBillsBtn").style.display=canCreate()?"":"none";
+  renderClassRates();
 }
 
 function setTab(name){
@@ -222,18 +222,52 @@ function renderStudentDetail(){
   document.querySelectorAll("[data-print-payment]").forEach(x=>x.onclick=()=>printPaymentReceipt(x.dataset.printPayment));
   document.querySelectorAll("[data-void-payment]").forEach(x=>x.onclick=()=>voidPayment(x.dataset.voidPayment));
 }
-async function setPlanAmount(){
+
+function rateForClass(classId){
+  return classRates.find(r=>r.plan_id===activePlan?.id&&r.class_id===classId)||null;
+}
+function renderClassRates(){
+  const holder=$("classRateGrid");
+  if(!holder)return;
+  if(!activePlan){holder.innerHTML='<div class="empty-state">Plan tahun pelajaran aktif tidak ditemukan.</div>';return}
+  holder.innerHTML=classes.map(c=>{
+    const r=rateForClass(c.id);
+    return `<div style="border:1px solid #e0e9e4;border-radius:11px;padding:10px;background:#fbfdfc">
+      <div style="font-size:9px;color:#6b7b73">${esc(c.name)}</div>
+      <div style="font-size:15px;font-weight:800;color:#0b7347;margin:3px 0">${money(r?.amount||0)}</div>
+      ${canUpdate()?`<button type="button" class="mini-btn" data-set-class-rate="${c.id}">Atur</button>`:""}
+    </div>`;
+  }).join("");
+  holder.querySelectorAll("[data-set-class-rate]").forEach(b=>b.onclick=()=>setClassRate(b.dataset.setClassRate));
+}
+async function setClassRate(classId){
   if(!activePlan||!canUpdate())return;
-  const raw=prompt(`Nominal ${activePlan.name}\nMasukkan nominal tahunan per siswa:`,String(Number(activePlan.default_amount||0)));
+  const c=classes.find(x=>x.id===classId),existing=rateForClass(classId);
+  if(!c)return;
+  const raw=prompt(`Nominal Iuran Pendidikan untuk kelas ${c.name}\nTahun Pelajaran ${activePlan.academic_years?.name||""}:`,String(Number(existing?.amount||0)));
   if(raw===null)return;
   const amount=Number(String(raw).replace(/[^\d]/g,""));
   if(!Number.isFinite(amount)||amount<=0){alert("Nominal harus lebih dari 0.");return}
-  try{await restWrite(`education_fee_plans?id=eq.${encodeURIComponent(activePlan.id)}`,"PATCH",{default_amount:amount});activePlan.default_amount=amount;renderPlanCard();alert("Nominal tahunan berhasil disimpan. Klik Sinkronkan Tagihan Siswa.")}catch(err){alert("Gagal menyimpan nominal: "+err.message)}
+  try{
+    if(existing){
+      await restWrite(`education_fee_class_rates?id=eq.${encodeURIComponent(existing.id)}`,"PATCH",{amount});
+      existing.amount=amount;
+    }else{
+      const ins=await restWrite("education_fee_class_rates","POST",{plan_id:activePlan.id,class_id:classId,amount});
+      const row=ins?.[0];if(row)classRates.push(row);
+    }
+    renderClassRates();
+  }catch(err){alert("Gagal menyimpan nominal kelas: "+err.message)}
 }
+
 async function syncBills(){
   if(!activePlan||!canCreate())return;
-  if(Number(activePlan.default_amount||0)<=0){alert("Atur nominal tahunan terlebih dahulu.");return}
-  if(!confirm(`Sinkronkan tagihan ${activePlan.name} untuk seluruh siswa aktif?\n\nNominal default: ${money(activePlan.default_amount)}\nTagihan siswa yang pernah disesuaikan tidak akan ditimpa.`))return;
+  const missing=classes.filter(c=>!rateForClass(c.id)||Number(rateForClass(c.id).amount||0)<=0);
+  if(missing.length){
+    alert(`Masih ada kelas yang nominalnya belum diatur:\n${missing.map(c=>"- "+c.name).join("\n")}`);
+    return;
+  }
+  if(!confirm(`Sinkronkan tagihan ${activePlan.name} untuk seluruh siswa aktif sesuai nominal per kelas?\n\nTagihan siswa yang sudah pernah memiliki pembayaran tidak akan ditimpa.`))return;
   try{const result=await api.db.rpc("sync_student_education_bills",{p_plan_id:activePlan.id});await loadData();alert(`Sinkronisasi selesai. ${result??""}`)}catch(err){alert("Gagal sinkronisasi: "+err.message)}
 }
 async function adjustBill(id){
@@ -293,7 +327,7 @@ function printStudentRecap(id){
 /* EVENTS */
 $("searchInput").addEventListener("input",render);$("monthFilter").addEventListener("change",render);$("typeFilter").addEventListener("change",render);$("categoryFilter").addEventListener("change",render);$("accountFilter").addEventListener("change",render);
 $("addBtn").addEventListener("click",openAdd);$("printBtn").addEventListener("click",printReport);$("csvBtn").addEventListener("click",exportCsv);$("closeModal").addEventListener("click",closeModal);$("cancelBtn").addEventListener("click",closeModal);$("deleteBtn").addEventListener("click",remove);$("form").addEventListener("submit",save);$("transactionType").addEventListener("change",renderCategoryOptions);$("accountType").addEventListener("change",toggleBank);$("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
-$("setPlanAmountBtn").addEventListener("click",setPlanAmount);$("syncBillsBtn").addEventListener("click",syncBills);
+$("syncBillsBtn").addEventListener("click",syncBills);
 $("studentClassFilter").addEventListener("change",()=>{renderStudentSelect();$("studentFilter").value="";selectedBillId=null;renderStudentModule()});
 $("studentFilter").addEventListener("change",()=>{const id=$("studentFilter").value,b=planBills().find(x=>x.student_id===id);selectedBillId=b?.id||null;renderStudentModule()});
 $("studentSearch").addEventListener("input",renderStudentModule);

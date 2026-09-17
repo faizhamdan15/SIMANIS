@@ -54,7 +54,7 @@
     .row-actions button{width:auto}
     @media(max-width:1180px){.finance-stats,.student-pay-stats{grid-template-columns:repeat(3,1fr)}.finance-toolbar{grid-template-columns:1fr 1fr 1fr}.student-layout{grid-template-columns:1fr}.student-detail{position:static}}
     @media(max-width:850px){.finance-stats,.student-pay-stats{grid-template-columns:1fr 1fr}.finance-table-wrap,.student-table-wrap{display:none}.finance-cards,.student-cards{display:grid}.finance-toolbar,.student-toolbar{grid-template-columns:1fr 1fr}}
-    @media(max-width:560px){.finance-stats,.student-pay-stats,.finance-toolbar,.student-toolbar,.detail-grid{grid-template-columns:1fr}.finance-actions{justify-content:flex-start}}
+    @media(max-width:850px){#classRateGrid{grid-template-columns:1fr 1fr!important}}@media(max-width:560px){.finance-stats,.student-pay-stats,.finance-toolbar,.student-toolbar,.detail-grid{grid-template-columns:1fr}.finance-actions{justify-content:flex-start}#classRateGrid{grid-template-columns:1fr!important}}
   </style>
 </head>
 <body>
@@ -122,13 +122,13 @@
             <div>
               <h3 id="planName">Iuran Pendidikan</h3>
               <p id="planYear">Tahun Pelajaran -</p>
-              <div id="planAmount" class="plan-amount">Rp0</div>
+              <div class="field-hint" style="margin-top:7px">Nominal iuran diatur per kelas untuk satu tahun pelajaran.</div>
             </div>
             <div class="finance-actions">
-              <button id="setPlanAmountBtn" class="secondary-btn">Atur Nominal Tahunan</button>
               <button id="syncBillsBtn" class="primary-btn">Sinkronkan Tagihan Siswa</button>
             </div>
           </div>
+          <div id="classRateGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px"></div>
         </section>
 
         <section class="student-pay-stats">
