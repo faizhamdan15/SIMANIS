@@ -1,0 +1,173 @@
+const $=id=>document.getElementById(id);
+let api,profile,overview={school:{},academic_years:[],semesters:[],users:[],teachers:[],modules:[],permissions:[]};
+const ROLES=["SUPER_ADMIN","KEPALA_MADRASAH","TU","WAKA_KURIKULUM","WAKA_KESISWAAN","BENDAHARA","GURU","WALI_KELAS"];
+const BRAND_BUCKET="system-branding";
+
+function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function roleLabel(r){return String(r||"-").replaceAll("_"," ")}
+function fmtDate(v){return v?new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",year:"numeric"}).format(new Date(v+"T00:00:00")):"-"}
+function fmtDateTime(v){return v?new Intl.DateTimeFormat("id-ID",{dateStyle:"medium",timeStyle:"short"}).format(new Date(v)):"-"}
+function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
+function routeFor(code){return{DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"}[code]||"#"}
+
+async function loadProfile(user){
+ const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
+ if(!r?.[0])throw new Error("Profil pengguna tidak ditemukan.");
+ if(!r[0].is_active)throw new Error("Akun tidak aktif.");
+ if(r[0].role!=="SUPER_ADMIN")throw new Error("Pengaturan Sistem hanya dapat diakses SUPER ADMIN.");
+ return r[0];
+}
+async function loadMenu(){
+ const m=await api.db.rpc("get_my_modules",{});
+ $("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${x.code==="PENGATURAN"?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("");
+}
+async function loadOverview(){
+ overview=await api.db.rpc("settings_get_overview",{})||{};
+ overview.school=overview.school||{};overview.academic_years=overview.academic_years||[];overview.semesters=overview.semesters||[];overview.users=overview.users||[];overview.teachers=overview.teachers||[];overview.modules=overview.modules||[];overview.permissions=overview.permissions||[];
+ renderAll();
+}
+function setTab(name){
+ document.querySelectorAll(".settings-tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
+ ["Identity","Academic","Users","Permissions","System"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
+}
+document.querySelectorAll(".settings-tab").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+
+function renderAll(){renderSchool();renderAcademic();renderUsers();renderPermissions();renderModules()}
+
+/* IDENTITY */
+function field(id,key){$(id).value=overview.school?.[key]||""}
+function renderSchool(){
+ field("schoolName","school_name");field("schoolShortName","school_short_name");field("foundationName","foundation_name");field("tagline","tagline");field("nsm","nsm");field("npsn","npsn");field("address","address");field("village","village");field("district","district");field("regency","regency");field("province","province");field("postalCode","postal_code");field("schoolPhone","phone");field("schoolEmail","email");field("website","website");field("headmasterName","headmaster_name");
+ $("logoPreview").src=overview.school?.logo_url||"logo.png";$("brandSchoolName").textContent=overview.school?.school_name||"MA Nurul Islam";$("brandFoundation").textContent=overview.school?.foundation_name||"-";$("brandTagline").textContent=overview.school?.tagline||"-";
+}
+function val(id){return $(id).value.trim()||null}
+async function saveSchool(e){
+ e.preventDefault();const msg=$("schoolMessage");msg.className="message";msg.textContent="Menyimpan...";
+ try{
+  await api.db.rpc("settings_save_school",{
+   p_school_name:val("schoolName"),p_school_short_name:val("schoolShortName"),p_foundation_name:val("foundationName"),p_tagline:val("tagline"),p_nsm:val("nsm"),p_npsn:val("npsn"),p_address:val("address"),p_village:val("village"),p_district:val("district"),p_regency:val("regency"),p_province:val("province"),p_postal_code:val("postalCode"),p_phone:val("schoolPhone"),p_email:val("schoolEmail"),p_website:val("website"),p_headmaster_name:val("headmasterName"),p_logo_path:overview.school?.logo_path||null,p_logo_url:overview.school?.logo_url||null
+  });
+  await loadOverview();msg.className="message ok";msg.textContent="Identitas madrasah berhasil disimpan.";
+ }catch(err){msg.textContent="Gagal: "+err.message}
+}
+function ext(name){const p=String(name||"").split(".");return p.length>1?p.pop().toLowerCase().replace(/[^a-z0-9]/g,""):"png"}
+async function uploadLogo(){
+ const file=$("logoFile").files?.[0];if(!file){alert("Pilih file logo terlebih dahulu.");return}
+ if(file.size>2*1024*1024){alert("Ukuran logo maksimal 2 MB.");return}
+ if(!["image/png","image/jpeg","image/webp"].includes(file.type)){alert("Logo harus PNG, JPG, atau WEBP.");return}
+ const btn=$("uploadLogoBtn");btn.disabled=true;btn.textContent="Upload...";
+ try{
+  const session=await api.auth.getSession();const cfg=window.SIMANIS_CONFIG,stamp=Date.now(),path=`logo-${stamp}.${ext(file.name)}`;
+  const res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/${BRAND_BUCKET}/${path}`,{method:"POST",headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":file.type,"x-upsert":"false"},body:file});
+  const txt=await res.text();if(!res.ok)throw new Error(txt);
+  const url=`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/public/${BRAND_BUCKET}/${path}`;
+  overview.school.logo_path=path;overview.school.logo_url=url;$("logoPreview").src=url;
+  await api.db.rpc("settings_save_school",{p_school_name:val("schoolName"),p_school_short_name:val("schoolShortName"),p_foundation_name:val("foundationName"),p_tagline:val("tagline"),p_nsm:val("nsm"),p_npsn:val("npsn"),p_address:val("address"),p_village:val("village"),p_district:val("district"),p_regency:val("regency"),p_province:val("province"),p_postal_code:val("postalCode"),p_phone:val("schoolPhone"),p_email:val("schoolEmail"),p_website:val("website"),p_headmaster_name:val("headmasterName"),p_logo_path:path,p_logo_url:url});
+  alert("Logo berhasil diupload dan disimpan.");
+ }catch(err){alert("Upload logo gagal: "+err.message)}
+ finally{btn.disabled=false;btn.textContent="Upload Logo"}
+}
+
+/* ACADEMIC */
+function renderAcademic(){
+ const years=overview.academic_years||[],sems=overview.semesters||[];
+ $("yearList").innerHTML=years.length?years.map(y=>`<div class="period-item"><div><h4>${esc(y.name)} ${y.is_active?'<span class="status-dot active-period">AKTIF</span>':""}</h4><p>${fmtDate(y.start_date)} — ${fmtDate(y.end_date)}</p></div><button class="mini-btn" data-edit-year="${y.id}">Edit</button></div>`).join(""):'<div class="empty-state">Belum ada tahun pelajaran.</div>';
+ $("semesterList").innerHTML=sems.length?sems.map(s=>`<div class="period-item"><div><h4>${esc(s.name)} · ${esc(s.academic_year_name)} ${s.is_active?'<span class="status-dot active-period">AKTIF</span>':""}</h4><p>${fmtDate(s.start_date)} — ${fmtDate(s.end_date)}</p></div><button class="mini-btn" data-edit-semester="${s.id}">Edit</button></div>`).join(""):'<div class="empty-state">Belum ada semester.</div>';
+ document.querySelectorAll("[data-edit-year]").forEach(b=>b.onclick=()=>openYearModal(b.dataset.editYear));
+ document.querySelectorAll("[data-edit-semester]").forEach(b=>b.onclick=()=>openSemesterModal(b.dataset.editSemester));
+
+ $("activeYearSelect").innerHTML=years.map(y=>`<option value="${y.id}">${esc(y.name)}</option>`).join("");
+ const activeYear=years.find(y=>y.is_active)||years[0];if(activeYear)$("activeYearSelect").value=activeYear.id;
+ renderActiveSemesterOptions();
+ $("semesterYear").innerHTML=years.map(y=>`<option value="${y.id}">${esc(y.name)}</option>`).join("");
+}
+function renderActiveSemesterOptions(){
+ const y=$("activeYearSelect").value||overview.academic_years.find(x=>x.is_active)?.id;
+ const list=overview.semesters.filter(s=>s.academic_year_id===y);
+ $("activeSemesterSelect").innerHTML=list.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");
+ const active=list.find(s=>s.is_active);if(active)$("activeSemesterSelect").value=active.id;
+}
+function openPeriodModal(type){$("periodForm").reset();$("periodId").value="";$("periodType").value=type;$("periodFormMessage").textContent="";$("yearFields").classList.toggle("hidden",type!=="year");$("semesterFields").classList.toggle("hidden",type!=="semester");$("periodModalTitle").textContent=type==="year"?"Tambah Tahun Pelajaran":"Tambah Semester";if(type==="semester"){const active=overview.academic_years.find(y=>y.is_active)||overview.academic_years[0];if(active)$("semesterYear").value=active.id}$("periodModal").classList.remove("hidden")}
+function openYearModal(id){const y=overview.academic_years.find(x=>x.id===id);if(!y)return;openPeriodModal("year");$("periodId").value=id;$("periodModalTitle").textContent="Edit Tahun Pelajaran";$("yearName").value=y.name||"";$("yearStart").value=y.start_date||"";$("yearEnd").value=y.end_date||""}
+function openSemesterModal(id){const s=overview.semesters.find(x=>x.id===id);if(!s)return;openPeriodModal("semester");$("periodId").value=id;$("periodModalTitle").textContent="Edit Semester";$("semesterYear").value=s.academic_year_id;$("semesterName").value=s.name;$("semesterStart").value=s.start_date||"";$("semesterEnd").value=s.end_date||""}
+function closePeriodModal(){$("periodModal").classList.add("hidden")}
+async function savePeriod(e){
+ e.preventDefault();const type=$("periodType").value,msg=$("periodFormMessage");msg.textContent="Menyimpan...";
+ try{
+  if(type==="year")await api.db.rpc("settings_upsert_academic_year",{p_id:$("periodId").value||null,p_name:$("yearName").value.trim(),p_start_date:$("yearStart").value||null,p_end_date:$("yearEnd").value||null});
+  else await api.db.rpc("settings_upsert_semester",{p_id:$("periodId").value||null,p_academic_year_id:$("semesterYear").value,p_name:$("semesterName").value,p_start_date:$("semesterStart").value||null,p_end_date:$("semesterEnd").value||null});
+  closePeriodModal();await loadOverview();
+ }catch(err){msg.textContent="Gagal: "+err.message}
+}
+async function activatePeriod(){
+ const year=$("activeYearSelect").value,sem=$("activeSemesterSelect").value;if(!year||!sem){alert("Pilih tahun pelajaran dan semester.");return}
+ const y=overview.academic_years.find(x=>x.id===year),s=overview.semesters.find(x=>x.id===sem);
+ if(!confirm(`Aktifkan ${y?.name||""} - ${s?.name||""} sebagai periode berjalan?\n\nPerubahan ini memengaruhi banyak modul SIMANIS.`))return;
+ const msg=$("periodMessage");msg.textContent="Mengaktifkan...";
+ try{await api.db.rpc("settings_set_active_period",{p_academic_year_id:year,p_semester_id:sem});await loadOverview();msg.className="message ok";msg.textContent="Periode aktif berhasil diperbarui."}catch(err){msg.className="message";msg.textContent="Gagal: "+err.message}
+}
+
+/* USERS */
+function renderRoleOptions(){
+ const opts=ROLES.map(r=>`<option value="${r}">${roleLabel(r)}</option>`).join("");
+ $("userRoleFilter").innerHTML='<option value="">Semua Role</option>'+opts;$("userRole").innerHTML=opts;$("permissionRole").innerHTML=ROLES.filter(r=>r!=="SUPER_ADMIN").map(r=>`<option value="${r}">${roleLabel(r)}</option>`).join("");
+}
+function filteredUsers(){
+ const q=$("userSearch").value.trim().toLowerCase(),role=$("userRoleFilter").value;
+ return overview.users.filter(u=>(!role||u.role===role)&&(!q||`${u.full_name||""} ${u.email||""}`.toLowerCase().includes(q)));
+}
+function renderUsers(){
+ renderRoleOptions();const list=filteredUsers();
+ $("userBody").innerHTML=list.length?list.map(u=>`<tr><td><b>${esc(u.full_name||"-")}</b><br><span style="color:#73827b">${esc(u.email||"-")}</span></td><td>${esc(roleLabel(u.role))}</td><td>${esc(u.teacher_name||"-")}</td><td><span class="status-dot ${u.is_active?"on":"off"}">${u.is_active?"AKTIF":"NONAKTIF"}</span></td><td>${fmtDateTime(u.last_login_at)}</td><td><button class="mini-btn" data-edit-user="${u.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="6"><div class="empty-state">Pengguna tidak ditemukan.</div></td></tr>';
+ document.querySelectorAll("[data-edit-user]").forEach(b=>b.onclick=()=>openUser(b.dataset.editUser));
+}
+function openUser(id){
+ const u=overview.users.find(x=>x.id===id);if(!u)return;$("userForm").reset();$("userId").value=id;$("userFullName").value=u.full_name||"";$("userPhone").value=u.phone||"";$("userRole").value=u.role;$("userActive").value=String(!!u.is_active);$("userTeacher").innerHTML='<option value="">Tidak terhubung</option>'+overview.teachers.map(t=>`<option value="${t.id}">${esc(t.teacher_code||"-")} · ${esc(t.full_name)}</option>`).join("");$("userTeacher").value=u.teacher_id||"";$("userMessage").textContent="";$("userModal").classList.remove("hidden")
+}
+function closeUser(){$("userModal").classList.add("hidden")}
+async function saveUser(e){
+ e.preventDefault();const msg=$("userMessage");msg.textContent="Menyimpan...";
+ try{await api.db.rpc("settings_update_user",{p_user_id:$("userId").value,p_full_name:$("userFullName").value.trim(),p_phone:$("userPhone").value.trim()||null,p_role:$("userRole").value,p_is_active:$("userActive").value==="true",p_teacher_id:$("userTeacher").value||null});closeUser();await loadOverview()}catch(err){msg.textContent="Gagal: "+err.message}
+}
+
+/* PERMISSIONS */
+function renderPermissions(){
+ const role=$("permissionRole").value||ROLES.find(r=>r!=="SUPER_ADMIN");if(!$("permissionRole").value)$("permissionRole").value=role;
+ const list=overview.permissions.filter(p=>p.role===role).sort((a,b)=>a.module_sort_order-b.module_sort_order);
+ $("permissionBody").innerHTML=list.map(p=>`<tr><td><b>${esc(p.module_name)}</b><br><span style="color:#7c8983">${esc(p.module_code)}</span></td><td><input class="perm-check" type="checkbox" data-perm="view" data-module="${p.module_code}" ${p.can_view?"checked":""} ${p.module_code==="PENGATURAN"?"disabled":""}></td><td><input class="perm-check" type="checkbox" data-perm="create" data-module="${p.module_code}" ${p.can_create?"checked":""} ${p.module_code==="PENGATURAN"?"disabled":""}></td><td><input class="perm-check" type="checkbox" data-perm="update" data-module="${p.module_code}" ${p.can_update?"checked":""} ${p.module_code==="PENGATURAN"?"disabled":""}></td><td><input class="perm-check" type="checkbox" data-perm="delete" data-module="${p.module_code}" ${p.can_delete?"checked":""} ${p.module_code==="PENGATURAN"?"disabled":""}></td><td>${p.module_code==="PENGATURAN"?'<span style="font-size:8px;color:#777">Terkunci</span>':`<button class="mini-btn" data-save-perm="${p.module_code}">Simpan</button>`}</td></tr>`).join("");
+ document.querySelectorAll("[data-save-perm]").forEach(b=>b.onclick=()=>savePermission(b.dataset.savePerm));
+}
+async function savePermission(moduleCode){
+ const role=$("permissionRole").value,row=[...$("permissionBody").querySelectorAll(`input[data-module="${moduleCode}"]`)],get=t=>row.find(x=>x.dataset.perm===t)?.checked||false;
+ try{await api.db.rpc("settings_set_permission",{p_role:role,p_module_code:moduleCode,p_can_view:get("view"),p_can_create:get("create"),p_can_update:get("update"),p_can_delete:get("delete")});await loadOverview();$("permissionRole").value=role;renderPermissions()}catch(err){alert("Gagal menyimpan hak akses: "+err.message)}
+}
+
+/* MODULES / SYSTEM */
+function renderModules(){
+ $("moduleGrid").innerHTML=overview.modules.map(m=>`<article class="module-card"><h4>${esc(m.name)}</h4><p>${esc(m.code)} · ${esc(m.route||"-")}</p><div class="module-controls"><label style="display:flex;gap:5px;align-items:center;font-size:8px"><input type="checkbox" data-module-active="${m.code}" ${m.is_active?"checked":""} ${["DASHBOARD","PENGATURAN"].includes(m.code)?"disabled":""}> Aktif</label><input type="number" min="0" data-module-order="${m.code}" value="${Number(m.sort_order||0)}"><button class="mini-btn" data-save-module="${m.code}">Simpan</button></div></article>`).join("");
+ document.querySelectorAll("[data-save-module]").forEach(b=>b.onclick=()=>saveModule(b.dataset.saveModule));
+}
+async function saveModule(code){
+ const active=document.querySelector(`[data-module-active="${code}"]`)?.checked??true,order=Number(document.querySelector(`[data-module-order="${code}"]`)?.value||0);
+ try{await api.db.rpc("settings_set_module",{p_module_code:code,p_is_active:active,p_sort_order:order});await loadOverview()}catch(err){alert("Gagal menyimpan modul: "+err.message)}
+}
+function exportConfig(){
+ const safe={exported_at:new Date().toISOString(),school:overview.school,academic_years:overview.academic_years,semesters:overview.semesters,users:overview.users.map(({id,email,full_name,username,phone,role,is_active,teacher_id,teacher_name})=>({id,email,full_name,username,phone,role,is_active,teacher_id,teacher_name})),modules:overview.modules,permissions:overview.permissions};
+ const blob=new Blob([JSON.stringify(safe,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`simanis-konfigurasi-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)
+}
+
+/* EVENTS */
+$("schoolForm").onsubmit=saveSchool;$("uploadLogoBtn").onclick=uploadLogo;
+$("addYearBtn").onclick=()=>openPeriodModal("year");$("addSemesterBtn").onclick=()=>openPeriodModal("semester");$("periodModalClose").onclick=closePeriodModal;$("periodCancelBtn").onclick=closePeriodModal;$("periodForm").onsubmit=savePeriod;$("activeYearSelect").onchange=renderActiveSemesterOptions;$("activatePeriodBtn").onclick=activatePeriod;
+$("userSearch").oninput=renderUsers;$("userRoleFilter").onchange=renderUsers;$("userModalClose").onclick=closeUser;$("userCancelBtn").onclick=closeUser;$("userForm").onsubmit=saveUser;
+$("permissionRole").onchange=renderPermissions;$("exportConfigBtn").onclick=exportConfig;$("refreshBtn").onclick=loadOverview;
+$("periodModal").onclick=e=>{if(e.target===$("periodModal"))closePeriodModal()};$("userModal").onclick=e=>{if(e.target===$("userModal"))closeUser()};
+
+(async()=>{
+ try{
+  api=await window.simanisReady;const user=await api.auth.getUser();if(!user){location.href="index.html";return}
+  profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name||"Pengguna";$("sideUserRole").textContent=roleLabel(profile.role);$("headerUser").textContent=profile.full_name||"Pengguna";$("currentDate").textContent=localDateID();
+  await loadMenu();await loadOverview();$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"}
+ }catch(err){console.error(err);alert("Pengaturan Sistem gagal dimuat: "+err.message)}
+ finally{$("loading").style.display="none"}
+})();

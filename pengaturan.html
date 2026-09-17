@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Pengaturan Sistem — SIMANIS</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .settings-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+    .settings-tab{border:1px solid #d8e3dd;background:#fff;color:#52655c;border-radius:11px;padding:10px 13px;font-weight:800;font-size:9px;cursor:pointer}
+    .settings-tab.active{background:#0b7347;color:#fff;border-color:#0b7347}
+    .settings-panel.hidden{display:none}
+    .settings-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 6px 18px rgba(5,79,50,.05);margin-bottom:14px}
+    .settings-card h3{font-size:14px;color:var(--green-950);margin:0 0 5px}
+    .settings-card>p{font-size:9px;color:var(--muted);margin:0 0 13px;line-height:1.55}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+    .form-grid .full{grid-column:1/-1}
+    label span{display:block;font-size:9px;font-weight:800;margin-bottom:5px;color:#465b52}
+    input,select,textarea{width:100%;border:1px solid #d5e1db;border-radius:11px;padding:10px 11px;background:#fff;font:inherit;font-size:10px}
+    textarea{resize:vertical}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:13px}
+    .actions button{width:auto}
+    .brand-preview{display:flex;align-items:center;gap:13px;background:#f7faf8;border:1px solid #e1eae5;border-radius:13px;padding:12px}
+    .brand-preview img{width:70px;height:70px;object-fit:contain;border-radius:12px;background:#fff;border:1px solid #dce6e1;padding:4px}
+    .brand-preview h4{margin:0 0 3px;font-size:13px}.brand-preview p{margin:2px 0;font-size:8.5px;color:#65766e}
+    .table-wrap{overflow:auto;border:1px solid #e0e8e4;border-radius:13px}
+    .settings-table{width:100%;border-collapse:collapse;min-width:760px}
+    .settings-table th{background:#f6f9f7;text-align:left;padding:9px;font-size:8.5px;color:#63736b;border-bottom:1px solid #e0e8e4}
+    .settings-table td{padding:9px;font-size:9px;border-bottom:1px solid #edf1ef;vertical-align:middle}
+    .settings-table tr:last-child td{border-bottom:0}
+    .status-dot{display:inline-flex;padding:4px 7px;border-radius:999px;font-size:8px;font-weight:900}
+    .on{background:#e0f5e8;color:#08733f}.off{background:#eceff2;color:#666}.active-period{background:#fff0bd;color:#745800}
+    .period-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .period-list{display:grid;gap:8px}
+    .period-item{border:1px solid #e1e9e5;border-radius:12px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .period-item h4{margin:0 0 4px;font-size:11px}.period-item p{margin:2px 0;font-size:8.5px;color:#67776f}
+    .period-item button{width:auto}
+    .user-filter{display:grid;grid-template-columns:1fr .7fr;gap:10px;margin-bottom:12px}
+    .perm-head{display:flex;justify-content:space-between;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:10px}
+    .perm-head label{min-width:230px}
+    .perm-check{width:17px;height:17px;accent-color:#0b7347}
+    .module-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+    .module-card{border:1px solid #e0e9e4;border-radius:12px;padding:11px;background:#fbfdfc}
+    .module-card h4{margin:0 0 5px;font-size:11px}.module-card p{margin:2px 0;font-size:8px;color:#687870}
+    .module-controls{display:flex;align-items:center;gap:7px;margin-top:8px}
+    .module-controls input[type=number]{width:75px}
+    .message{font-size:9px;min-height:16px;margin-top:7px;color:#a13d35}.message.ok{color:#08733f}
+    .security-box{background:#f7faf8;border-left:4px solid #0b7347;border-radius:10px;padding:11px;font-size:9px;line-height:1.6;color:#4e6258}
+    .logo-input{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.logo-input input{flex:1;min-width:220px}
+    @media(max-width:950px){.period-grid{grid-template-columns:1fr}.module-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:650px){.form-grid,.user-filter{grid-template-columns:1fr}.module-grid{grid-template-columns:1fr}.actions{justify-content:flex-start}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Pengaturan Sistem...</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar">
+      <div><h1>SIMANIS</h1><p>Pengaturan Sistem</p></div>
+      <div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div>
+    </header>
+
+    <main class="main">
+      <section class="page-head">
+        <div><h2>Pengaturan Sistem</h2><p>Pusat konfigurasi SIMANIS. Akses khusus SUPER ADMIN.</p></div>
+        <div><button id="refreshBtn" class="secondary-btn">↻ Refresh</button></div>
+      </section>
+
+      <div class="settings-tabs">
+        <button class="settings-tab active" data-tab="identity">Identitas Madrasah</button>
+        <button class="settings-tab" data-tab="academic">Tahun & Semester</button>
+        <button class="settings-tab" data-tab="users">Pengguna</button>
+        <button class="settings-tab" data-tab="permissions">Hak Akses</button>
+        <button class="settings-tab" data-tab="system">Modul & Sistem</button>
+      </div>
+
+      <section id="panelIdentity" class="settings-panel">
+        <article class="settings-card">
+          <h3>Identitas Madrasah</h3>
+          <p>Data ini menjadi identitas pusat SIMANIS dan branding aplikasi.</p>
+          <form id="schoolForm">
+            <div class="form-grid">
+              <label><span>Nama Madrasah *</span><input id="schoolName" required/></label>
+              <label><span>Nama Singkat</span><input id="schoolShortName"/></label>
+              <label class="full"><span>Nama Yayasan</span><input id="foundationName"/></label>
+              <label class="full"><span>Tagline</span><input id="tagline"/></label>
+              <label><span>NSM</span><input id="nsm"/></label>
+              <label><span>NPSN</span><input id="npsn"/></label>
+              <label class="full"><span>Alamat</span><textarea id="address" rows="3"></textarea></label>
+              <label><span>Desa/Kelurahan</span><input id="village"/></label>
+              <label><span>Kecamatan</span><input id="district"/></label>
+              <label><span>Kabupaten</span><input id="regency"/></label>
+              <label><span>Provinsi</span><input id="province"/></label>
+              <label><span>Kode Pos</span><input id="postalCode"/></label>
+              <label><span>Telepon</span><input id="schoolPhone"/></label>
+              <label><span>Email</span><input id="schoolEmail" type="email"/></label>
+              <label><span>Website</span><input id="website"/></label>
+              <label><span>Kepala Madrasah</span><input id="headmasterName"/></label>
+              <div class="full">
+                <span style="display:block;font-size:9px;font-weight:800;margin-bottom:5px">Logo</span>
+                <div class="logo-input">
+                  <input id="logoFile" type="file" accept=".png,.jpg,.jpeg,.webp"/>
+                  <button id="uploadLogoBtn" type="button" class="secondary-btn" style="width:auto">Upload Logo</button>
+                </div>
+                <div class="field-hint" style="font-size:8.5px;color:#75847d;margin-top:5px">PNG/JPG/WEBP maksimal 2 MB. Logo baru akan dipakai oleh sidebar/login melalui sdk-loader.</div>
+              </div>
+              <div class="full brand-preview">
+                <img id="logoPreview" src="logo.png" alt="Logo">
+                <div><h4 id="brandSchoolName">MA Nurul Islam</h4><p id="brandFoundation">-</p><p id="brandTagline">-</p></div>
+              </div>
+            </div>
+            <div id="schoolMessage" class="message"></div>
+            <div class="actions"><button class="primary-btn" type="submit">Simpan Identitas</button></div>
+          </form>
+        </article>
+      </section>
+
+      <section id="panelAcademic" class="settings-panel hidden">
+        <div class="period-grid">
+          <article class="settings-card">
+            <h3>Tahun Pelajaran</h3>
+            <p>Tambah atau koreksi rentang tahun pelajaran. Aktivasi dilakukan bersama semester.</p>
+            <div id="yearList" class="period-list"></div>
+            <div class="actions"><button id="addYearBtn" class="primary-btn">+ Tahun Pelajaran</button></div>
+          </article>
+          <article class="settings-card">
+            <h3>Semester</h3>
+            <p>Semester terhubung ke tahun pelajaran. Hanya satu semester yang aktif di sistem.</p>
+            <div id="semesterList" class="period-list"></div>
+            <div class="actions"><button id="addSemesterBtn" class="primary-btn">+ Semester</button></div>
+          </article>
+        </div>
+
+        <article class="settings-card">
+          <h3>Periode Aktif</h3>
+          <p>Mengubah periode aktif memengaruhi data yang dianggap sebagai tahun/semester berjalan pada banyak modul.</p>
+          <div class="form-grid">
+            <label><span>Tahun Pelajaran Aktif</span><select id="activeYearSelect"></select></label>
+            <label><span>Semester Aktif</span><select id="activeSemesterSelect"></select></label>
+          </div>
+          <div id="periodMessage" class="message"></div>
+          <div class="actions"><button id="activatePeriodBtn" class="primary-btn">Aktifkan Periode</button></div>
+        </article>
+      </section>
+
+      <section id="panelUsers" class="settings-panel hidden">
+        <article class="settings-card">
+          <h3>Pengguna SIMANIS</h3>
+          <p>Atur role, status akun, dan hubungan akun dengan guru. Pembuatan akun Auth baru tetap dilakukan melalui Supabase Authentication.</p>
+          <div class="user-filter">
+            <input id="userSearch" type="search" placeholder="Cari nama / email..."/>
+            <select id="userRoleFilter"><option value="">Semua Role</option></select>
+          </div>
+          <div class="table-wrap">
+            <table class="settings-table">
+              <thead><tr><th>Pengguna</th><th>Role</th><th>Guru Terkait</th><th>Status</th><th>Login Terakhir</th><th>Aksi</th></tr></thead>
+              <tbody id="userBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="panelPermissions" class="settings-panel hidden">
+        <article class="settings-card">
+          <div class="perm-head">
+            <div><h3>Hak Akses per Role</h3><p style="margin:3px 0;font-size:9px;color:var(--muted)">SUPER ADMIN dikunci penuh. Modul Pengaturan tidak dapat diberikan ke role lain.</p></div>
+            <label><span>Pilih Role</span><select id="permissionRole"></select></label>
+          </div>
+          <div class="table-wrap">
+            <table class="settings-table">
+              <thead><tr><th>Modul</th><th>Lihat</th><th>Tambah</th><th>Ubah</th><th>Hapus</th><th>Aksi</th></tr></thead>
+              <tbody id="permissionBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="panelSystem" class="settings-panel hidden">
+        <article class="settings-card">
+          <h3>Modul SIMANIS</h3>
+          <p>Aktif/nonaktifkan modul dan ubah urutan sidebar. Dashboard dan Pengaturan dikunci aktif.</p>
+          <div id="moduleGrid" class="module-grid"></div>
+        </article>
+
+        <article class="settings-card">
+          <h3>Ekspor Konfigurasi</h3>
+          <p>Unduh salinan JSON berisi identitas, tahun/semester, daftar pengguna, modul, dan matriks hak akses. Ini adalah ekspor konfigurasi, bukan backup database penuh.</p>
+          <div class="actions" style="justify-content:flex-start"><button id="exportConfigBtn" class="secondary-btn">⬇️ Export Konfigurasi JSON</button></div>
+        </article>
+
+        <article class="settings-card">
+          <h3>Keamanan Sistem</h3>
+          <div class="security-box">
+            Kolom sensitif profil seperti <b>role</b>, <b>is_active</b>, dan <b>teacher_id</b> tidak lagi dapat diubah melalui update profil biasa. Perubahan hanya dilakukan lewat fungsi Pengaturan yang memverifikasi SUPER ADMIN. Ini menutup risiko pengguna menaikkan hak aksesnya sendiri.
+          </div>
+        </article>
+      </section>
+    </main>
+  </section>
+</div>
+
+<div id="periodModal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head"><h3 id="periodModalTitle">Periode</h3><button id="periodModalClose" class="modal-close">✕</button></div>
+    <form id="periodForm">
+      <div class="modal-body">
+        <input id="periodId" type="hidden"/><input id="periodType" type="hidden"/>
+        <div id="yearFields" class="form-grid">
+          <label class="full"><span>Nama Tahun Pelajaran</span><input id="yearName" placeholder="2027/2028"/></label>
+          <label><span>Mulai</span><input id="yearStart" type="date"/></label>
+          <label><span>Selesai</span><input id="yearEnd" type="date"/></label>
+        </div>
+        <div id="semesterFields" class="form-grid hidden">
+          <label class="full"><span>Tahun Pelajaran</span><select id="semesterYear"></select></label>
+          <label class="full"><span>Semester</span><select id="semesterName"><option value="GANJIL">GANJIL</option><option value="GENAP">GENAP</option></select></label>
+          <label><span>Mulai</span><input id="semesterStart" type="date"/></label>
+          <label><span>Selesai</span><input id="semesterEnd" type="date"/></label>
+        </div>
+        <div id="periodFormMessage" class="message"></div>
+      </div>
+      <div class="modal-actions"><button type="button" id="periodCancelBtn" class="secondary-btn">Batal</button><button type="submit" class="primary-btn" style="width:auto">Simpan</button></div>
+    </form>
+  </div>
+</div>
+
+<div id="userModal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head"><h3>Edit Pengguna</h3><button id="userModalClose" class="modal-close">✕</button></div>
+    <form id="userForm">
+      <div class="modal-body">
+        <input id="userId" type="hidden"/>
+        <div class="form-grid">
+          <label class="full"><span>Nama</span><input id="userFullName"/></label>
+          <label><span>No. HP</span><input id="userPhone"/></label>
+          <label><span>Role</span><select id="userRole"></select></label>
+          <label class="full"><span>Hubungkan Guru</span><select id="userTeacher"><option value="">Tidak terhubung</option></select></label>
+          <label class="full"><span>Status Akun</span><select id="userActive"><option value="true">AKTIF</option><option value="false">NONAKTIF</option></select></label>
+        </div>
+        <div id="userMessage" class="message"></div>
+      </div>
+      <div class="modal-actions"><button type="button" id="userCancelBtn" class="secondary-btn">Batal</button><button type="submit" class="primary-btn" style="width:auto">Simpan</button></div>
+    </form>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script src="pengaturan.js"></script>
+</body>
+</html>

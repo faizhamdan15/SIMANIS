@@ -28,7 +28,8 @@
     "Pengumuman": "pengumuman.html",
     "Agenda Madrasah": "agenda.html",
     "Keuangan": "keuangan.html",
-    "Portal Wali Siswa": "wali-admin.html"
+    "Portal Wali Siswa": "wali-admin.html",
+    "Pengaturan": "pengaturan.html"
   };
 
   document.addEventListener("click", function (event) {
@@ -193,6 +194,40 @@
     const cr = res.headers.get("content-range") || "";
     const total = cr.includes("/") ? cr.split("/").pop() : "0";
     return total === "*" ? 0 : Number(total || 0);
+  }
+
+
+  // Branding publik: dapat dibaca sebelum login tanpa membuka data sensitif.
+  async function applyPublicBranding() {
+    try {
+      const res = await fetch(`${base}/rest/v1/rpc/get_public_system_settings`, {
+        method: "POST",
+        headers: { "apikey": apikey, "Content-Type": "application/json" },
+        body: "{}"
+      });
+      if (!res.ok) return;
+      const brand = await res.json();
+      if (!brand || typeof brand !== "object") return;
+
+      if (brand.logo_url) {
+        document.querySelectorAll('img[src="logo.png"], img[src$="/logo.png"]').forEach(img => {
+          img.src = brand.logo_url;
+        });
+      }
+
+      if (brand.school_name) {
+        document.querySelectorAll(".side-brand span").forEach(el => {
+          if ((el.textContent || "").includes("Sistem Informasi")) {
+            el.textContent = `Sistem Informasi ${brand.school_name}`;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", applyPublicBranding, { once: true });
+  } else {
+    applyPublicBranding();
   }
 
   window.simanisReady = Promise.resolve({
