@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
   <style>
-    .ach-toolbar{display:grid;grid-template-columns:1.2fr .6fr .6fr;gap:10px;margin-bottom:16px}.ach-toolbar input,.ach-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}.ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.ach-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px;box-shadow:0 6px 18px rgba(5,79,50,.05)}.ach-card h3{margin:8px 0 5px;font-size:15px;color:var(--green-950)}.ach-card p{font-size:10px;color:var(--muted);margin:4px 0}.ach-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.ach-pills{display:flex;gap:5px;flex-wrap:wrap}.pill{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800}.p-level{background:#e9efff;color:#365aaf}.p-cat{background:#e6f5ec;color:#08743f}.p-rank{background:#fff2bd;color:#725a00}.ach-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:11px 0}.ach-meta div{background:#f8fbf9;border-radius:9px;padding:8px;font-size:9px}.ach-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.student-picker{height:180px}.link-row{display:flex;gap:8px;flex-wrap:wrap}.link-row a{font-size:10px;font-weight:700;color:var(--green-800)}@media(max-width:1000px){.ach-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:700px){.ach-toolbar{grid-template-columns:1fr}.ach-grid{grid-template-columns:1fr}}
+    .ach-toolbar{display:grid;grid-template-columns:1.35fr .65fr .55fr .55fr;gap:10px;margin-bottom:16px}.ach-toolbar input,.ach-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}.ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.ach-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px;box-shadow:0 6px 18px rgba(5,79,50,.05)}.ach-card h3{margin:8px 0 5px;font-size:15px;color:var(--green-950)}.ach-card p{font-size:10px;color:var(--muted);margin:4px 0}.ach-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.ach-pills{display:flex;gap:5px;flex-wrap:wrap}.pill{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800}.p-year{background:#edf7f1;color:#0a6540}.p-level{background:#e9efff;color:#365aaf}.p-cat{background:#e6f5ec;color:#08743f}.p-rank{background:#fff2bd;color:#725a00}.ach-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:11px 0}.ach-meta div{background:#f8fbf9;border-radius:9px;padding:8px;font-size:9px}.ach-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.student-picker{height:180px}.link-row{display:flex;gap:8px;flex-wrap:wrap}.link-row a{font-size:10px;font-weight:700;color:var(--green-800)}.field-hint{display:block;margin-top:5px;color:var(--muted);font-size:10px}@media(max-width:1100px){.ach-toolbar{grid-template-columns:1fr 1fr}.ach-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:700px){.ach-toolbar{grid-template-columns:1fr}.ach-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -25,12 +25,17 @@
     <main class="main">
       <section class="page-head"><div><h2>Prestasi</h2><p>Rekam prestasi siswa dan tim pada berbagai tingkat perlombaan.</p></div><div class="action-row"><button id="addBtn" class="primary-btn" style="width:auto">+ Tambah Prestasi</button></div></section>
       <section class="stats">
-        <article class="stat"><div class="stat-head"><span>Total Prestasi</span><span class="stat-icon">🏆</span></div><div id="statTotal" class="stat-value">-</div><div class="stat-sub">Tahun pelajaran aktif</div></article>
-        <article class="stat"><div class="stat-head"><span>Nasional+</span><span class="stat-icon">🌏</span></div><div id="statNational" class="stat-value">-</div><div class="stat-sub">Nasional & internasional</div></article>
-        <article class="stat"><div class="stat-head"><span>Prestasi Tim</span><span class="stat-icon">👥</span></div><div id="statTeam" class="stat-value">-</div><div class="stat-sub">Kategori tim</div></article>
-        <article class="stat"><div class="stat-head"><span>Peserta Tercatat</span><span class="stat-icon">🎓</span></div><div id="statParticipants" class="stat-value">-</div><div class="stat-sub">Akumulasi peserta</div></article>
+        <article class="stat"><div class="stat-head"><span>Total Prestasi</span><span class="stat-icon">🏆</span></div><div id="statTotal" class="stat-value">-</div><div id="statYearLabel" class="stat-sub">Tahun pelajaran aktif</div></article>
+        <article class="stat"><div class="stat-head"><span>Nasional+</span><span class="stat-icon">🌏</span></div><div id="statNational" class="stat-value">-</div><div class="stat-sub">Pada tahun pelajaran terpilih</div></article>
+        <article class="stat"><div class="stat-head"><span>Prestasi Tim</span><span class="stat-icon">👥</span></div><div id="statTeam" class="stat-value">-</div><div class="stat-sub">Pada tahun pelajaran terpilih</div></article>
+        <article class="stat"><div class="stat-head"><span>Peserta Tercatat</span><span class="stat-icon">🎓</span></div><div id="statParticipants" class="stat-value">-</div><div class="stat-sub">Akumulasi peserta tahun terpilih</div></article>
       </section>
-      <section class="ach-toolbar"><input id="searchInput" type="search" placeholder="Cari lomba, judul, peserta, pembina..."/><select id="categoryFilter"><option value="">Semua Kategori</option><option>AKADEMIK</option><option>RISET</option><option>OLIMPIADE</option><option>OLAHRAGA</option><option>SENI</option><option>KEAGAMAAN</option><option>ORGANISASI</option><option>LAINNYA</option></select><select id="levelFilter"><option value="">Semua Tingkat</option><option>SEKOLAH</option><option>KECAMATAN</option><option>KABUPATEN</option><option>PROVINSI</option><option>NASIONAL</option><option>INTERNASIONAL</option></select></section>
+      <section class="ach-toolbar">
+        <input id="searchInput" type="search" placeholder="Cari lomba, judul, peserta, pembina..."/>
+        <select id="yearFilter"><option value="">Semua Tahun Pelajaran</option></select>
+        <select id="categoryFilter"><option value="">Semua Kategori</option><option>AKADEMIK</option><option>RISET</option><option>OLIMPIADE</option><option>OLAHRAGA</option><option>SENI</option><option>KEAGAMAAN</option><option>ORGANISASI</option><option>LAINNYA</option></select>
+        <select id="levelFilter"><option value="">Semua Tingkat</option><option>SEKOLAH</option><option>KECAMATAN</option><option>KABUPATEN</option><option>PROVINSI</option><option>NASIONAL</option><option>INTERNASIONAL</option></select>
+      </section>
       <section id="achievementGrid" class="ach-grid"></section>
     </main>
   </section>
@@ -47,6 +52,7 @@
       <label><span>Tingkat</span><select id="level"><option>SEKOLAH</option><option>KECAMATAN</option><option>KABUPATEN</option><option>PROVINSI</option><option>NASIONAL</option><option>INTERNASIONAL</option></select></label>
       <label><span>Capaian *</span><input id="achievement" required placeholder="Juara 1 / Finalis / Harapan 2"/></label>
       <label><span>Tanggal</span><input id="eventDate" type="date"/></label>
+      <label><span>Tahun Pelajaran *</span><select id="academicYear" required></select><small id="academicYearHint" class="field-hint">Pilih tanggal agar tahun pelajaran menyesuaikan otomatis.</small></label>
       <label><span>Jenis Peserta</span><select id="participantType"><option value="INDIVIDU">Individu</option><option value="TIM">Tim</option></select></label>
       <label><span>Pembina</span><select id="advisorTeacher"><option value="">Tanpa pembina</option></select></label>
       <label><span>Penyelenggara</span><input id="organizer"/></label>
