@@ -18,7 +18,7 @@
     .finance-toolbar input,.finance-toolbar select,.student-toolbar select,.student-toolbar input{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}
     .finance-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.finance-actions button{width:auto}
     .finance-table-wrap,.student-table-wrap,.student-detail,.plan-card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(5,79,50,.05)}
-    table.data-table{width:100%;border-collapse:collapse}
+    table.data-table{width:100%;border-collapse:collapse;table-layout:auto}
     table.data-table th{background:#f7faf8;font-size:9px;text-align:left;color:#607069;padding:10px;border-bottom:1px solid #e7eeea}
     table.data-table td{font-size:9.5px;padding:10px;border-bottom:1px solid #edf1ef;vertical-align:top}
     table.data-table tr:last-child td{border-bottom:0}
@@ -37,8 +37,8 @@
     .plan-card h3{margin:0 0 4px;color:var(--green-950);font-size:15px}.plan-card p{margin:0;color:var(--muted);font-size:9.5px}
     .plan-amount{font-size:21px;font-weight:800;color:#0b7347;margin-top:5px}
     .student-toolbar{display:grid;grid-template-columns:.75fr 1fr 1fr;gap:10px;margin-bottom:14px}
-    .student-layout{display:grid;grid-template-columns:1.2fr .8fr;gap:15px;align-items:start}
-    .student-detail{padding:15px;position:sticky;top:12px}
+    .student-layout{display:flex;flex-direction:column;gap:15px;align-items:stretch}.student-layout>div,.student-detail{min-width:0;width:100%}
+    .student-detail{padding:15px;position:static}
     .student-detail.empty{color:var(--muted);font-size:10px}
     .detail-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
     .detail-head h3{margin:0 0 4px;font-size:15px}.detail-head p{margin:0;font-size:9px;color:var(--muted)}
@@ -54,7 +54,7 @@
     .row-actions button{width:auto}
     @media(max-width:1180px){.finance-stats,.student-pay-stats{grid-template-columns:repeat(3,1fr)}.finance-toolbar{grid-template-columns:1fr 1fr 1fr}.student-layout{grid-template-columns:1fr}.student-detail{position:static}}
     @media(max-width:850px){.finance-stats,.student-pay-stats{grid-template-columns:1fr 1fr}.finance-table-wrap,.student-table-wrap{display:none}.finance-cards,.student-cards{display:grid}.finance-toolbar,.student-toolbar{grid-template-columns:1fr 1fr}}
-    @media(max-width:850px){#classRateGrid{grid-template-columns:1fr 1fr!important}}@media(max-width:560px){.finance-stats,.student-pay-stats,.finance-toolbar,.student-toolbar,.detail-grid{grid-template-columns:1fr}.finance-actions{justify-content:flex-start}#classRateGrid{grid-template-columns:1fr!important}}
+    @media(max-width:850px){#classRateGrid{grid-template-columns:1fr 1fr!important}#rateEditor{grid-template-columns:1fr!important}}@media(max-width:560px){.finance-stats,.student-pay-stats,.finance-toolbar,.student-toolbar,.detail-grid{grid-template-columns:1fr}.finance-actions{justify-content:flex-start}#classRateGrid{grid-template-columns:1fr!important}}
   </style>
 </head>
 <body>
@@ -122,12 +122,19 @@
             <div>
               <h3 id="planName">Iuran Pendidikan</h3>
               <p id="planYear">Tahun Pelajaran -</p>
-              <div class="field-hint" style="margin-top:7px">Nominal iuran diatur per kelas untuk satu tahun pelajaran.</div>
+              <div class="field-hint" style="margin-top:7px">Atur nominal tahunan per kelas, lalu sinkronkan ke seluruh siswa aktif.</div>
             </div>
             <div class="finance-actions">
               <button id="syncBillsBtn" class="primary-btn">Sinkronkan Tagihan Siswa</button>
             </div>
           </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:14px;align-items:end" id="rateEditor">
+            <label><span>Kelas</span><select id="rateClassSelect"></select></label>
+            <label><span>Nominal Tahunan</span><input id="rateAmountInput" type="number" min="1" step="1000" placeholder="Contoh: 2500000"/></label>
+            <button id="saveClassRateBtn" class="secondary-btn" style="width:auto;height:42px">Simpan Nominal Kelas</button>
+          </div>
+
           <div id="classRateGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px"></div>
         </section>
 
@@ -146,17 +153,17 @@
         </section>
 
         <section class="student-layout">
+          <aside id="studentDetail" class="student-detail empty">Pilih siswa untuk melihat tagihan dan riwayat cicilan.</aside>
+
           <div>
             <section class="student-table-wrap">
               <table class="data-table">
-                <thead><tr><th>No</th><th>Siswa</th><th>Kelas</th><th>Tagihan</th><th>Dibayar</th><th>Sisa</th><th>Status</th></tr></thead>
+                <thead><tr><th>No</th><th>Siswa</th><th>Kelas</th><th>Tagihan</th><th>Dibayar</th><th>Sisa</th><th>Status</th><th>Aksi</th></tr></thead>
                 <tbody id="studentBillBody"></tbody>
               </table>
             </section>
             <section id="studentBillCards" class="student-cards"></section>
           </div>
-
-          <aside id="studentDetail" class="student-detail empty">Pilih siswa untuk melihat tagihan dan riwayat cicilan.</aside>
         </section>
       </section>
     </main>

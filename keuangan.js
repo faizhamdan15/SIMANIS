@@ -44,7 +44,9 @@ async function loadMaster(){
   activePlan=feePlans.find(p=>p.academic_years?.is_active)||feePlans[0]||null;
   renderCategoryOptions();
   $("studentClassFilter").innerHTML='<option value="">Semua Kelas</option>'+classes.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  $("rateClassSelect").innerHTML=classes.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
   renderPlanCard();
+  syncRateEditor();
 }
 async function loadData(){
   const [tx,b,p]=await Promise.all([
@@ -188,19 +190,28 @@ function renderStudentModule(){
   $("studentStatCicilan").textContent=all.filter(b=>b.payment_status==="CICILAN").length;
 
   if(!data.length){
-    $("studentBillBody").innerHTML='<tr><td colspan="7"><div class="empty-state">Belum ada tagihan siswa. Atur nominal lalu klik Sinkronkan Tagihan Siswa.</div></td></tr>';
+    $("studentBillBody").innerHTML='<tr><td colspan="8"><div class="empty-state">Belum ada tagihan siswa. Atur nominal lalu klik Sinkronkan Tagihan Siswa.</div></td></tr>';
     $("studentBillCards").innerHTML='<div class="empty-state">Belum ada tagihan siswa.</div>';
   }else{
-    $("studentBillBody").innerHTML=data.map((b,i)=>`<tr data-bill-row="${b.id}" style="cursor:pointer"><td>${i+1}</td><td><b>${esc(b.student_name)}</b><br><span style="color:#77847e">${esc(b.nisn||"-")}</span></td><td>${esc(b.class_name_snapshot||"-")}</td><td>${money(b.bill_amount)}</td><td>${money(b.total_paid)}</td><td>${money(b.remaining_amount)}</td><td>${billStatusBadge(b.payment_status)}</td></tr>`).join("");
-    $("studentBillCards").innerHTML=data.map(b=>`<article class="student-card" data-bill-card="${b.id}" style="cursor:pointer"><h4>${esc(b.student_name)}</h4><p>${esc(b.class_name_snapshot||"-")} · ${esc(b.nisn||"-")}</p><p>Tagihan <b>${money(b.bill_amount)}</b> · Sisa <b>${money(b.remaining_amount)}</b></p>${billStatusBadge(b.payment_status)}</article>`).join("");
-    document.querySelectorAll("[data-bill-row]").forEach(el=>el.onclick=()=>selectBill(el.dataset.billRow));
-    document.querySelectorAll("[data-bill-card]").forEach(el=>el.onclick=()=>selectBill(el.dataset.billCard));
+    $("studentBillBody").innerHTML=data.map((b,i)=>`<tr data-bill-row="${b.id}" style="cursor:pointer"><td>${i+1}</td><td><b>${esc(b.student_name)}</b><br><span style="color:#77847e">${esc(b.nisn||"-")}</span></td><td>${esc(b.class_name_snapshot||"-")}</td><td>${money(b.bill_amount)}</td><td>${money(b.total_paid)}</td><td>${money(b.remaining_amount)}</td><td>${billStatusBadge(b.payment_status)}</td><td><div class="row-actions">${canCreate()&&Number(b.remaining_amount)>0?`<button class="mini-btn" data-pay-bill="${b.id}">Bayar</button>`:""}<button class="mini-btn" data-view-bill="${b.id}">Detail</button></div></td></tr>`).join("");
+    $("studentBillCards").innerHTML=data.map(b=>`<article class="student-card"><h4>${esc(b.student_name)}</h4><p>${esc(b.class_name_snapshot||"-")} · ${esc(b.nisn||"-")}</p><p>Tagihan <b>${money(b.bill_amount)}</b> · Sisa <b>${money(b.remaining_amount)}</b></p>${billStatusBadge(b.payment_status)}<div class="row-actions" style="margin-top:9px">${canCreate()&&Number(b.remaining_amount)>0?`<button class="mini-btn" data-pay-bill="${b.id}">Bayar Cicilan</button>`:""}<button class="mini-btn" data-view-bill="${b.id}">Detail</button></div></article>`).join("");
+    document.querySelectorAll("[data-bill-row]").forEach(el=>el.onclick=(e)=>{
+      if(e.target.closest("button"))return;
+      selectBill(el.dataset.billRow);
+    });
+    document.querySelectorAll("[data-view-bill]").forEach(el=>el.onclick=(e)=>{
+      e.stopPropagation(); selectBill(el.dataset.viewBill);
+      $("studentDetail").scrollIntoView({behavior:"smooth",block:"start"});
+    });
+    document.querySelectorAll("[data-pay-bill]").forEach(el=>el.onclick=(e)=>{
+      e.stopPropagation(); selectBill(el.dataset.payBill); openPaymentModal(el.dataset.payBill);
+    });
   }
   if(selectedBillId&&!all.some(b=>b.id===selectedBillId))selectedBillId=null;
   renderStudentDetail();
 }
 function paymentsForBill(id){return studentPayments.filter(p=>p.bill_id===id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))}
-function selectBill(id){selectedBillId=id;const b=planBills().find(x=>x.id===id);if(b){$("studentFilter").value=b.student_id;$("studentClassFilter").value=b.class_id_snapshot||"";renderStudentSelect();$("studentFilter").value=b.student_id}renderStudentDetail()}
+function selectBill(id){selectedBillId=id;const b=planBills().find(x=>x.id===id);if(b){$("studentClassFilter").value=b.class_id_snapshot||"";renderStudentSelect();$("studentFilter").value=b.student_id}renderStudentDetail()}
 function renderStudentDetail(){
   const b=planBills().find(x=>x.id===selectedBillId);
   if(!b){$("studentDetail").className="student-detail empty";$("studentDetail").innerHTML="Pilih siswa untuk melihat tagihan dan riwayat cicilan.";return}
@@ -226,6 +237,33 @@ function renderStudentDetail(){
 function rateForClass(classId){
   return classRates.find(r=>r.plan_id===activePlan?.id&&r.class_id===classId)||null;
 }
+function syncRateEditor(){
+  const classId=$("rateClassSelect")?.value||classes[0]?.id||"";
+  if($("rateClassSelect")&&!$("rateClassSelect").value&&classId)$("rateClassSelect").value=classId;
+  const r=rateForClass(classId);
+  if($("rateAmountInput"))$("rateAmountInput").value=r?.amount?Number(r.amount):"";
+}
+async function saveClassRateUI(){
+  if(!activePlan||!canUpdate())return;
+  const classId=$("rateClassSelect").value;
+  const c=classes.find(x=>x.id===classId);
+  const amount=Number($("rateAmountInput").value||0);
+  if(!c){alert("Pilih kelas terlebih dahulu.");return}
+  if(!Number.isFinite(amount)||amount<=0){alert("Nominal tahunan harus lebih dari 0.");return}
+  const existing=rateForClass(classId);
+  try{
+    if(existing){
+      await restWrite(`education_fee_class_rates?id=eq.${encodeURIComponent(existing.id)}`,"PATCH",{amount});
+      existing.amount=amount;
+    }else{
+      const ins=await restWrite("education_fee_class_rates","POST",{plan_id:activePlan.id,class_id:classId,amount});
+      const row=ins?.[0]; if(row) classRates.push(row);
+    }
+    renderClassRates();
+    syncRateEditor();
+    alert(`Nominal ${c.name} berhasil disimpan: ${money(amount)}`);
+  }catch(err){alert("Gagal menyimpan nominal kelas: "+err.message)}
+}
 function renderClassRates(){
   const holder=$("classRateGrid");
   if(!holder)return;
@@ -235,10 +273,15 @@ function renderClassRates(){
     return `<div style="border:1px solid #e0e9e4;border-radius:11px;padding:10px;background:#fbfdfc">
       <div style="font-size:9px;color:#6b7b73">${esc(c.name)}</div>
       <div style="font-size:15px;font-weight:800;color:#0b7347;margin:3px 0">${money(r?.amount||0)}</div>
-      ${canUpdate()?`<button type="button" class="mini-btn" data-set-class-rate="${c.id}">Atur</button>`:""}
+      ${canUpdate()?`<button type="button" class="mini-btn" data-set-class-rate="${c.id}">Edit Nominal</button>`:""}
     </div>`;
   }).join("");
-  holder.querySelectorAll("[data-set-class-rate]").forEach(b=>b.onclick=()=>setClassRate(b.dataset.setClassRate));
+  holder.querySelectorAll("[data-set-class-rate]").forEach(b=>b.onclick=()=>{
+    $("rateClassSelect").value=b.dataset.setClassRate;
+    syncRateEditor();
+    $("rateAmountInput").focus();
+    $("rateEditor").scrollIntoView({behavior:"smooth",block:"center"});
+  });
 }
 async function setClassRate(classId){
   if(!activePlan||!canUpdate())return;
@@ -327,7 +370,7 @@ function printStudentRecap(id){
 /* EVENTS */
 $("searchInput").addEventListener("input",render);$("monthFilter").addEventListener("change",render);$("typeFilter").addEventListener("change",render);$("categoryFilter").addEventListener("change",render);$("accountFilter").addEventListener("change",render);
 $("addBtn").addEventListener("click",openAdd);$("printBtn").addEventListener("click",printReport);$("csvBtn").addEventListener("click",exportCsv);$("closeModal").addEventListener("click",closeModal);$("cancelBtn").addEventListener("click",closeModal);$("deleteBtn").addEventListener("click",remove);$("form").addEventListener("submit",save);$("transactionType").addEventListener("change",renderCategoryOptions);$("accountType").addEventListener("change",toggleBank);$("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
-$("syncBillsBtn").addEventListener("click",syncBills);
+$("rateClassSelect").addEventListener("change",syncRateEditor);$("saveClassRateBtn").addEventListener("click",saveClassRateUI);$("syncBillsBtn").addEventListener("click",syncBills);
 $("studentClassFilter").addEventListener("change",()=>{renderStudentSelect();$("studentFilter").value="";selectedBillId=null;renderStudentModule()});
 $("studentFilter").addEventListener("change",()=>{const id=$("studentFilter").value,b=planBills().find(x=>x.student_id===id);selectedBillId=b?.id||null;renderStudentModule()});
 $("studentSearch").addEventListener("input",renderStudentModule);
