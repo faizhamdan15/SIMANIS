@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Portal Wali Siswa — SIMANIS</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f4f8f6;color:#17382b}.top{background:#075b3a;color:#fff;padding:14px 22px;display:flex;justify-content:space-between;align-items:center;gap:12px;position:sticky;top:0;z-index:5}.brand{display:flex;align-items:center;gap:11px}.brand img{width:46px;height:46px;object-fit:contain;background:#fff;border-radius:12px;padding:4px}.brand b{display:block;font-size:17px}.brand span{font-size:10px;color:#cee3d9}.logout{background:#fff;color:#075b3a;border:0;border-radius:10px;padding:9px 12px;font-weight:800;cursor:pointer}.main{max-width:1050px;margin:0 auto;padding:20px}.hello h1{font-size:22px;margin:0 0 5px}.hello p{font-size:11px;color:#718079;margin:0}.child-tabs{display:flex;gap:8px;overflow:auto;margin:18px 0}.child-tab{white-space:nowrap;border:1px solid #d4e2db;background:#fff;border-radius:12px;padding:10px 13px;cursor:pointer;text-align:left}.child-tab.active{background:#0b7347;color:#fff;border-color:#0b7347}.child-tab b{display:block;font-size:11px}.child-tab span{font-size:8px;opacity:.78}
+.card{background:#fff;border:1px solid #dfe9e4;border-radius:18px;padding:16px;box-shadow:0 8px 24px rgba(5,70,44,.05)}.fee-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.fee-head h2{margin:0;font-size:17px}.fee-head p{font-size:9.5px;color:#708079;margin:4px 0}.status{border-radius:999px;padding:5px 9px;font-size:9px;font-weight:900}.lunas{background:#dff5e7;color:#08733f}.cicilan{background:#fff0bd;color:#785b00}.belum{background:#ffe7e2;color:#a13b33}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.stat{background:#f7faf8;border-radius:13px;padding:12px}.stat span{font-size:9px;color:#65766e}.stat b{display:block;font-size:18px;margin-top:4px;color:#123d2c}
+.progress{height:12px;background:#edf2ef;border-radius:999px;overflow:hidden}.bar{height:100%;background:#0b7347;border-radius:999px}.progress-text{display:flex;justify-content:space-between;font-size:8.5px;color:#687871;margin-top:5px}
+.history{margin-top:16px}.history h3{font-size:13px;margin:0 0 9px}.pay{display:grid;grid-template-columns:1fr auto;gap:10px;border-top:1px solid #e8efeb;padding:11px 0}.pay:first-of-type{border-top:0}.pay b{font-size:11px}.pay p{font-size:8.5px;color:#6b7a73;margin:3px 0}.note-btn{border:1px solid #cdded5;background:#fff;border-radius:9px;padding:7px 9px;font-size:9px;font-weight:800;cursor:pointer;color:#075b3a}.void{opacity:.55}.empty{padding:20px;text-align:center;color:#72817a;font-size:11px}
+.activation{max-width:560px;margin:35px auto}.activation input{width:100%;padding:11px;border:1px solid #d5e2db;border-radius:10px;margin:5px 0 10px}.activation button{width:100%;padding:11px;border:0;border-radius:10px;background:#0b7347;color:#fff;font-weight:800}.message{font-size:10px;color:#a33b34;margin-top:8px}
+@media(max-width:650px){.main{padding:14px}.stats{grid-template-columns:1fr}.top{padding:10px 13px}.brand b{font-size:14px}.brand img{width:40px;height:40px}.fee-head h2{font-size:15px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="brand"><img src="logo.png" alt="Logo"><div><b>Portal Wali Siswa</b><span>MA Nurul Islam Karangcempaka</span></div></div><button id="logoutBtn" class="logout">Keluar</button></header>
+<main class="main">
+<section id="activationBox" class="card activation" style="display:none">
+ <h2 style="margin-top:0">Aktivasi Akses Anak</h2><p style="font-size:10px;color:#6d7d75">Masukkan kode aktivasi yang diberikan madrasah.</p>
+ <input id="manualCode" placeholder="Kode Aktivasi"/>
+ <input id="manualName" placeholder="Nama Wali"/>
+ <input id="manualPhone" placeholder="No. HP"/>
+ <button id="manualClaimBtn">Aktifkan</button><div id="manualMessage" class="message"></div>
+</section>
+
+<section id="portalContent" style="display:none">
+ <div class="hello"><h1 id="helloName">Assalamu'alaikum</h1><p>Informasi pembayaran Iuran Pendidikan anak Anda.</p></div>
+ <div id="childTabs" class="child-tabs"></div>
+ <section id="financeCard" class="card"></section>
+</section>
+</main>
+<script src="config.js"></script><script src="sdk-loader.js"></script><script src="wali.js"></script>
+</body></html>

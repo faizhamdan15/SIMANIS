@@ -27,7 +27,8 @@
     "Berita Madrasah": "berita.html",
     "Pengumuman": "pengumuman.html",
     "Agenda Madrasah": "agenda.html",
-    "Keuangan": "keuangan.html"
+    "Keuangan": "keuangan.html",
+    "Portal Wali Siswa": "wali-admin.html"
   };
 
   document.addEventListener("click", function (event) {

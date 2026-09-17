@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Portal Wali Siswa — MA Nurul Islam</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(145deg,#edf6f1,#f9fbfa);color:#16372a;min-height:100vh;display:grid;place-items:center;padding:18px}
+.wrap{width:min(920px,100%);display:grid;grid-template-columns:.85fr 1.15fr;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 25px 70px rgba(5,70,44,.14);border:1px solid #dce9e2}
+.hero{background:#075b3a;color:#fff;padding:38px;display:flex;flex-direction:column;justify-content:space-between}.hero img{width:78px;height:78px;object-fit:contain;background:#fff;border-radius:18px;padding:7px}.hero h1{font-size:30px;margin:20px 0 8px}.hero p{line-height:1.6;color:#dbece4}.hero small{color:#bcd9cc}
+.panel{padding:34px}.tabs{display:flex;gap:8px;margin-bottom:22px}.tab{border:1px solid #d5e3dc;background:#fff;padding:9px 13px;border-radius:10px;font-weight:800;cursor:pointer;color:#52675e}.tab.active{background:#0b7347;color:#fff;border-color:#0b7347}
+.form{display:grid;gap:12px}.form.hidden{display:none}.form h2{margin:0;font-size:21px}.form p{font-size:12px;color:#708078;margin:0 0 6px;line-height:1.5}.form label span{display:block;font-size:10px;font-weight:800;margin-bottom:5px}.form input{width:100%;border:1px solid #d6e2dc;border-radius:11px;padding:12px;font-size:14px}.btn{border:0;border-radius:11px;padding:12px;font-weight:900;cursor:pointer;background:#0b7347;color:#fff;font-size:13px}.message{font-size:11px;line-height:1.5;min-height:18px;color:#a33d35}.ok{color:#08733f;background:#eef9f2;padding:10px;border-radius:10px}.hint{font-size:10px!important;background:#f6f9f7;padding:10px;border-radius:10px}
+@media(max-width:760px){.wrap{grid-template-columns:1fr}.hero{padding:25px}.panel{padding:25px}.hero h1{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+ <div><img src="logo.png" alt="Logo"><h1>Portal Wali Siswa</h1><p>MA Nurul Islam Karangcempaka</p><p>Pantau Iuran Pendidikan, cicilan, sisa pembayaran, dan nota anak dalam satu portal.</p></div>
+ <small>SIMANIS · Satu Sistem, Semua Layanan Madrasah</small>
+</section>
+<section class="panel">
+ <div class="tabs"><button class="tab active" data-tab="login">Masuk</button><button class="tab" data-tab="activate">Aktivasi Akun</button></div>
+
+ <form id="loginForm" class="form">
+  <h2>Masuk sebagai Wali</h2><p>Gunakan email dan password akun Portal Wali.</p>
+  <label><span>Email</span><input id="loginEmail" type="email" required autocomplete="email"/></label>
+  <label><span>Password</span><input id="loginPassword" type="password" required minlength="6" autocomplete="current-password"/></label>
+  <button id="loginBtn" class="btn">Masuk ke Portal</button><div id="loginMessage" class="message"></div>
+ </form>
+
+ <form id="activateForm" class="form hidden">
+  <h2>Aktivasi Akun Wali</h2><p>Gunakan kode aktivasi yang diberikan oleh bendahara/TU madrasah.</p>
+  <label><span>Kode Aktivasi</span><input id="inviteCode" required maxlength="24" placeholder="Contoh: A1B2C3D4E5F6G7H8"/></label>
+  <label><span>Nama Wali</span><input id="guardianName" required/></label>
+  <label><span>No. HP</span><input id="guardianPhone" inputmode="tel"/></label>
+  <label><span>Email</span><input id="signupEmail" type="email" required autocomplete="email"/></label>
+  <label><span>Password Baru</span><input id="signupPassword" type="password" minlength="6" required autocomplete="new-password"/></label>
+  <button id="activateBtn" class="btn">Buat & Aktivasi Akun</button>
+  <p class="hint">Jika Supabase meminta konfirmasi email, buka email konfirmasi terlebih dahulu lalu kembali dan Masuk. Kode aktivasi akan diproses otomatis setelah login.</p>
+  <div id="activateMessage" class="message"></div>
+ </form>
+</section>
+</div>
+<script src="config.js"></script><script src="sdk-loader.js"></script><script src="wali-login.js"></script>
+</body></html>
