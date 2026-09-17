@@ -108,20 +108,47 @@ function renderStats(){
 function typeBadge(r){if(r.status==="VOID")return'<span class="badge-soft badge-void">BATAL</span>';return r.transaction_type==="INCOME"?'<span class="badge-soft badge-in">PEMASUKAN</span>':'<span class="badge-soft badge-out">PENGELUARAN</span>'}
 function amountHtml(r){const cls=r.status==="VOID"?"money-void":(r.transaction_type==="INCOME"?"money-in":"money-out"),sign=r.transaction_type==="INCOME"?"+":"−";return`<span class="${cls}">${sign} ${money(r.amount)}</span>`}
 function storageLabel(r){return r.account_type==="CASH"?"Cash / Tunai":`Rekening${r.account_name?` · ${esc(r.account_name)}`:""}`}
+function linkedStudentPaymentByFinanceId(financeId){
+  return studentPayments.find(p=>p.finance_transaction_id===financeId)||null;
+}
+function isStudentPaymentTransaction(r){
+  return !!linkedStudentPaymentByFinanceId(r.id);
+}
+function openLinkedStudentPayment(financeId){
+  const p=linkedStudentPaymentByFinanceId(financeId);
+  if(!p){alert("Data pembayaran siswa terkait tidak ditemukan.");return}
+  setTab("studentpay");
+  selectedBillId=p.bill_id;
+  const b=planBills().find(x=>x.id===p.bill_id);
+  if(b){
+    $("studentClassFilter").value=b.class_id_snapshot||"";
+    renderStudentSelect();
+    $("studentFilter").value=b.student_id||"";
+  }
+  renderStudentModule();
+  setTimeout(()=>$("studentDetail")?.scrollIntoView({behavior:"smooth",block:"start"}),50);
+}
 function render(){
   renderStats();const data=filtered(),posted=data.filter(r=>r.status==="POSTED");
   const income=posted.filter(r=>r.transaction_type==="INCOME").reduce((s,r)=>s+Number(r.amount||0),0),expense=posted.filter(r=>r.transaction_type==="EXPENSE").reduce((s,r)=>s+Number(r.amount||0),0);
   $("summaryLine").textContent=`${data.length} transaksi · Pemasukan ${money(income)} · Pengeluaran ${money(expense)} · Selisih ${money(income-expense)}`;
   $("addBtn").style.display=canCreate()?"":"none";
   if(!data.length){$("financeTableBody").innerHTML='<tr><td colspan="8"><div class="empty-state">Belum ada transaksi yang cocok.</div></td></tr>';$("financeCards").innerHTML='<div class="empty-state">Belum ada transaksi yang cocok.</div>';return}
-  $("financeTableBody").innerHTML=data.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(dateLabel(r.transaction_date))}</td><td>${typeBadge(r)}</td><td><b>${esc(r.category_name)}</b><br>${esc(r.description)}${r.reference_number?`<br><span style="color:#7b8781">Ref: ${esc(r.reference_number)}</span>`:""}</td><td>${storageLabel(r)}</td><td>${amountHtml(r)}</td><td>${r.receipt_path?`<button class="mini-btn" data-open-receipt="${r.id}">Buka</button>`:"-"}</td><td>${canUpdate()?`<button class="mini-btn" data-edit="${r.id}">Edit</button>`:""}</td></tr>`).join("");
-  $("financeCards").innerHTML=data.map(r=>`<article class="finance-card"><div class="finance-card-top"><div>${typeBadge(r)}</div><div>${amountHtml(r)}</div></div><h4>${esc(r.category_name)}</h4><p>${esc(r.description)}</p><p><b>${esc(dateLabel(r.transaction_date))}</b> · ${storageLabel(r)}</p><div class="row-actions">${r.receipt_path?`<button class="mini-btn" data-open-receipt="${r.id}">Buka Bukti</button>`:""}${canUpdate()?`<button class="mini-btn" data-edit="${r.id}">Edit</button>`:""}</div></article>`).join("");
-  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));document.querySelectorAll("[data-open-receipt]").forEach(b=>b.onclick=()=>openReceipt(b.dataset.openReceipt));
+  $("financeTableBody").innerHTML=data.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(dateLabel(r.transaction_date))}</td><td>${typeBadge(r)}</td><td><b>${esc(r.category_name)}</b>${isStudentPaymentTransaction(r)?` <span class="badge-soft badge-in">TERHUBUNG SISWA</span>`:""}<br>${esc(r.description)}${r.reference_number?`<br><span style="color:#7b8781">Ref: ${esc(r.reference_number)}</span>`:""}</td><td>${storageLabel(r)}</td><td>${amountHtml(r)}</td><td>${r.receipt_path?`<button class="mini-btn" data-open-receipt="${r.id}">Buka</button>`:"-"}</td><td>${isStudentPaymentTransaction(r)?`<button class="mini-btn" data-open-student-payment="${r.id}">Pembayaran Siswa</button>`:(canUpdate()?`<button class="mini-btn" data-edit="${r.id}">Edit</button>`:"")}</td></tr>`).join("");
+  $("financeCards").innerHTML=data.map(r=>`<article class="finance-card"><div class="finance-card-top"><div>${typeBadge(r)}</div><div>${amountHtml(r)}</div></div><h4>${esc(r.category_name)}</h4><p>${esc(r.description)}</p><p><b>${esc(dateLabel(r.transaction_date))}</b> · ${storageLabel(r)}</p><div class="row-actions">${r.receipt_path?`<button class="mini-btn" data-open-receipt="${r.id}">Buka Bukti</button>`:""}${isStudentPaymentTransaction(r)?`<button class="mini-btn" data-open-student-payment="${r.id}">Pembayaran Siswa</button>`:(canUpdate()?`<button class="mini-btn" data-edit="${r.id}">Edit</button>`:"")}</div></article>`).join("");
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
+  document.querySelectorAll("[data-open-receipt]").forEach(b=>b.onclick=()=>openReceipt(b.dataset.openReceipt));
+  document.querySelectorAll("[data-open-student-payment]").forEach(b=>b.onclick=()=>openLinkedStudentPayment(b.dataset.openStudentPayment));
 }
 function toggleBank(){const bank=$("accountType").value==="BANK";$("bankNameWrap").classList.toggle("hidden",!bank);$("accountName").required=bank;if(!bank)$("accountName").value=""}
 function receiptBox(r){if(!r?.receipt_path){$("receiptCurrent").innerHTML='<span class="field-hint">Belum ada bukti tersimpan.</span>';return}$("receiptCurrent").innerHTML=`<div class="receipt-box"><div><b style="font-size:10px">📎 ${esc(r.receipt_name||"Bukti transaksi")}</b><div class="receipt-meta">${formatBytes(r.receipt_size)}</div></div><button class="mini-btn" type="button" id="openCurrentReceipt">Buka</button></div>`;$("openCurrentReceipt").onclick=()=>openReceipt(r.id)}
 function openAdd(){if(!canCreate())return;$("form").reset();$("transactionId").value="";$("oldReceiptPath").value="";$("oldReceiptName").value="";$("modalTitle").textContent="Tambah Transaksi";$("transactionDate").value=todayInput();$("transactionType").value="INCOME";$("accountType").value="CASH";$("status").value="POSTED";renderCategoryOptions();toggleBank();receiptBox(null);$("deleteBtn").style.display="none";$("formMessage").textContent="";$("modal").classList.remove("hidden")}
-function openEdit(id){const r=rows.find(x=>x.id===id);if(!r||!canUpdate())return;$("form").reset();$("transactionId").value=r.id;$("oldReceiptPath").value=r.receipt_path||"";$("oldReceiptName").value=r.receipt_name||"";$("modalTitle").textContent="Edit Transaksi";$("transactionDate").value=r.transaction_date||"";$("transactionType").value=r.transaction_type||"INCOME";renderCategoryOptions();$("category").value=r.category_id||"";$("amount").value=Number(r.amount||0);$("accountType").value=r.account_type||"CASH";toggleBank();$("accountName").value=r.account_name||"";$("referenceNumber").value=r.reference_number||"";$("description").value=r.description||"";$("status").value=r.status||"POSTED";receiptBox(r);$("deleteBtn").style.display=canDelete()?"":"none";$("formMessage").textContent="";$("modal").classList.remove("hidden")}
+function openEdit(id){const r=rows.find(x=>x.id===id);if(!r||!canUpdate())return;
+  if(isStudentPaymentTransaction(r)){
+    alert("Transaksi ini berasal dari Pembayaran Siswa. Edit/batalkan dari menu Pembayaran Siswa agar Buku Kas dan cicilan tetap sinkron.");
+    openLinkedStudentPayment(r.id);
+    return;
+  }$("form").reset();$("transactionId").value=r.id;$("oldReceiptPath").value=r.receipt_path||"";$("oldReceiptName").value=r.receipt_name||"";$("modalTitle").textContent="Edit Transaksi";$("transactionDate").value=r.transaction_date||"";$("transactionType").value=r.transaction_type||"INCOME";renderCategoryOptions();$("category").value=r.category_id||"";$("amount").value=Number(r.amount||0);$("accountType").value=r.account_type||"CASH";toggleBank();$("accountName").value=r.account_name||"";$("referenceNumber").value=r.reference_number||"";$("description").value=r.description||"";$("status").value=r.status||"POSTED";receiptBox(r);$("deleteBtn").style.display=canDelete()?"":"none";$("formMessage").textContent="";$("modal").classList.remove("hidden")}
 function closeModal(){$("modal").classList.add("hidden")}
 
 async function restWrite(path,method,body,prefer="return=representation"){
@@ -152,7 +179,29 @@ async function save(e){
     closeModal();await loadData();
   }catch(err){if(uploaded){try{await storageDelete(uploaded.path)}catch{}}$("formMessage").textContent="Gagal menyimpan: "+err.message}finally{btn.disabled=false;btn.textContent="Simpan"}
 }
-async function remove(){const id=$("transactionId").value,r=rows.find(x=>x.id===id);if(!r||!canDelete())return;if(!confirm(`Hapus permanen transaksi "${r.description}"?`))return;try{await restWrite(`finance_transactions?id=eq.${encodeURIComponent(id)}`,"DELETE",undefined,"return=minimal");if(r.receipt_path){try{await storageDelete(r.receipt_path)}catch{}}closeModal();await loadData()}catch(err){alert("Gagal menghapus transaksi: "+err.message)}}
+async function remove(){
+  const id=$("transactionId").value,r=rows.find(x=>x.id===id);if(!r||!canDelete())return;
+  if(isStudentPaymentTransaction(r)){
+    closeModal();
+    alert("Transaksi Iuran Pendidikan tidak boleh dihapus dari Buku Kas karena terhubung ke cicilan siswa. Gunakan Pembayaran Siswa → Detail → Batalkan. Buku Kas akan otomatis menjadi VOID.");
+    openLinkedStudentPayment(r.id);
+    return;
+  }
+  if(!confirm(`Hapus permanen transaksi "${r.description}"?`))return;
+  try{
+    await restWrite(`finance_transactions?id=eq.${encodeURIComponent(id)}`,"DELETE",undefined,"return=minimal");
+    if(r.receipt_path){try{await storageDelete(r.receipt_path)}catch{}}
+    closeModal();await loadData();
+  }catch(err){
+    const msg=String(err.message||err);
+    if(msg.includes("student_education_payments_finance_transaction_id")){
+      alert("Transaksi ini berasal dari Pembayaran Siswa dan tidak boleh dihapus langsung. Batalkan dari menu Pembayaran Siswa agar cicilan dan Buku Kas tetap sinkron.");
+      closeModal();openLinkedStudentPayment(id);
+    }else{
+      alert("Gagal menghapus transaksi: "+msg);
+    }
+  }
+}
 function csvCell(v){return`"${String(v??"").replaceAll('"','""')}"`}
 function exportCsv(){const data=filtered();if(!data.length){alert("Tidak ada transaksi.");return}const header=["No","Tanggal","Status","Jenis","Kategori","Uraian","Penyimpanan","Rekening","Referensi","Nominal","Pembuat"],lines=[header.map(csvCell).join(";")];data.forEach((r,i)=>lines.push([i+1,r.transaction_date,r.status,r.transaction_type==="INCOME"?"Pemasukan":"Pengeluaran",r.category_name,r.description,r.account_type,r.account_name||"",r.reference_number||"",r.amount,r.created_by_name||""].map(csvCell).join(";")));const blob=new Blob(["\ufeffsep=;\r\n"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`laporan-keuangan-${$("monthFilter").value||"semua-periode"}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function printReport(){const data=filtered();if(!data.length){alert("Tidak ada transaksi.");return}const posted=data.filter(r=>r.status==="POSTED"),inc=posted.filter(r=>r.transaction_type==="INCOME").reduce((s,r)=>s+Number(r.amount||0),0),exp=posted.filter(r=>r.transaction_type==="EXPENSE").reduce((s,r)=>s+Number(r.amount||0),0),rowsHtml=data.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(dateLabel(r.transaction_date))}</td><td>${esc(r.status)}</td><td>${r.transaction_type==="INCOME"?"Pemasukan":"Pengeluaran"}</td><td>${esc(r.category_name)}</td><td>${esc(r.description)}</td><td>${esc(r.account_type==="CASH"?"Cash":r.account_name||"Rekening")}</td><td style="text-align:right">${esc(money(r.amount))}</td></tr>`).join(""),w=window.open("","_blank");if(!w){alert("Popup diblokir browser.");return}const today=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"long",year:"numeric"}).format(new Date());w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Laporan Keuangan</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial;font-size:10px}.kop{text-align:center;border-bottom:3px double #111;padding-bottom:8px}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.sum{border:1px solid #bbb;padding:8px}.sum b{display:block;font-size:15px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:5px}.foot{display:flex;justify-content:space-between;margin-top:22px}.sign{width:260px;text-align:center}.space{height:55px}</style></head><body><div class="kop"><h1>MA NURUL ISLAM KARANGCEMPAKA</h1><h3>LAPORAN KEUANGAN</h3></div><p style="text-align:center">Periode: ${esc($("monthFilter").value?monthName($("monthFilter").value):"Semua Periode")}</p><div class="summary"><div class="sum">Pemasukan<b>${esc(money(inc))}</b></div><div class="sum">Pengeluaran<b>${esc(money(exp))}</b></div><div class="sum">Selisih<b>${esc(money(inc-exp))}</b></div></div><table><thead><tr><th>No</th><th>Tanggal</th><th>Status</th><th>Jenis</th><th>Kategori</th><th>Uraian</th><th>Penyimpanan</th><th>Nominal</th></tr></thead><tbody>${rowsHtml}</tbody></table><div class="foot"><div class="sign">Mengetahui,<br>Kepala Madrasah<div class="space"></div><b>__________________</b></div><div class="sign">Karangcempaka, ${today}<br>Bendahara<div class="space"></div><b>__________________</b></div></div></body></html>`);w.document.close();setTimeout(()=>w.print(),400)}
