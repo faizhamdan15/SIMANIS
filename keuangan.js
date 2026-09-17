@@ -55,7 +55,7 @@ async function loadData(){
     api.db.select("v_student_education_payments","select=*&order=payment_date.desc,created_at.desc")
   ]);
   rows=tx||[];bills=b||[];studentPayments=p||[];
-  renderMonthOptions();render();renderStudentModule();
+  renderMonthOptions();render();renderStudentModule();renderRecapFilters();renderRecap();
 }
 function renderPlanCard(){
   $("planName").textContent=activePlan?.name||"Iuran Pendidikan";
@@ -68,6 +68,8 @@ function setTab(name){
   document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
   $("tabCashbook").classList.toggle("hidden",name!=="cashbook");
   $("tabStudentpay").classList.toggle("hidden",name!=="studentpay");
+  $("tabRecap").classList.toggle("hidden",name!=="recap");
+  if(name==="recap")renderRecap();
 }
 document.querySelectorAll(".tabbtn").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
 
@@ -416,6 +418,125 @@ function printStudentRecap(id){
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Rekap ${esc(b.student_name)}</title><style>@page{size:A4 portrait;margin:15mm}body{font-family:Arial;font-size:11px}.kop{text-align:center;border-bottom:3px double #111}.kop h1{font-size:17px;margin:0}.info{margin:15px 0;line-height:1.7}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:6px}th{background:#eee}.summary{margin-top:14px}.summary td:first-child{font-weight:bold}.sign{margin-top:30px;margin-left:auto;width:220px;text-align:center}.space{height:55px}</style></head><body><div class="kop"><h1>MA NURUL ISLAM KARANGCEMPAKA</h1><p>REKAP PEMBAYARAN IURAN PENDIDIKAN</p></div><div class="info"><b>${esc(b.student_name)}</b><br>${esc(b.class_name_snapshot||"-")} · NISN ${esc(b.nisn||"-")}<br>${esc(b.plan_name)}</div><table><thead><tr><th>No</th><th>Tanggal</th><th>No. Nota</th><th>Metode</th><th>Nominal</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="5">Belum ada pembayaran.</td></tr>'}</tbody></table><table class="summary"><tr><td>Tagihan Tahunan</td><td>${esc(money(b.bill_amount))}</td></tr><tr><td>Sudah Dibayar</td><td>${esc(money(b.total_paid))}</td></tr><tr><td>Sisa Tagihan</td><td>${esc(money(b.remaining_amount))}</td></tr><tr><td>Status</td><td><b>${esc(b.payment_status)}</b></td></tr></table><div class="sign">Bendahara<div class="space"></div><b>${esc(profile?.full_name||"________________")}</b></div></body></html>`);w.document.close();setTimeout(()=>w.print(),400)
 }
 
+
+/* ==========================================================
+   REKAP PEMBAYARAN
+========================================================== */
+function renderRecapFilters(){
+  if(!$("recapYearFilter"))return;
+  const currentYear=$("recapYearFilter").value;
+  const years=[...new Map(feePlans.map(p=>[
+    p.academic_years?.name||p.academic_year_id,
+    {id:p.academic_year_id,name:p.academic_years?.name||p.academic_year_id}
+  ])).values()];
+  $("recapYearFilter").innerHTML='<option value="">Semua Tahun Pelajaran</option>'+years.map(y=>`<option value="${esc(y.name)}">${esc(y.name)}</option>`).join("");
+  if(currentYear&&years.some(y=>y.name===currentYear))$("recapYearFilter").value=currentYear;
+  else if(activePlan?.academic_years?.name)$("recapYearFilter").value=activePlan.academic_years.name;
+
+  const currentClass=$("recapClassFilter").value;
+  $("recapClassFilter").innerHTML='<option value="">Semua Kelas</option>'+classes.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  if(currentClass&&classes.some(c=>c.id===currentClass))$("recapClassFilter").value=currentClass;
+}
+function recapFilteredBills(){
+  if(!$("recapYearFilter"))return[];
+  const year=$("recapYearFilter").value,classId=$("recapClassFilter").value,status=$("recapStatusFilter").value,q=$("recapSearch").value.trim().toLowerCase();
+  return bills.filter(b=>{
+    const hay=`${b.student_name||""} ${b.nis||""} ${b.nisn||""}`.toLowerCase();
+    return(!year||b.academic_year_name===year)&&(!classId||b.class_id_snapshot===classId)&&(!status||b.payment_status===status)&&(!q||hay.includes(q));
+  }).sort((a,b)=>String(a.class_name_snapshot||"").localeCompare(String(b.class_name_snapshot||""),"id")||String(a.student_name||"").localeCompare(String(b.student_name||""),"id"));
+}
+function recapStatusBadge(st){
+  if(st==="LUNAS")return'<span class="badge-soft badge-lunas">LUNAS</span>';
+  if(st==="CICILAN")return'<span class="badge-soft badge-cicilan">CICILAN</span>';
+  return'<span class="badge-soft badge-belum">BELUM BAYAR</span>';
+}
+function recapPct(b){
+  const total=Number(b.bill_amount||0),paid=Number(b.total_paid||0);
+  return total>0?Math.max(0,Math.min(100,Math.round(paid/total*100))):0;
+}
+function renderRecap(){
+  if(!$("recapBody"))return;
+  const data=recapFilteredBills();
+  const totalBill=data.reduce((s,b)=>s+Number(b.bill_amount||0),0);
+  const totalPaid=data.reduce((s,b)=>s+Number(b.total_paid||0),0);
+  const totalRemaining=data.reduce((s,b)=>s+Number(b.remaining_amount||0),0);
+  const lunas=data.filter(b=>b.payment_status==="LUNAS").length;
+  const belum=data.filter(b=>b.payment_status!=="LUNAS").length;
+
+  $("recapStatBilled").textContent=money(totalBill);
+  $("recapStatPaid").textContent=money(totalPaid);
+  $("recapStatRemaining").textContent=money(totalRemaining);
+  $("recapStatLunas").textContent=lunas;
+  $("recapStatBelum").textContent=belum;
+
+  const pct=totalBill>0?Math.round(totalPaid/totalBill*100):0;
+  $("recapSummaryLine").textContent=`${data.length} siswa · Progress pembayaran ${pct}% · ${lunas} lunas · ${belum} belum lunas`;
+
+  const byClass=new Map();
+  for(const b of data){
+    const key=b.class_id_snapshot||b.class_name_snapshot||"-";
+    if(!byClass.has(key))byClass.set(key,{name:b.class_name_snapshot||"-",count:0,bill:0,paid:0,remaining:0,lunas:0,belum:0});
+    const x=byClass.get(key);
+    x.count++;x.bill+=Number(b.bill_amount||0);x.paid+=Number(b.total_paid||0);x.remaining+=Number(b.remaining_amount||0);
+    if(b.payment_status==="LUNAS")x.lunas++;else x.belum++;
+  }
+  $("recapClassGrid").innerHTML=[...byClass.values()].map(x=>{
+    const p=x.bill>0?Math.round(x.paid/x.bill*100):0;
+    return `<article class="recap-class-card"><h4>${esc(x.name)}</h4><p>${x.count} siswa · <strong>${x.lunas} lunas</strong> · ${x.belum} belum lunas</p><p>Tagihan ${money(x.bill)}</p><p>Dibayar ${money(x.paid)}</p><p>Sisa ${money(x.remaining)}</p><div class="recap-progress"><span style="width:${p}%"></span></div><p>Progress ${p}%</p></article>`;
+  }).join("")||'<div class="empty-state">Belum ada data sesuai filter.</div>';
+
+  if(!data.length){
+    $("recapBody").innerHTML='<tr><td colspan="9"><div class="empty-state">Tidak ada data sesuai filter.</div></td></tr>';
+    $("recapCards").innerHTML='<div class="empty-state">Tidak ada data sesuai filter.</div>';
+    return;
+  }
+
+  $("recapBody").innerHTML=data.map((b,i)=>`<tr>
+    <td>${i+1}</td>
+    <td><b>${esc(b.student_name)}</b><br><span style="color:#77847e">${esc(b.nisn||"-")}</span></td>
+    <td>${esc(b.class_name_snapshot||"-")}</td>
+    <td>${esc(b.academic_year_name||"-")}</td>
+    <td>${money(b.bill_amount)}</td>
+    <td>${money(b.total_paid)}</td>
+    <td>${money(b.remaining_amount)}</td>
+    <td>${recapStatusBadge(b.payment_status)}</td>
+    <td>${recapPct(b)}%</td>
+  </tr>`).join("");
+
+  $("recapCards").innerHTML=data.map(b=>`<article class="student-card">
+    <h4>${esc(b.student_name)}</h4>
+    <p>${esc(b.class_name_snapshot||"-")} · TP ${esc(b.academic_year_name||"-")}</p>
+    <p>Tagihan <b>${money(b.bill_amount)}</b></p>
+    <p>Dibayar <b>${money(b.total_paid)}</b> · Sisa <b>${money(b.remaining_amount)}</b></p>
+    ${recapStatusBadge(b.payment_status)}
+  </article>`).join("");
+}
+function recapCsv(){
+  const data=recapFilteredBills();
+  if(!data.length){alert("Tidak ada data rekap sesuai filter.");return}
+  const header=["No","Nama Siswa","NIS","NISN","Kelas","Tahun Pelajaran","Tagihan","Dibayar","Sisa","Status","Progress"];
+  const lines=[header.map(csvCell).join(";")];
+  data.forEach((b,i)=>lines.push([
+    i+1,b.student_name,b.nis||"",b.nisn||"",b.class_name_snapshot||"",b.academic_year_name||"",
+    b.bill_amount,b.total_paid,b.remaining_amount,b.payment_status,`${recapPct(b)}%`
+  ].map(csvCell).join(";")));
+  const blob=new Blob(["\ufeffsep=;\r\n"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  const year=$("recapYearFilter").value||"semua-tahun",cls=$("recapClassFilter").selectedOptions?.[0]?.textContent||"semua-kelas";
+  a.href=url;a.download=`rekap-iuran-${year}-${cls}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function recapPrint(){
+  const data=recapFilteredBills();if(!data.length){alert("Tidak ada data rekap sesuai filter.");return}
+  const totalBill=data.reduce((s,b)=>s+Number(b.bill_amount||0),0),totalPaid=data.reduce((s,b)=>s+Number(b.total_paid||0),0),totalRemaining=data.reduce((s,b)=>s+Number(b.remaining_amount||0),0);
+  const lunas=data.filter(b=>b.payment_status==="LUNAS").length,belum=data.length-lunas;
+  const year=$("recapYearFilter").value||"Semua Tahun Pelajaran",cls=$("recapClassFilter").selectedOptions?.[0]?.textContent||"Semua Kelas",status=$("recapStatusFilter").selectedOptions?.[0]?.textContent||"Semua Status";
+  const trs=data.map((b,i)=>`<tr><td>${i+1}</td><td>${esc(b.student_name)}</td><td>${esc(b.nisn||"-")}</td><td>${esc(b.class_name_snapshot||"-")}</td><td style="text-align:right">${esc(money(b.bill_amount))}</td><td style="text-align:right">${esc(money(b.total_paid))}</td><td style="text-align:right">${esc(money(b.remaining_amount))}</td><td>${esc(b.payment_status)}</td><td>${recapPct(b)}%</td></tr>`).join("");
+  const w=window.open("","_blank");if(!w){alert("Popup diblokir browser.");return}
+  const today=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"long",year:"numeric"}).format(new Date());
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Rekap Pembayaran Iuran Pendidikan</title><style>@page{size:A4 landscape;margin:10mm}body{font-family:Arial,sans-serif;font-size:9px;color:#111}.kop{text-align:center;border-bottom:3px double #111;padding-bottom:7px}.kop h1{font-size:17px;margin:0}.kop p{margin:3px 0}.filter{text-align:center;margin:10px}.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:10px 0}.box{border:1px solid #aaa;padding:6px}.box b{display:block;font-size:12px;margin-top:3px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:4px;vertical-align:top}th{background:#eee}.foot{display:flex;justify-content:space-between;margin-top:20px}.sign{width:240px;text-align:center}.space{height:45px}</style></head><body><div class="kop"><h1>MA NURUL ISLAM KARANGCEMPAKA</h1><p>REKAP PEMBAYARAN IURAN PENDIDIKAN</p></div><div class="filter">Tahun Pelajaran: <b>${esc(year)}</b> · Kelas: <b>${esc(cls)}</b> · Status: <b>${esc(status)}</b></div><div class="summary"><div class="box">Total Tagihan<b>${esc(money(totalBill))}</b></div><div class="box">Sudah Dibayar<b>${esc(money(totalPaid))}</b></div><div class="box">Sisa<b>${esc(money(totalRemaining))}</b></div><div class="box">Lunas<b>${lunas} siswa</b></div><div class="box">Belum Lunas<b>${belum} siswa</b></div></div><table><thead><tr><th>No</th><th>Siswa</th><th>NISN</th><th>Kelas</th><th>Tagihan</th><th>Dibayar</th><th>Sisa</th><th>Status</th><th>Progress</th></tr></thead><tbody>${trs}</tbody></table><div class="foot"><div class="sign">Mengetahui,<br>Kepala Madrasah<div class="space"></div><b>________________________</b></div><div class="sign">Karangcempaka, ${today}<br>Bendahara<div class="space"></div><b>${esc(profile?.full_name||"________________________")}</b></div></div></body></html>`);
+  w.document.close();setTimeout(()=>w.print(),350);
+}
+
 /* EVENTS */
 $("searchInput").addEventListener("input",render);$("monthFilter").addEventListener("change",render);$("typeFilter").addEventListener("change",render);$("categoryFilter").addEventListener("change",render);$("accountFilter").addEventListener("change",render);
 $("addBtn").addEventListener("click",openAdd);$("printBtn").addEventListener("click",printReport);$("csvBtn").addEventListener("click",exportCsv);$("closeModal").addEventListener("click",closeModal);$("cancelBtn").addEventListener("click",closeModal);$("deleteBtn").addEventListener("click",remove);$("form").addEventListener("submit",save);$("transactionType").addEventListener("change",renderCategoryOptions);$("accountType").addEventListener("change",toggleBank);$("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
@@ -423,6 +544,12 @@ $("rateClassSelect").addEventListener("change",syncRateEditor);$("saveClassRateB
 $("studentClassFilter").addEventListener("change",()=>{renderStudentSelect();$("studentFilter").value="";selectedBillId=null;renderStudentModule()});
 $("studentFilter").addEventListener("change",()=>{const id=$("studentFilter").value,b=planBills().find(x=>x.student_id===id);selectedBillId=b?.id||null;renderStudentModule()});
 $("studentSearch").addEventListener("input",renderStudentModule);
+$("recapYearFilter").addEventListener("change",renderRecap);
+$("recapClassFilter").addEventListener("change",renderRecap);
+$("recapStatusFilter").addEventListener("change",renderRecap);
+$("recapSearch").addEventListener("input",renderRecap);
+$("recapPrintBtn").addEventListener("click",recapPrint);
+$("recapCsvBtn").addEventListener("click",recapCsv);
 $("paymentAccountType").addEventListener("change",togglePaymentBank);$("paymentForm").addEventListener("submit",savePayment);$("closePaymentModal").addEventListener("click",closePaymentModal);$("cancelPaymentBtn").addEventListener("click",closePaymentModal);$("paymentModal").addEventListener("click",e=>{if(e.target===$("paymentModal"))closePaymentModal()});
 
 (async()=>{

@@ -52,9 +52,16 @@
     .pay-row strong{font-size:10px}
     .row-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
     .row-actions button{width:auto}
+    
+    .recap-class-card{border:1px solid #e0e9e4;border-radius:12px;padding:11px;background:#fbfdfc}
+    .recap-class-card h4{margin:0 0 7px;font-size:12px;color:#174332}
+    .recap-class-card p{margin:3px 0;font-size:8.8px;color:#687970}
+    .recap-class-card strong{font-size:11px;color:#0b7347}
+    .recap-progress{height:8px;background:#edf2ef;border-radius:999px;overflow:hidden;margin-top:7px}
+    .recap-progress>span{display:block;height:100%;background:#0b7347;border-radius:999px}
     @media(max-width:1180px){.finance-stats,.student-pay-stats{grid-template-columns:repeat(3,1fr)}.finance-toolbar{grid-template-columns:1fr 1fr 1fr}.student-layout{grid-template-columns:1fr}.student-detail{position:static}}
-    @media(max-width:850px){.finance-stats,.student-pay-stats{grid-template-columns:1fr 1fr}.finance-table-wrap,.student-table-wrap{display:none}.finance-cards,.student-cards{display:grid}.finance-toolbar,.student-toolbar{grid-template-columns:1fr 1fr}}
-    @media(max-width:850px){#classRateGrid{grid-template-columns:1fr 1fr!important}#rateEditor{grid-template-columns:1fr!important}}@media(max-width:560px){.finance-stats,.student-pay-stats,.finance-toolbar,.student-toolbar,.detail-grid{grid-template-columns:1fr}.finance-actions{justify-content:flex-start}#classRateGrid{grid-template-columns:1fr!important}}
+    @media(max-width:850px){#recapClassGrid{grid-template-columns:1fr 1fr!important}.finance-stats,.student-pay-stats{grid-template-columns:1fr 1fr}.finance-table-wrap,.student-table-wrap{display:none}.finance-cards,.student-cards{display:grid}.finance-toolbar,.student-toolbar{grid-template-columns:1fr 1fr}}
+    @media(max-width:850px){#classRateGrid{grid-template-columns:1fr 1fr!important}#rateEditor{grid-template-columns:1fr!important}}@media(max-width:560px){#recapClassGrid{grid-template-columns:1fr!important}.finance-stats,.student-pay-stats,.finance-toolbar,.student-toolbar,.detail-grid{grid-template-columns:1fr}.finance-actions{justify-content:flex-start}#classRateGrid{grid-template-columns:1fr!important}}
   </style>
 </head>
 <body>
@@ -81,6 +88,7 @@
       <div class="tabbar">
         <button class="tabbtn active" data-tab="cashbook">Buku Kas</button>
         <button class="tabbtn" data-tab="studentpay">Pembayaran Siswa</button>
+        <button class="tabbtn" data-tab="recap">Rekap Pembayaran</button>
       </div>
 
       <section id="tabCashbook" class="tabpanel">
@@ -165,6 +173,65 @@
             <section id="studentBillCards" class="student-cards"></section>
           </div>
         </section>
+      </section>
+
+      <section id="tabRecap" class="tabpanel hidden">
+        <section class="page-head" style="margin-top:0">
+          <div>
+            <h2>Rekap Pembayaran Iuran Pendidikan</h2>
+            <p>Ringkasan per tahun pelajaran, kelas, dan status pembayaran siswa.</p>
+          </div>
+          <div class="finance-actions">
+            <button id="recapPrintBtn" class="secondary-btn">🖨️ Cetak Rekap</button>
+            <button id="recapCsvBtn" class="secondary-btn">⬇️ Export CSV</button>
+          </div>
+        </section>
+
+        <section class="student-pay-stats">
+          <article class="stat"><div class="stat-head"><span>Total Tagihan</span><span class="stat-icon">🧾</span></div><div id="recapStatBilled" class="stat-value">-</div><div class="stat-sub">Sesuai filter</div></article>
+          <article class="stat"><div class="stat-head"><span>Sudah Dibayar</span><span class="stat-icon">✅</span></div><div id="recapStatPaid" class="stat-value">-</div><div class="stat-sub">Pembayaran masuk</div></article>
+          <article class="stat"><div class="stat-head"><span>Sisa / Tunggakan</span><span class="stat-icon">⏳</span></div><div id="recapStatRemaining" class="stat-value">-</div><div class="stat-sub">Belum dibayar</div></article>
+          <article class="stat"><div class="stat-head"><span>Lunas</span><span class="stat-icon">🎓</span></div><div id="recapStatLunas" class="stat-value">-</div><div class="stat-sub">Jumlah siswa</div></article>
+          <article class="stat"><div class="stat-head"><span>Belum Lunas</span><span class="stat-icon">📌</span></div><div id="recapStatBelum" class="stat-value">-</div><div class="stat-sub">Cicilan + belum bayar</div></article>
+        </section>
+
+        <section class="finance-toolbar" style="grid-template-columns:.8fr .8fr .8fr 1.2fr">
+          <select id="recapYearFilter"><option value="">Semua Tahun Pelajaran</option></select>
+          <select id="recapClassFilter"><option value="">Semua Kelas</option></select>
+          <select id="recapStatusFilter">
+            <option value="">Semua Status</option>
+            <option value="LUNAS">Lunas</option>
+            <option value="CICILAN">Cicilan</option>
+            <option value="BELUM_BAYAR">Belum Bayar</option>
+          </select>
+          <input id="recapSearch" type="search" placeholder="Cari nama / NISN..."/>
+        </section>
+
+        <div id="recapSummaryLine" class="summary-line"></div>
+
+        <section class="plan-card">
+          <div class="plan-head">
+            <div>
+              <h3>Ringkasan per Kelas</h3>
+              <p>Total tagihan, pembayaran, sisa, dan jumlah siswa belum lunas.</p>
+            </div>
+          </div>
+          <div id="recapClassGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px"></div>
+        </section>
+
+        <section class="student-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>No</th><th>Siswa</th><th>Kelas</th><th>Tahun Pelajaran</th>
+                <th>Tagihan</th><th>Dibayar</th><th>Sisa</th><th>Status</th><th>Progress</th>
+              </tr>
+            </thead>
+            <tbody id="recapBody"></tbody>
+          </table>
+        </section>
+
+        <section id="recapCards" class="student-cards"></section>
       </section>
     </main>
   </section>
