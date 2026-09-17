@@ -9,31 +9,52 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css"/>
   <style>
-    .finance-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+    .tabbar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+    .tabbtn{border:1px solid #d6e3dc;background:#fff;color:#476057;border-radius:11px;padding:10px 14px;font-weight:800;font-size:10px;cursor:pointer}
+    .tabbtn.active{background:#0b7347;color:#fff;border-color:#0b7347}
+    .tabpanel.hidden{display:none}
+    .finance-stats,.student-pay-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
     .finance-toolbar{display:grid;grid-template-columns:1.3fr .58fr .55fr .65fr .55fr;gap:10px;margin-bottom:16px}
-    .finance-toolbar input,.finance-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}
-    .finance-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-    .finance-actions button{width:auto}
-    .finance-table-wrap{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(5,79,50,.05)}
-    .finance-table{width:100%;border-collapse:collapse}
-    .finance-table th{background:#f7faf8;font-size:9px;text-align:left;color:#607069;padding:10px;border-bottom:1px solid #e7eeea}
-    .finance-table td{font-size:9.5px;padding:10px;border-bottom:1px solid #edf1ef;vertical-align:top}
-    .finance-table tr:last-child td{border-bottom:0}
+    .finance-toolbar input,.finance-toolbar select,.student-toolbar select,.student-toolbar input{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}
+    .finance-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.finance-actions button{width:auto}
+    .finance-table-wrap,.student-table-wrap,.student-detail,.plan-card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(5,79,50,.05)}
+    table.data-table{width:100%;border-collapse:collapse}
+    table.data-table th{background:#f7faf8;font-size:9px;text-align:left;color:#607069;padding:10px;border-bottom:1px solid #e7eeea}
+    table.data-table td{font-size:9.5px;padding:10px;border-bottom:1px solid #edf1ef;vertical-align:top}
+    table.data-table tr:last-child td{border-bottom:0}
     .money-in{color:#087c47;font-weight:800}.money-out{color:#b13d36;font-weight:800}.money-void{text-decoration:line-through;color:#8b9691}
     .badge-soft{display:inline-flex;padding:4px 7px;border-radius:999px;font-size:8px;font-weight:800;background:#eef4f1;color:#426052}
-    .badge-in{background:#e1f6e9;color:#08733f}.badge-out{background:#ffe6e2;color:#9e3a34}.badge-void{background:#eceff2;color:#666}
-    .finance-cards{display:none;gap:10px}
-    .finance-card{background:#fff;border:1px solid #e0e9e4;border-radius:14px;padding:13px}
-    .finance-card h4{margin:7px 0;font-size:13px}.finance-card p{margin:4px 0;font-size:9px;color:#61716a}
+    .badge-in,.badge-lunas{background:#e1f6e9;color:#08733f}.badge-out{background:#ffe6e2;color:#9e3a34}.badge-void{background:#eceff2;color:#666}
+    .badge-cicilan{background:#fff1bf;color:#7a5e00}.badge-belum{background:#ffe8e3;color:#a33c34}
+    .finance-cards,.student-cards{display:none;gap:10px}
+    .finance-card,.student-card{background:#fff;border:1px solid #e0e9e4;border-radius:14px;padding:13px}
+    .finance-card h4,.student-card h4{margin:7px 0;font-size:13px}.finance-card p,.student-card p{margin:4px 0;font-size:9px;color:#61716a}
     .finance-card-top{display:flex;justify-content:space-between;gap:10px}
     .receipt-box{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #dfe8e3;border-radius:11px;padding:9px;margin-top:7px}
-    .receipt-meta{font-size:9px;color:#66766e}
-    .field-hint{display:block;margin-top:5px;color:var(--muted);font-size:9px}
-    .bank-wrap.hidden{display:none}
-    .summary-line{font-size:9px;color:var(--muted);margin:8px 0 12px}
-    @media(max-width:1180px){.finance-stats{grid-template-columns:repeat(3,1fr)}.finance-toolbar{grid-template-columns:1fr 1fr 1fr}}
-    @media(max-width:850px){.finance-stats{grid-template-columns:1fr 1fr}.finance-table-wrap{display:none}.finance-cards{display:grid}.finance-toolbar{grid-template-columns:1fr 1fr}}
-    @media(max-width:560px){.finance-stats,.finance-toolbar{grid-template-columns:1fr}.finance-actions{justify-content:flex-start}}
+    .receipt-meta{font-size:9px;color:#66766e}.field-hint{display:block;margin-top:5px;color:var(--muted);font-size:9px}
+    .bank-wrap.hidden{display:none}.summary-line{font-size:9px;color:var(--muted);margin:8px 0 12px}
+    .plan-card{padding:15px;margin-bottom:15px}.plan-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+    .plan-card h3{margin:0 0 4px;color:var(--green-950);font-size:15px}.plan-card p{margin:0;color:var(--muted);font-size:9.5px}
+    .plan-amount{font-size:21px;font-weight:800;color:#0b7347;margin-top:5px}
+    .student-toolbar{display:grid;grid-template-columns:.75fr 1fr 1fr;gap:10px;margin-bottom:14px}
+    .student-layout{display:grid;grid-template-columns:1.2fr .8fr;gap:15px;align-items:start}
+    .student-detail{padding:15px;position:sticky;top:12px}
+    .student-detail.empty{color:var(--muted);font-size:10px}
+    .detail-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+    .detail-head h3{margin:0 0 4px;font-size:15px}.detail-head p{margin:0;font-size:9px;color:var(--muted)}
+    .detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:13px 0}
+    .detail-box{background:#f7faf8;border-radius:10px;padding:9px;font-size:9px}.detail-box b{display:block;font-size:13px;color:#1b4735;margin-top:3px}
+    .detail-actions{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+    .detail-actions button{width:auto}
+    .payment-history{margin-top:13px}.payment-history h4{font-size:11px;margin:0 0 8px}
+    .pay-row{border-top:1px solid #edf1ef;padding:9px 0;display:grid;grid-template-columns:1fr auto;gap:8px}
+    .pay-row p{margin:2px 0;font-size:8.5px;color:#66766e}
+    .pay-row strong{font-size:10px}
+    .row-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+    .row-actions button{width:auto}
+    @media(max-width:1180px){.finance-stats,.student-pay-stats{grid-template-columns:repeat(3,1fr)}.finance-toolbar{grid-template-columns:1fr 1fr 1fr}.student-layout{grid-template-columns:1fr}.student-detail{position:static}}
+    @media(max-width:850px){.finance-stats,.student-pay-stats{grid-template-columns:1fr 1fr}.finance-table-wrap,.student-table-wrap{display:none}.finance-cards,.student-cards{display:grid}.finance-toolbar,.student-toolbar{grid-template-columns:1fr 1fr}}
+    @media(max-width:560px){.finance-stats,.student-pay-stats,.finance-toolbar,.student-toolbar,.detail-grid{grid-template-columns:1fr}.finance-actions{justify-content:flex-start}}
   </style>
 </head>
 <body>
@@ -42,12 +63,8 @@
 <div class="app">
   <aside class="sidebar">
     <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
-    <div class="nav-title">MENU</div>
-    <nav id="sidebarMenu"></nav>
-    <div class="sidebar-footer">
-      <div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div>
-      <button id="logoutBtn" class="logout-btn">Keluar</button>
-    </div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
   </aside>
 
   <section class="content">
@@ -58,95 +75,139 @@
 
     <main class="main">
       <section class="page-head">
-        <div><h2>Keuangan</h2><p>Buku kas madrasah, pemasukan, pengeluaran, saldo tunai/rekening, bukti transaksi, dan laporan.</p></div>
-        <div class="finance-actions">
+        <div><h2>Keuangan</h2><p>Buku kas dan pembayaran Iuran Pendidikan siswa.</p></div>
+      </section>
+
+      <div class="tabbar">
+        <button class="tabbtn active" data-tab="cashbook">Buku Kas</button>
+        <button class="tabbtn" data-tab="studentpay">Pembayaran Siswa</button>
+      </div>
+
+      <section id="tabCashbook" class="tabpanel">
+        <div class="finance-actions" style="margin-bottom:12px">
           <button id="printBtn" class="secondary-btn">🖨️ Cetak Laporan</button>
           <button id="csvBtn" class="secondary-btn">⬇️ Export CSV</button>
           <button id="addBtn" class="primary-btn">+ Transaksi</button>
         </div>
+
+        <section class="finance-stats">
+          <article class="stat"><div class="stat-head"><span>Saldo Total</span><span class="stat-icon">💰</span></div><div id="statBalance" class="stat-value">-</div><div class="stat-sub">Kas + rekening</div></article>
+          <article class="stat"><div class="stat-head"><span>Kas Tunai</span><span class="stat-icon">💵</span></div><div id="statCash" class="stat-value">-</div><div class="stat-sub">Saldo cash</div></article>
+          <article class="stat"><div class="stat-head"><span>Rekening</span><span class="stat-icon">🏦</span></div><div id="statBank" class="stat-value">-</div><div class="stat-sub">Saldo bank</div></article>
+          <article class="stat"><div class="stat-head"><span>Pemasukan</span><span class="stat-icon">↗️</span></div><div id="statIncome" class="stat-value">-</div><div id="incomeSub" class="stat-sub">Periode</div></article>
+          <article class="stat"><div class="stat-head"><span>Pengeluaran</span><span class="stat-icon">↘️</span></div><div id="statExpense" class="stat-value">-</div><div id="expenseSub" class="stat-sub">Periode</div></article>
+        </section>
+
+        <section class="finance-toolbar">
+          <input id="searchInput" type="search" placeholder="Cari uraian, referensi, pembuat..."/>
+          <select id="monthFilter"><option value="">Semua Bulan</option></select>
+          <select id="typeFilter"><option value="">Semua Jenis</option><option value="INCOME">Pemasukan</option><option value="EXPENSE">Pengeluaran</option></select>
+          <select id="categoryFilter"><option value="">Semua Kategori</option></select>
+          <select id="accountFilter"><option value="">Semua Penyimpanan</option><option value="CASH">Cash</option><option value="BANK">Rekening</option></select>
+        </section>
+
+        <div id="summaryLine" class="summary-line"></div>
+        <section class="finance-table-wrap">
+          <table class="data-table">
+            <thead><tr><th>No</th><th>Tanggal</th><th>Jenis</th><th>Kategori / Uraian</th><th>Penyimpanan</th><th>Nominal</th><th>Bukti</th><th>Aksi</th></tr></thead>
+            <tbody id="financeTableBody"></tbody>
+          </table>
+        </section>
+        <section id="financeCards" class="finance-cards"></section>
       </section>
 
-      <section class="finance-stats">
-        <article class="stat"><div class="stat-head"><span>Saldo Total</span><span class="stat-icon">💰</span></div><div id="statBalance" class="stat-value">-</div><div class="stat-sub">Kas + rekening</div></article>
-        <article class="stat"><div class="stat-head"><span>Kas Tunai</span><span class="stat-icon">💵</span></div><div id="statCash" class="stat-value">-</div><div class="stat-sub">Saldo transaksi cash</div></article>
-        <article class="stat"><div class="stat-head"><span>Rekening</span><span class="stat-icon">🏦</span></div><div id="statBank" class="stat-value">-</div><div class="stat-sub">Saldo transaksi bank</div></article>
-        <article class="stat"><div class="stat-head"><span>Pemasukan</span><span class="stat-icon">↗️</span></div><div id="statIncome" class="stat-value">-</div><div id="incomeSub" class="stat-sub">Periode</div></article>
-        <article class="stat"><div class="stat-head"><span>Pengeluaran</span><span class="stat-icon">↘️</span></div><div id="statExpense" class="stat-value">-</div><div id="expenseSub" class="stat-sub">Periode</div></article>
+      <section id="tabStudentpay" class="tabpanel hidden">
+        <section class="plan-card">
+          <div class="plan-head">
+            <div>
+              <h3 id="planName">Iuran Pendidikan</h3>
+              <p id="planYear">Tahun Pelajaran -</p>
+              <div id="planAmount" class="plan-amount">Rp0</div>
+            </div>
+            <div class="finance-actions">
+              <button id="setPlanAmountBtn" class="secondary-btn">Atur Nominal Tahunan</button>
+              <button id="syncBillsBtn" class="primary-btn">Sinkronkan Tagihan Siswa</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="student-pay-stats">
+          <article class="stat"><div class="stat-head"><span>Total Tagihan</span><span class="stat-icon">🧾</span></div><div id="studentStatBilled" class="stat-value">-</div><div class="stat-sub">Seluruh siswa</div></article>
+          <article class="stat"><div class="stat-head"><span>Sudah Dibayar</span><span class="stat-icon">✅</span></div><div id="studentStatPaid" class="stat-value">-</div><div class="stat-sub">Cicilan masuk</div></article>
+          <article class="stat"><div class="stat-head"><span>Sisa Tagihan</span><span class="stat-icon">⏳</span></div><div id="studentStatRemaining" class="stat-value">-</div><div class="stat-sub">Belum dibayar</div></article>
+          <article class="stat"><div class="stat-head"><span>Lunas</span><span class="stat-icon">🎓</span></div><div id="studentStatLunas" class="stat-value">-</div><div class="stat-sub">Siswa lunas</div></article>
+          <article class="stat"><div class="stat-head"><span>Cicilan</span><span class="stat-icon">💳</span></div><div id="studentStatCicilan" class="stat-value">-</div><div class="stat-sub">Belum lunas</div></article>
+        </section>
+
+        <section class="student-toolbar">
+          <select id="studentClassFilter"><option value="">Semua Kelas</option></select>
+          <select id="studentFilter"><option value="">Semua Siswa</option></select>
+          <input id="studentSearch" type="search" placeholder="Cari nama / NISN..."/>
+        </section>
+
+        <section class="student-layout">
+          <div>
+            <section class="student-table-wrap">
+              <table class="data-table">
+                <thead><tr><th>No</th><th>Siswa</th><th>Kelas</th><th>Tagihan</th><th>Dibayar</th><th>Sisa</th><th>Status</th></tr></thead>
+                <tbody id="studentBillBody"></tbody>
+              </table>
+            </section>
+            <section id="studentBillCards" class="student-cards"></section>
+          </div>
+
+          <aside id="studentDetail" class="student-detail empty">Pilih siswa untuk melihat tagihan dan riwayat cicilan.</aside>
+        </section>
       </section>
-
-      <section class="finance-toolbar">
-        <input id="searchInput" type="search" placeholder="Cari uraian, nomor referensi, pembuat..."/>
-        <select id="monthFilter"><option value="">Semua Bulan</option></select>
-        <select id="typeFilter"><option value="">Semua Jenis</option><option value="INCOME">Pemasukan</option><option value="EXPENSE">Pengeluaran</option></select>
-        <select id="categoryFilter"><option value="">Semua Kategori</option></select>
-        <select id="accountFilter"><option value="">Semua Penyimpanan</option><option value="CASH">Cash</option><option value="BANK">Rekening</option></select>
-      </section>
-
-      <div id="summaryLine" class="summary-line"></div>
-
-      <section class="finance-table-wrap">
-        <table class="finance-table">
-          <thead><tr><th>No</th><th>Tanggal</th><th>Jenis</th><th>Kategori / Uraian</th><th>Penyimpanan</th><th>Nominal</th><th>Bukti</th><th>Aksi</th></tr></thead>
-          <tbody id="financeTableBody"></tbody>
-        </table>
-      </section>
-
-      <section id="financeCards" class="finance-cards"></section>
     </main>
   </section>
 </div>
 
+<!-- Modal transaksi buku kas V1 -->
 <div id="modal" class="modal-backdrop hidden">
   <div class="modal">
     <div class="modal-head"><h3 id="modalTitle">Tambah Transaksi</h3><button id="closeModal" class="modal-close">✕</button></div>
     <form id="form">
       <div class="modal-body">
-        <input id="transactionId" type="hidden"/>
-        <input id="oldReceiptPath" type="hidden"/>
-        <input id="oldReceiptName" type="hidden"/>
-
+        <input id="transactionId" type="hidden"/><input id="oldReceiptPath" type="hidden"/><input id="oldReceiptName" type="hidden"/>
         <div class="form-grid">
           <label><span>Tanggal *</span><input id="transactionDate" type="date" required/></label>
-
-          <label><span>Jenis *</span>
-            <select id="transactionType">
-              <option value="INCOME">Pemasukan</option>
-              <option value="EXPENSE">Pengeluaran</option>
-            </select>
-          </label>
-
+          <label><span>Jenis *</span><select id="transactionType"><option value="INCOME">Pemasukan</option><option value="EXPENSE">Pengeluaran</option></select></label>
           <label><span>Kategori *</span><select id="category" required></select></label>
-
           <label><span>Nominal *</span><input id="amount" type="number" min="1" step="1" required placeholder="0"/></label>
-
-          <label><span>Penyimpanan *</span>
-            <select id="accountType"><option value="CASH">Cash / Tunai</option><option value="BANK">Rekening / Bank</option></select>
-          </label>
-
-          <label id="bankNameWrap" class="bank-wrap hidden"><span>Nama Rekening / Bank *</span><input id="accountName" maxlength="120" placeholder="Contoh: BRI - Bendahara"/></label>
-
-          <label><span>Nomor Referensi</span><input id="referenceNumber" maxlength="120" placeholder="No. kuitansi / transfer / SPJ"/></label>
-
+          <label><span>Penyimpanan *</span><select id="accountType"><option value="CASH">Cash / Tunai</option><option value="BANK">Rekening / Bank</option></select></label>
+          <label id="bankNameWrap" class="bank-wrap hidden"><span>Nama Rekening / Bank *</span><input id="accountName" maxlength="120"/></label>
+          <label><span>Nomor Referensi</span><input id="referenceNumber" maxlength="120"/></label>
           <label><span>Status</span><select id="status"><option value="POSTED">Aktif / Dibukukan</option><option value="VOID">Dibatalkan</option></select></label>
-
-          <label class="full"><span>Uraian *</span><textarea id="description" rows="4" required placeholder="Jelaskan sumber pemasukan atau keperluan pengeluaran..."></textarea></label>
-
-          <div class="full">
-            <span style="font-size:11px;font-weight:700">Bukti Transaksi</span>
-            <div id="receiptCurrent"></div>
-            <input id="receiptFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" style="margin-top:7px"/>
-            <small class="field-hint">PDF/JPG/PNG/WEBP, maksimal 10 MB. File baru akan menggantikan bukti lama.</small>
-          </div>
+          <label class="full"><span>Uraian *</span><textarea id="description" rows="4" required></textarea></label>
+          <div class="full"><span style="font-size:11px;font-weight:700">Bukti Transaksi</span><div id="receiptCurrent"></div><input id="receiptFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" style="margin-top:7px"/><small class="field-hint">PDF/JPG/PNG/WEBP, maksimal 10 MB.</small></div>
         </div>
-
         <div id="formMessage" class="form-message"></div>
       </div>
+      <div class="modal-actions"><button type="button" id="deleteBtn" class="secondary-btn" style="margin-right:auto">Hapus Permanen</button><button type="button" id="cancelBtn" class="secondary-btn">Batal</button><button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button></div>
+    </form>
+  </div>
+</div>
 
-      <div class="modal-actions">
-        <button type="button" id="deleteBtn" class="secondary-btn" style="margin-right:auto">Hapus Permanen</button>
-        <button type="button" id="cancelBtn" class="secondary-btn">Batal</button>
-        <button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button>
+<!-- Modal pembayaran cicilan -->
+<div id="paymentModal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head"><h3>Bayar Cicilan Iuran Pendidikan</h3><button id="closePaymentModal" class="modal-close">✕</button></div>
+    <form id="paymentForm">
+      <div class="modal-body">
+        <input id="paymentBillId" type="hidden"/>
+        <div id="paymentStudentInfo" style="background:#f7faf8;border-radius:12px;padding:11px;margin-bottom:12px;font-size:10px"></div>
+        <div class="form-grid">
+          <label><span>Tanggal Pembayaran *</span><input id="paymentDate" type="date" required/></label>
+          <label><span>Nominal Cicilan *</span><input id="paymentAmount" type="number" min="1" step="1" required/></label>
+          <label><span>Penyimpanan *</span><select id="paymentAccountType"><option value="CASH">Cash / Tunai</option><option value="BANK">Rekening / Bank</option></select></label>
+          <label id="paymentBankWrap" class="bank-wrap hidden"><span>Nama Rekening / Bank *</span><input id="paymentAccountName" maxlength="120"/></label>
+          <label><span>Nomor Referensi</span><input id="paymentReference" maxlength="120" placeholder="Opsional"/></label>
+          <label><span>Catatan</span><input id="paymentNote" maxlength="180" placeholder="Opsional"/></label>
+        </div>
+        <div id="paymentMessage" class="form-message"></div>
       </div>
+      <div class="modal-actions"><button type="button" id="cancelPaymentBtn" class="secondary-btn">Batal</button><button type="submit" id="savePaymentBtn" class="primary-btn" style="width:auto">Simpan & Cetak Nota</button></div>
     </form>
   </div>
 </div>
