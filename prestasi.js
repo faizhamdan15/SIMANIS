@@ -35,6 +35,8 @@ async function loadMaster(){
   $("advisorTeacher").innerHTML='<option value="">Tanpa pembina</option>'+teachers.map(t=>`<option value="${t.id}">${esc(t.full_name)}</option>`).join("");
   const yearOptions=academicYears.map(y=>`<option value="${y.id}">${esc(y.name)}${y.is_active?" · Aktif":""}</option>`).join("");
   $("yearFilter").innerHTML='<option value="">Semua Tahun Pelajaran</option>'+yearOptions;$("academicYear").innerHTML=yearOptions;
+  const classNames=[...new Set(students.map(s=>s.class_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"id",{numeric:true}));
+  $("classFilter").innerHTML='<option value="">Semua Kelas</option>'+classNames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("");
   if(activeYear){$("yearFilter").value=activeYear.id;$("academicYear").value=activeYear.id}
 }
 
@@ -46,13 +48,92 @@ async function loadData(){
   rows=a||[];attachmentRows=f||[];render();
 }
 function yearScoped(){const yr=$("yearFilter").value;return rows.filter(r=>!yr||effectiveYearId(r)===yr)}
-function filtered(){const q=$("searchInput").value.trim().toLowerCase(),cat=$("categoryFilter").value,lvl=$("levelFilter").value;return yearScoped().filter(r=>{const hay=`${r.title||""} ${r.competition_name||""} ${r.participant_names||""} ${r.advisor_name||""} ${r.achievement||""}`.toLowerCase();return (!q||hay.includes(q))&&(!cat||r.category===cat)&&(!lvl||r.level===lvl)})}
-function render(){
-  const scope=yearScoped(),data=filtered(),scopeName=selectedYearName();
-  $("statTotal").textContent=scope.length;$("statNational").textContent=scope.filter(r=>["NASIONAL","INTERNASIONAL"].includes(r.level)).length;$("statTeam").textContent=scope.filter(r=>r.participant_type==="TIM").length;$("statParticipants").textContent=scope.reduce((a,r)=>a+Number(r.participant_count||0),0);$("statYearLabel").textContent=scopeName;$("addBtn").disabled=!canCreate();
-  if(!data.length){$("achievementGrid").innerHTML=`<div class="empty-state" style="grid-column:1/-1">Belum ada data prestasi untuk ${esc(scopeName.toLowerCase())} yang cocok dengan filter.</div>`;return}
-  $("achievementGrid").innerHTML=data.map(r=>{const fs=filesForAchievement(r.id),certs=fs.filter(f=>f.file_type==="CERTIFICATE"),evidence=fs.filter(f=>f.file_type==="EVIDENCE");return `<article class="ach-card"><div class="ach-head"><div class="ach-pills"><span class="pill p-year">TP ${esc(effectiveYearName(r))}</span><span class="pill p-level">${esc(r.level)}</span><span class="pill p-cat">${esc(r.category)}</span></div><span class="pill p-rank">${esc(r.achievement)}</span></div><h3>${esc(r.title)}</h3><p><b>${esc(r.competition_name)}</b></p><p>${r.event_date?new Date(r.event_date+'T00:00:00').toLocaleDateString('id-ID'):"Tanggal belum diisi"}${r.organizer?` · ${esc(r.organizer)}`:""}</p><div class="ach-meta"><div><b>Peserta</b><br>${esc(r.participant_names||"-")}</div><div><b>Kelas</b><br>${esc(r.class_names||"-")}</div><div><b>Pembina</b><br>${esc(r.advisor_name||"-")}</div><div><b>Jenis</b><br>${esc(r.participant_type)} · ${Number(r.participant_count||0)} siswa</div></div><div class="link-row">${certs.map(f=>`<button class="file-btn" type="button" data-open-file="${f.id}">📄 ${esc(f.original_name)}</button>`).join("")}${evidence.map(f=>`<button class="file-btn" type="button" data-open-file="${f.id}">📷 ${esc(f.original_name)}</button>`).join("")}${r.certificate_url?`<a href="${esc(r.certificate_url)}" target="_blank" rel="noopener">Sertifikat eksternal ↗</a>`:""}${r.evidence_url?`<a href="${esc(r.evidence_url)}" target="_blank" rel="noopener">Bukti eksternal ↗</a>`:""}</div><div class="ach-actions">${canEdit(r)?`<button class="mini-btn" data-edit="${r.id}">Edit</button>`:""}${fs.length?`<span class="file-count">${fs.length} berkas</span>`:""}</div></article>`}).join("");
-  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));document.querySelectorAll("[data-open-file]").forEach(b=>b.onclick=()=>openStoredFile(b.dataset.openFile));
+function filtered(){
+  const q=$("searchInput").value.trim().toLowerCase(),cat=$("categoryFilter").value,lvl=$("levelFilter").value,cls=$("classFilter").value;
+  return yearScoped().filter(r=>{
+    const hay=`${r.title||""} ${r.competition_name||""} ${r.participant_names||""} ${r.advisor_name||""} ${r.achievement||""} ${r.organizer||""}`.toLowerCase();
+    const classes=String(r.class_names||"").split(",").map(x=>x.trim()).filter(Boolean);
+    return (!q||hay.includes(q))&&(!cat||r.category===cat)&&(!lvl||r.level===lvl)&&(!cls||classes.includes(cls));
+  })
+}
+
+
+function humanDate(dateStr){return dateStr?new Date(dateStr+"T00:00:00").toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"}):"-"}
+function reportFilterLabel(){
+  const parts=[];
+  parts.push(`TP: ${selectedYearName()}`);
+  if($("classFilter").value)parts.push(`Kelas: ${$("classFilter").value}`);
+  if($("categoryFilter").value)parts.push(`Kategori: ${$("categoryFilter").value}`);
+  if($("levelFilter").value)parts.push(`Tingkat: ${$("levelFilter").value}`);
+  if($("searchInput").value.trim())parts.push(`Pencarian: ${$("searchInput").value.trim()}`);
+  return parts.join(" · ");
+}
+function reportFilename(ext){
+  const year=selectedYearName().replaceAll("/","-").replace(/\s+/g,"-").toLowerCase();
+  const cls=($("classFilter").value||"semua-kelas").replace(/\s+/g,"-").toLowerCase();
+  return `rekap-prestasi-${year}-${cls}.${ext}`;
+}
+function csvCell(v){return `"${String(v??"").replaceAll('"','""')}"`}
+function exportCsv(){
+  const data=filtered();
+  if(!data.length){alert("Tidak ada data prestasi pada filter saat ini.");return}
+  const header=["No","Tahun Pelajaran","Tanggal","Judul Prestasi","Lomba/Kegiatan","Kategori","Tingkat","Capaian","Jenis Peserta","Jumlah Peserta","Peserta","Kelas","Pembina","Penyelenggara","Lokasi"];
+  const lines=[header.map(csvCell).join(";")];
+  data.forEach((r,i)=>lines.push([
+    i+1,effectiveYearName(r),r.event_date||"",r.title||"",r.competition_name||"",r.category||"",r.level||"",r.achievement||"",
+    r.participant_type||"",Number(r.participant_count||0),r.participant_names||"",r.class_names||"",r.advisor_name||"",r.organizer||"",r.location||""
+  ].map(csvCell).join(";")));
+  const blob=new Blob(["\ufeffsep=;\r\n"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=reportFilename("csv");document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function printReport(){
+  const data=filtered();
+  if(!data.length){alert("Tidak ada data prestasi pada filter saat ini.");return}
+  const totalParticipants=data.reduce((a,r)=>a+Number(r.participant_count||0),0);
+  const national=data.filter(r=>["NASIONAL","INTERNASIONAL"].includes(r.level)).length;
+  const team=data.filter(r=>r.participant_type==="TIM").length;
+  const rowsHtml=data.map((r,i)=>`<tr>
+    <td>${i+1}</td>
+    <td>${esc(humanDate(r.event_date))}</td>
+    <td>${esc(r.title||"-")}<br><small>${esc(r.competition_name||"-")}</small></td>
+    <td>${esc(r.category||"-")}</td>
+    <td>${esc(r.level||"-")}</td>
+    <td><b>${esc(r.achievement||"-")}</b></td>
+    <td>${esc(r.participant_names||"-")}<br><small>${esc(r.class_names||"-")}</small></td>
+    <td>${esc(r.advisor_name||"-")}</td>
+    <td>${esc(r.organizer||"-")}</td>
+  </tr>`).join("");
+  const w=window.open("","_blank");
+  if(!w){alert("Popup diblokir browser. Izinkan popup untuk mencetak rekap.");return}
+  const today=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"long",year:"numeric"}).format(new Date());
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Rekap Prestasi</title><style>
+    @page{size:A4 landscape;margin:12mm}
+    *{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0;font-size:10px}
+    .kop{text-align:center;border-bottom:3px double #111;padding-bottom:8px;margin-bottom:12px}.kop h1{font-size:18px;margin:0}.kop h2{font-size:14px;margin:3px 0}.kop p{margin:2px 0}
+    .title{text-align:center;margin:12px 0}.title h3{font-size:14px;margin:0 0 4px}.filters{font-size:9px;color:#444}
+    .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.sum{border:1px solid #bbb;padding:7px;border-radius:6px}.sum b{display:block;font-size:16px}
+    table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #999;padding:5px;vertical-align:top}th{background:#eee;text-align:left;font-size:9px}td{font-size:8.5px}small{font-size:7.5px;color:#444}
+    .foot{margin-top:16px;display:flex;justify-content:space-between;gap:40px}.sign{width:260px;text-align:center;line-height:1.5}.space{height:55px}
+    .meta{display:flex;justify-content:space-between;margin-top:5px;color:#555;font-size:8px}
+  </style></head><body>
+    <div class="kop"><h1>MA NURUL ISLAM KARANGCEMPAKA</h1><h2>SIMANIS — SISTEM INFORMASI MA NURUL ISLAM</h2><p>Rekapitulasi Prestasi Siswa</p></div>
+    <div class="title"><h3>REKAP PRESTASI SISWA</h3><div class="filters">${esc(reportFilterLabel())}</div></div>
+    <div class="summary">
+      <div class="sum"><span>Total Prestasi</span><b>${data.length}</b></div>
+      <div class="sum"><span>Nasional + Internasional</span><b>${national}</b></div>
+      <div class="sum"><span>Prestasi Tim</span><b>${team}</b></div>
+      <div class="sum"><span>Akumulasi Peserta</span><b>${totalParticipants}</b></div>
+    </div>
+    <table><thead><tr><th>No</th><th>Tanggal</th><th>Prestasi / Kegiatan</th><th>Kategori</th><th>Tingkat</th><th>Capaian</th><th>Peserta / Kelas</th><th>Pembina</th><th>Penyelenggara</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+    <div class="meta"><span>Dicetak dari SIMANIS</span><span>${today}</span></div>
+    <div class="foot">
+      <div class="sign">Mengetahui,<br>Kepala Madrasah<div class="space"></div><b>__________________________</b></div>
+      <div class="sign">Karangcempaka, ${today}<br>Waka Kesiswaan<div class="space"></div><b>__________________________</b></div>
+    </div>
+  </body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>w.print(),400);
 }
 
 function syncYearFromDate(){const d=$("eventDate").value;const y=academicYearForDate(d);if(y){$("academicYear").value=y.id;$("academicYearHint").textContent=`Otomatis dari tanggal: TP ${y.name}.`;return}const inferred=inferSchoolYearName(d);$("academicYearHint").textContent=inferred?`Tanggal ini termasuk TP ${inferred}, tetapi tahun tersebut belum ada di master.`:"Pilih tanggal untuk menyesuaikan tahun pelajaran otomatis."}
@@ -78,6 +159,6 @@ async function save(e){e.preventDefault();const selected=[...$("students").selec
 
 async function remove(){const id=$("achievementId").value;if(!id)return;const r=rows.find(x=>x.id===id);if(!r||!canDelete(r))return;if(!confirm(`Hapus prestasi "${r.title}" beserta semua berkas buktinya?`))return;try{const fs=filesForAchievement(id);for(const f of fs)await storageDelete(f.storage_path);await restWrite(`achievements?id=eq.${encodeURIComponent(id)}`,"DELETE",undefined,"return=minimal");closeModal();await loadData()}catch(err){alert("Gagal menghapus: "+err.message)}}
 
-$("searchInput").addEventListener("input",render);$("yearFilter").addEventListener("change",render);$("categoryFilter").addEventListener("change",render);$("levelFilter").addEventListener("change",render);$("eventDate").addEventListener("change",syncYearFromDate);$("addBtn").addEventListener("click",openAdd);$("closeModal").addEventListener("click",closeModal);$("cancelBtn").addEventListener("click",closeModal);$("deleteBtn").addEventListener("click",remove);$("form").addEventListener("submit",save);$("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
+$("searchInput").addEventListener("input",render);$("yearFilter").addEventListener("change",render);$("classFilter").addEventListener("change",render);$("categoryFilter").addEventListener("change",render);$("levelFilter").addEventListener("change",render);$("printBtn").addEventListener("click",printReport);$("csvBtn").addEventListener("click",exportCsv);$("eventDate").addEventListener("change",syncYearFromDate);$("addBtn").addEventListener("click",openAdd);$("closeModal").addEventListener("click",closeModal);$("cancelBtn").addEventListener("click",closeModal);$("deleteBtn").addEventListener("click",remove);$("form").addEventListener("submit",save);$("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
 
 (async function boot(){try{api=await window.simanisReady;const session=await api.auth.getSession();if(!session){location.replace("index.html");return}const user=await api.auth.getUser();if(!user){location.replace("index.html");return}profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();await Promise.all([loadMenu(),loadMaster()]);await loadData();$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}}catch(err){console.error(err);alert("Modul Prestasi gagal dimuat: "+(err.message||err))}finally{$("loading").classList.add("hidden")}})();
