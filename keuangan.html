@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Keuangan — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .finance-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+    .finance-toolbar{display:grid;grid-template-columns:1.3fr .58fr .55fr .65fr .55fr;gap:10px;margin-bottom:16px}
+    .finance-toolbar input,.finance-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}
+    .finance-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .finance-actions button{width:auto}
+    .finance-table-wrap{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(5,79,50,.05)}
+    .finance-table{width:100%;border-collapse:collapse}
+    .finance-table th{background:#f7faf8;font-size:9px;text-align:left;color:#607069;padding:10px;border-bottom:1px solid #e7eeea}
+    .finance-table td{font-size:9.5px;padding:10px;border-bottom:1px solid #edf1ef;vertical-align:top}
+    .finance-table tr:last-child td{border-bottom:0}
+    .money-in{color:#087c47;font-weight:800}.money-out{color:#b13d36;font-weight:800}.money-void{text-decoration:line-through;color:#8b9691}
+    .badge-soft{display:inline-flex;padding:4px 7px;border-radius:999px;font-size:8px;font-weight:800;background:#eef4f1;color:#426052}
+    .badge-in{background:#e1f6e9;color:#08733f}.badge-out{background:#ffe6e2;color:#9e3a34}.badge-void{background:#eceff2;color:#666}
+    .finance-cards{display:none;gap:10px}
+    .finance-card{background:#fff;border:1px solid #e0e9e4;border-radius:14px;padding:13px}
+    .finance-card h4{margin:7px 0;font-size:13px}.finance-card p{margin:4px 0;font-size:9px;color:#61716a}
+    .finance-card-top{display:flex;justify-content:space-between;gap:10px}
+    .receipt-box{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #dfe8e3;border-radius:11px;padding:9px;margin-top:7px}
+    .receipt-meta{font-size:9px;color:#66766e}
+    .field-hint{display:block;margin-top:5px;color:var(--muted);font-size:9px}
+    .bank-wrap.hidden{display:none}
+    .summary-line{font-size:9px;color:var(--muted);margin:8px 0 12px}
+    @media(max-width:1180px){.finance-stats{grid-template-columns:repeat(3,1fr)}.finance-toolbar{grid-template-columns:1fr 1fr 1fr}}
+    @media(max-width:850px){.finance-stats{grid-template-columns:1fr 1fr}.finance-table-wrap{display:none}.finance-cards{display:grid}.finance-toolbar{grid-template-columns:1fr 1fr}}
+    @media(max-width:560px){.finance-stats,.finance-toolbar{grid-template-columns:1fr}.finance-actions{justify-content:flex-start}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Keuangan...</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div>
+    <nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer">
+      <div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div>
+      <button id="logoutBtn" class="logout-btn">Keluar</button>
+    </div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar">
+      <div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Keuangan</p></div>
+      <div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div>
+    </header>
+
+    <main class="main">
+      <section class="page-head">
+        <div><h2>Keuangan</h2><p>Buku kas madrasah, pemasukan, pengeluaran, saldo tunai/rekening, bukti transaksi, dan laporan.</p></div>
+        <div class="finance-actions">
+          <button id="printBtn" class="secondary-btn">🖨️ Cetak Laporan</button>
+          <button id="csvBtn" class="secondary-btn">⬇️ Export CSV</button>
+          <button id="addBtn" class="primary-btn">+ Transaksi</button>
+        </div>
+      </section>
+
+      <section class="finance-stats">
+        <article class="stat"><div class="stat-head"><span>Saldo Total</span><span class="stat-icon">💰</span></div><div id="statBalance" class="stat-value">-</div><div class="stat-sub">Kas + rekening</div></article>
+        <article class="stat"><div class="stat-head"><span>Kas Tunai</span><span class="stat-icon">💵</span></div><div id="statCash" class="stat-value">-</div><div class="stat-sub">Saldo transaksi cash</div></article>
+        <article class="stat"><div class="stat-head"><span>Rekening</span><span class="stat-icon">🏦</span></div><div id="statBank" class="stat-value">-</div><div class="stat-sub">Saldo transaksi bank</div></article>
+        <article class="stat"><div class="stat-head"><span>Pemasukan</span><span class="stat-icon">↗️</span></div><div id="statIncome" class="stat-value">-</div><div id="incomeSub" class="stat-sub">Periode</div></article>
+        <article class="stat"><div class="stat-head"><span>Pengeluaran</span><span class="stat-icon">↘️</span></div><div id="statExpense" class="stat-value">-</div><div id="expenseSub" class="stat-sub">Periode</div></article>
+      </section>
+
+      <section class="finance-toolbar">
+        <input id="searchInput" type="search" placeholder="Cari uraian, nomor referensi, pembuat..."/>
+        <select id="monthFilter"><option value="">Semua Bulan</option></select>
+        <select id="typeFilter"><option value="">Semua Jenis</option><option value="INCOME">Pemasukan</option><option value="EXPENSE">Pengeluaran</option></select>
+        <select id="categoryFilter"><option value="">Semua Kategori</option></select>
+        <select id="accountFilter"><option value="">Semua Penyimpanan</option><option value="CASH">Cash</option><option value="BANK">Rekening</option></select>
+      </section>
+
+      <div id="summaryLine" class="summary-line"></div>
+
+      <section class="finance-table-wrap">
+        <table class="finance-table">
+          <thead><tr><th>No</th><th>Tanggal</th><th>Jenis</th><th>Kategori / Uraian</th><th>Penyimpanan</th><th>Nominal</th><th>Bukti</th><th>Aksi</th></tr></thead>
+          <tbody id="financeTableBody"></tbody>
+        </table>
+      </section>
+
+      <section id="financeCards" class="finance-cards"></section>
+    </main>
+  </section>
+</div>
+
+<div id="modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modalTitle">Tambah Transaksi</h3><button id="closeModal" class="modal-close">✕</button></div>
+    <form id="form">
+      <div class="modal-body">
+        <input id="transactionId" type="hidden"/>
+        <input id="oldReceiptPath" type="hidden"/>
+        <input id="oldReceiptName" type="hidden"/>
+
+        <div class="form-grid">
+          <label><span>Tanggal *</span><input id="transactionDate" type="date" required/></label>
+
+          <label><span>Jenis *</span>
+            <select id="transactionType">
+              <option value="INCOME">Pemasukan</option>
+              <option value="EXPENSE">Pengeluaran</option>
+            </select>
+          </label>
+
+          <label><span>Kategori *</span><select id="category" required></select></label>
+
+          <label><span>Nominal *</span><input id="amount" type="number" min="1" step="1" required placeholder="0"/></label>
+
+          <label><span>Penyimpanan *</span>
+            <select id="accountType"><option value="CASH">Cash / Tunai</option><option value="BANK">Rekening / Bank</option></select>
+          </label>
+
+          <label id="bankNameWrap" class="bank-wrap hidden"><span>Nama Rekening / Bank *</span><input id="accountName" maxlength="120" placeholder="Contoh: BRI - Bendahara"/></label>
+
+          <label><span>Nomor Referensi</span><input id="referenceNumber" maxlength="120" placeholder="No. kuitansi / transfer / SPJ"/></label>
+
+          <label><span>Status</span><select id="status"><option value="POSTED">Aktif / Dibukukan</option><option value="VOID">Dibatalkan</option></select></label>
+
+          <label class="full"><span>Uraian *</span><textarea id="description" rows="4" required placeholder="Jelaskan sumber pemasukan atau keperluan pengeluaran..."></textarea></label>
+
+          <div class="full">
+            <span style="font-size:11px;font-weight:700">Bukti Transaksi</span>
+            <div id="receiptCurrent"></div>
+            <input id="receiptFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" style="margin-top:7px"/>
+            <small class="field-hint">PDF/JPG/PNG/WEBP, maksimal 10 MB. File baru akan menggantikan bukti lama.</small>
+          </div>
+        </div>
+
+        <div id="formMessage" class="form-message"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="deleteBtn" class="secondary-btn" style="margin-right:auto">Hapus Permanen</button>
+        <button type="button" id="cancelBtn" class="secondary-btn">Batal</button>
+        <button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script src="keuangan.js"></script>
+</body>
+</html>

@@ -26,7 +26,8 @@
     "Prestasi": "prestasi.html",
     "Berita Madrasah": "berita.html",
     "Pengumuman": "pengumuman.html",
-    "Agenda Madrasah": "agenda.html"
+    "Agenda Madrasah": "agenda.html",
+    "Keuangan": "keuangan.html"
   };
 
   document.addEventListener("click", function (event) {
