@@ -23,7 +23,8 @@
     "Absensi Guru": "absensi-guru.html",
     "Absensi Siswa": "absensi-siswa.html",
     "Nilai": "nilai.html",
-    "Prestasi": "prestasi.html"
+    "Prestasi": "prestasi.html",
+    "Berita Madrasah": "berita.html"
   };
 
   document.addEventListener("click", function (event) {

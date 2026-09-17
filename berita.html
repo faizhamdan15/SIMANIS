@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Berita Madrasah — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .news-toolbar{display:grid;grid-template-columns:1.4fr .55fr .55fr;gap:10px;margin-bottom:16px}
+    .news-toolbar input,.news-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}
+    .news-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .news-card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(5,79,50,.05)}
+    .news-cover{height:165px;background:linear-gradient(135deg,#e5f2eb,#f7fbf8);display:flex;align-items:center;justify-content:center;color:#719384;font-weight:800;font-size:12px;overflow:hidden}
+    .news-cover img{width:100%;height:100%;object-fit:cover}
+    .news-body{padding:15px}
+    .news-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+    .news-pills{display:flex;gap:5px;flex-wrap:wrap}
+    .pill{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800}
+    .p-cat{background:#e6f5ec;color:#08743f}.p-pub{background:#dff5e7;color:#08653a}.p-draft{background:#fff2bd;color:#725a00}.p-arc{background:#eceff2;color:#5d6470}.p-featured{background:#e9efff;color:#365aaf}
+    .news-card h3{font-size:15px;line-height:1.35;margin:10px 0 7px;color:var(--green-950)}
+    .news-card p{font-size:10px;line-height:1.55;color:var(--muted);margin:5px 0}
+    .news-meta{font-size:9px;color:#6e7c75;margin-top:9px}
+    .news-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+    .cover-preview{width:100%;height:170px;border-radius:12px;border:1px solid #dce7e1;background:#f7faf8;display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--muted);font-size:10px}
+    .cover-preview img{width:100%;height:100%;object-fit:cover}
+    .field-hint{display:block;margin-top:5px;color:var(--muted);font-size:10px}
+    .feature-check{display:flex;align-items:center;gap:8px;padding-top:24px}
+    .feature-check input{width:auto}
+    textarea#content{min-height:270px;line-height:1.55}
+    .char-info{text-align:right;font-size:9px;color:var(--muted);margin-top:4px}
+    @media(max-width:1100px){.news-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:700px){.news-toolbar{grid-template-columns:1fr}.news-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Berita Madrasah...</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div>
+    <nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer">
+      <div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div>
+      <button id="logoutBtn" class="logout-btn">Keluar</button>
+    </div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar">
+      <div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Berita Madrasah</p></div>
+      <div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div>
+    </header>
+
+    <main class="main">
+      <section class="page-head">
+        <div><h2>Berita Madrasah</h2><p>Kelola berita, dokumentasi kegiatan, dan publikasi resmi madrasah.</p></div>
+        <div class="action-row"><button id="addBtn" class="primary-btn" style="width:auto">+ Tulis Berita</button></div>
+      </section>
+
+      <section class="stats">
+        <article class="stat"><div class="stat-head"><span>Total Berita</span><span class="stat-icon">📰</span></div><div id="statTotal" class="stat-value">-</div><div class="stat-sub">Seluruh artikel</div></article>
+        <article class="stat"><div class="stat-head"><span>Terbit</span><span class="stat-icon">🌐</span></div><div id="statPublished" class="stat-value">-</div><div class="stat-sub">Sudah dipublikasikan</div></article>
+        <article class="stat"><div class="stat-head"><span>Draft</span><span class="stat-icon">✍️</span></div><div id="statDraft" class="stat-value">-</div><div class="stat-sub">Belum dipublikasikan</div></article>
+        <article class="stat"><div class="stat-head"><span>Unggulan</span><span class="stat-icon">⭐</span></div><div id="statFeatured" class="stat-value">-</div><div class="stat-sub">Berita pilihan</div></article>
+      </section>
+
+      <section class="news-toolbar">
+        <input id="searchInput" type="search" placeholder="Cari judul, isi, penulis..."/>
+        <select id="categoryFilter">
+          <option value="">Semua Kategori</option>
+          <option>MADRASAH</option><option>AKADEMIK</option><option>KESISWAAN</option><option>PRESTASI</option>
+          <option>KEGIATAN</option><option>SOSIAL</option><option>KEAGAMAAN</option><option>LAINNYA</option>
+        </select>
+        <select id="statusFilter">
+          <option value="">Semua Status</option>
+          <option value="PUBLISHED">PUBLISHED</option>
+          <option value="DRAFT">DRAFT</option>
+          <option value="ARCHIVED">ARCHIVED</option>
+        </select>
+      </section>
+
+      <section id="newsGrid" class="news-grid"></section>
+    </main>
+  </section>
+</div>
+
+<div id="modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modalTitle">Tulis Berita</h3><button id="closeModal" class="modal-close">✕</button></div>
+    <form id="form">
+      <div class="modal-body">
+        <input id="articleId" type="hidden"/>
+        <input id="articleSlug" type="hidden"/>
+        <input id="oldCoverPath" type="hidden"/>
+
+        <div class="form-grid">
+          <label class="full"><span>Judul Berita *</span><input id="title" required maxlength="180" placeholder="Contoh: Siswa MA Nurul Islam Raih Juara 1..."/></label>
+
+          <label><span>Kategori</span>
+            <select id="category">
+              <option>MADRASAH</option><option>AKADEMIK</option><option>KESISWAAN</option><option>PRESTASI</option>
+              <option>KEGIATAN</option><option>SOSIAL</option><option>KEAGAMAAN</option><option>LAINNYA</option>
+            </select>
+          </label>
+
+          <label><span>Status</span>
+            <select id="status"><option value="DRAFT">Draft</option><option value="PUBLISHED">Terbit</option><option value="ARCHIVED">Arsip</option></select>
+          </label>
+
+          <label><span>Waktu Publikasi</span><input id="publishedAt" type="datetime-local"/><small class="field-hint">Bisa diisi waktu mendatang untuk penjadwalan.</small></label>
+
+          <label class="feature-check"><input id="featured" type="checkbox"/> <span>Jadikan berita unggulan</span></label>
+
+          <label class="full"><span>Ringkasan</span><textarea id="excerpt" rows="3" maxlength="320" placeholder="Ringkasan singkat untuk kartu berita..."></textarea><div id="excerptCount" class="char-info">0 / 320</div></label>
+
+          <label class="full"><span>Isi Berita *</span><textarea id="content" required placeholder="Tulis berita lengkap di sini. Pisahkan paragraf dengan baris kosong."></textarea><div id="contentCount" class="char-info">0 karakter</div></label>
+
+          <div class="full">
+            <span style="font-size:11px;font-weight:700">Foto Sampul</span>
+            <div id="coverPreview" class="cover-preview">Belum ada foto sampul</div>
+            <input id="coverFile" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" style="margin-top:8px"/>
+            <small class="field-hint">JPG/PNG/WEBP, maksimal 5 MB. Disarankan rasio 16:9.</small>
+          </div>
+
+          <label class="full"><span>Alt Text Foto</span><input id="coverAlt" maxlength="180" placeholder="Deskripsi singkat foto untuk aksesibilitas"/></label>
+        </div>
+
+        <div id="formMessage" class="form-message"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="deleteBtn" class="secondary-btn" style="margin-right:auto">Hapus</button>
+        <button type="button" id="previewBtn" class="secondary-btn">Preview</button>
+        <button type="button" id="cancelBtn" class="secondary-btn">Batal</button>
+        <button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script src="berita.js"></script>
+</body>
+</html>
