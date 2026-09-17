@@ -47,7 +47,7 @@
       <section class="page-head">
         <div>
           <h2>Data Siswa</h2>
-          <p>Kelola data siswa aktif dan penempatan kelas Semester Ganjil 2026/2027.</p>
+          <p>Kelola biodata lengkap siswa aktif dan penempatan kelas Semester Ganjil 2026/2027.</p>
         </div>
         <div class="action-row">
           <button id="addStudentBtn" class="primary-btn" style="width:auto">+ Tambah Siswa</button>
@@ -78,7 +78,7 @@
       </section>
 
       <section class="toolbar">
-        <input id="searchInput" type="search" placeholder="Cari nama, NIS atau NISN..." />
+        <input id="searchInput" type="search" placeholder="Cari nama, NIS, NISN, NIK, atau nomor telepon..." />
         <select id="classFilter"><option value="">Semua Kelas</option></select>
         <select id="genderFilter">
           <option value="">Semua JK</option>
@@ -95,7 +95,7 @@
               <tr>
                 <th>No</th>
                 <th>Nama Siswa</th>
-                <th>NIS / NISN</th>
+                <th>NIS / NISN / NIK</th>
                 <th>JK</th>
                 <th>Kelas</th>
                 <th>No. Urut</th>
@@ -147,6 +147,16 @@
           <label>
             <span>NISN</span>
             <input id="nisn" />
+          </label>
+
+          <label>
+            <span>NIK</span>
+            <input id="nik" inputmode="numeric" />
+          </label>
+
+          <label>
+            <span>No. Telepon Siswa</span>
+            <input id="phone" inputmode="tel" />
           </label>
 
           <label>
@@ -203,6 +213,21 @@
           <label>
             <span>No. HP Wali</span>
             <input id="guardianPhone" />
+          </label>
+
+          <label>
+            <span>Nomor KIP/PIP</span>
+            <input id="kipPipNumber" />
+          </label>
+
+          <label>
+            <span>Kebutuhan Khusus</span>
+            <input id="specialNeeds" placeholder="Tidak Ada" />
+          </label>
+
+          <label>
+            <span>Disabilitas</span>
+            <input id="disability" placeholder="Tidak Ada" />
           </label>
 
           <label class="full">
