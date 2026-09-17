@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Agenda Madrasah — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .agenda-toolbar{display:grid;grid-template-columns:1.3fr .55fr .55fr .55fr;gap:10px;margin-bottom:16px}
+    .agenda-toolbar input,.agenda-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}
+    .agenda-layout{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;align-items:start}
+    .calendar-card,.agenda-list-card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 6px 18px rgba(5,79,50,.05);overflow:hidden}
+    .calendar-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px 15px;border-bottom:1px solid #edf1ef}
+    .calendar-title{font-weight:800;color:var(--green-950)}
+    .calendar-nav{display:flex;gap:6px}
+    .calendar-nav button{border:1px solid #d5e3db;background:#fff;border-radius:9px;padding:7px 10px;cursor:pointer}
+    .weekday-row,.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+    .weekday-row>div{padding:8px 5px;text-align:center;font-size:9px;font-weight:800;color:#6f7f77;border-bottom:1px solid #edf1ef}
+    .day{min-height:92px;border-right:1px solid #edf1ef;border-bottom:1px solid #edf1ef;padding:7px;cursor:pointer;background:#fff}
+    .day:nth-child(7n){border-right:0}
+    .day.outside{background:#fafcfb;color:#b1bbb6}
+    .day.today{box-shadow:inset 0 0 0 2px #0b7347}
+    .day.selected{background:#eef8f2}
+    .day-num{font-size:10px;font-weight:800;margin-bottom:5px}
+    .day-events{display:flex;flex-direction:column;gap:3px}
+    .event-chip{display:block;border-radius:6px;padding:4px 5px;font-size:7.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ev-akademik{background:#e8f1ff;color:#315c9d}.ev-rapat{background:#eee9ff;color:#61459b}.ev-ujian{background:#fff0cf;color:#8c6500}
+    .ev-lomba{background:#ffe8f1;color:#a53a66}.ev-kegiatan{background:#e7f7ed;color:#19724a}.ev-libur{background:#ffe7e4;color:#a7473e}
+    .ev-kunjungan{background:#e6f7f6;color:#26706d}.ev-deadline{background:#ffe5df;color:#a13831}.ev-keagamaan{background:#eef5dc;color:#607c22}.ev-lainnya{background:#edf0f2;color:#59636a}
+    .agenda-list-head{padding:14px 15px;border-bottom:1px solid #edf1ef;display:flex;justify-content:space-between;gap:8px;align-items:center}
+    .agenda-list-head h3{margin:0;font-size:14px;color:var(--green-950)}
+    .agenda-list{padding:12px;display:flex;flex-direction:column;gap:10px}
+    .agenda-item{border:1px solid #e1e9e5;border-radius:13px;padding:12px}
+    .agenda-item.important{border-color:#e8c865;background:#fffdf4}
+    .agenda-item.cancelled{opacity:.65}
+    .item-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+    .pills{display:flex;gap:5px;flex-wrap:wrap}
+    .pill{display:inline-flex;padding:4px 7px;border-radius:999px;font-size:8px;font-weight:800}
+    .p-cat{background:#e6f5ec;color:#08743f}.p-plan{background:#e7f1ff;color:#355f9c}.p-done{background:#dff5e7;color:#08653a}.p-cancel{background:#eceff2;color:#626b71}.p-important{background:#fff0bd;color:#745900}
+    .agenda-item h4{font-size:13px;margin:8px 0 5px;color:#18392c}
+    .agenda-item p{font-size:9.5px;color:#607068;line-height:1.55;margin:4px 0}
+    .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
+    .meta-grid>div{background:#f7faf8;border-radius:9px;padding:7px;font-size:8.5px}
+    .meta-grid b{display:block;margin-bottom:2px;color:#294438}
+    .row-actions{display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap}
+    .agenda-summary{font-size:9px;color:var(--muted)}
+    .field-hint{display:block;margin-top:5px;color:var(--muted);font-size:9px}
+    .target-wrap.hidden,.time-wrap.hidden{display:none}
+    .all-day-check{display:flex;align-items:center;gap:8px;padding-top:24px}
+    .all-day-check input{width:auto}
+    @media(max-width:1100px){.agenda-layout{grid-template-columns:1fr}.agenda-toolbar{grid-template-columns:1fr 1fr}}
+    @media(max-width:650px){.agenda-toolbar{grid-template-columns:1fr}.day{min-height:68px;padding:4px}.event-chip{font-size:6.5px;padding:3px}.meta-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Agenda Madrasah...</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div>
+    <nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer">
+      <div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div>
+      <button id="logoutBtn" class="logout-btn">Keluar</button>
+    </div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar">
+      <div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Agenda Madrasah</p></div>
+      <div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div>
+    </header>
+
+    <main class="main">
+      <section class="page-head">
+        <div><h2>Agenda Madrasah</h2><p>Kalender kegiatan, rapat, ujian, lomba, deadline, dan agenda resmi madrasah.</p></div>
+        <div class="action-row"><button id="addBtn" class="primary-btn" style="width:auto">+ Tambah Agenda</button></div>
+      </section>
+
+      <section class="stats">
+        <article class="stat"><div class="stat-head"><span>Bulan Ini</span><span class="stat-icon">🗓️</span></div><div id="statMonth" class="stat-value">-</div><div class="stat-sub">Agenda pada bulan ditampilkan</div></article>
+        <article class="stat"><div class="stat-head"><span>Hari Ini</span><span class="stat-icon">📍</span></div><div id="statToday" class="stat-value">-</div><div class="stat-sub">Agenda hari ini</div></article>
+        <article class="stat"><div class="stat-head"><span>Mendatang</span><span class="stat-icon">⏳</span></div><div id="statUpcoming" class="stat-value">-</div><div class="stat-sub">Belum lewat</div></article>
+        <article class="stat"><div class="stat-head"><span>Penting</span><span class="stat-icon">⭐</span></div><div id="statImportant" class="stat-value">-</div><div class="stat-sub">Agenda prioritas</div></article>
+      </section>
+
+      <section class="agenda-toolbar">
+        <input id="searchInput" type="search" placeholder="Cari agenda, lokasi, penanggung jawab..."/>
+        <select id="categoryFilter">
+          <option value="">Semua Kategori</option>
+          <option>AKADEMIK</option><option>RAPAT</option><option>UJIAN</option><option>LOMBA</option><option>KEGIATAN</option>
+          <option>LIBUR</option><option>KUNJUNGAN</option><option>DEADLINE</option><option>KEAGAMAAN</option><option>LAINNYA</option>
+        </select>
+        <select id="audienceFilter">
+          <option value="">Semua Sasaran</option>
+          <option value="SELURUH_MADRASAH">Seluruh Madrasah</option>
+          <option value="GURU_PEGAWAI">Guru & Pegawai</option>
+          <option value="SISWA">Seluruh Siswa</option>
+          <option value="KELAS_TERTENTU">Kelas Tertentu</option>
+        </select>
+        <select id="statusFilter">
+          <option value="">Semua Status</option>
+          <option value="PLANNED">PLANNED</option>
+          <option value="COMPLETED">COMPLETED</option>
+          <option value="CANCELLED">CANCELLED</option>
+        </select>
+      </section>
+
+      <section class="agenda-layout">
+        <div class="calendar-card">
+          <div class="calendar-head">
+            <div id="calendarTitle" class="calendar-title">-</div>
+            <div class="calendar-nav">
+              <button id="todayBtn" type="button">Hari ini</button>
+              <button id="prevMonth" type="button">‹</button>
+              <button id="nextMonth" type="button">›</button>
+            </div>
+          </div>
+          <div class="weekday-row"><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div><div>Aha</div></div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </div>
+
+        <div class="agenda-list-card">
+          <div class="agenda-list-head">
+            <h3 id="listTitle">Agenda Bulan Ini</h3>
+            <span id="listSummary" class="agenda-summary"></span>
+          </div>
+          <div id="agendaList" class="agenda-list"></div>
+        </div>
+      </section>
+    </main>
+  </section>
+</div>
+
+<div id="modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modalTitle">Tambah Agenda</h3><button id="closeModal" class="modal-close">✕</button></div>
+    <form id="form">
+      <div class="modal-body">
+        <input id="agendaId" type="hidden"/>
+
+        <div class="form-grid">
+          <label class="full"><span>Judul Agenda *</span><input id="title" required maxlength="180" placeholder="Contoh: Rapat Persiapan PTS Ganjil"/></label>
+
+          <label><span>Kategori</span>
+            <select id="category">
+              <option>AKADEMIK</option><option>RAPAT</option><option>UJIAN</option><option>LOMBA</option><option selected>KEGIATAN</option>
+              <option>LIBUR</option><option>KUNJUNGAN</option><option>DEADLINE</option><option>KEAGAMAAN</option><option>LAINNYA</option>
+            </select>
+          </label>
+
+          <label><span>Status</span>
+            <select id="status"><option value="PLANNED">Direncanakan</option><option value="COMPLETED">Selesai</option><option value="CANCELLED">Dibatalkan</option></select>
+          </label>
+
+          <label><span>Sasaran</span>
+            <select id="audience">
+              <option value="SELURUH_MADRASAH">Seluruh Madrasah</option>
+              <option value="GURU_PEGAWAI">Guru & Pegawai</option>
+              <option value="SISWA">Seluruh Siswa</option>
+              <option value="KELAS_TERTENTU">Kelas Tertentu</option>
+            </select>
+          </label>
+
+          <label id="targetClassWrap" class="target-wrap hidden"><span>Kelas Tujuan *</span><select id="targetClass"><option value="">Pilih kelas</option></select></label>
+
+          <label class="all-day-check"><input id="allDay" type="checkbox"/> <span>Agenda sehari penuh</span></label>
+
+          <label><span>Tanggal Mulai *</span><input id="startDate" type="date" required/></label>
+          <label id="startTimeWrap"><span>Jam Mulai *</span><input id="startTime" type="time"/></label>
+
+          <label><span>Tanggal Selesai</span><input id="endDate" type="date"/></label>
+          <label id="endTimeWrap"><span>Jam Selesai</span><input id="endTime" type="time"/></label>
+
+          <label><span>Lokasi</span><input id="location" maxlength="180" placeholder="Contoh: Aula MA Nurul Islam"/></label>
+          <label><span>Penanggung Jawab</span><input id="pic" maxlength="180" placeholder="Nama guru/panitia"/></label>
+
+          <label class="full"><span>Tautan Eksternal</span><input id="externalLink" type="url" placeholder="https://..."/><small class="field-hint">Opsional: Google Meet, formulir pendaftaran, dokumen, dll.</small></label>
+
+          <label class="full"><span>Deskripsi</span><textarea id="description" rows="5" placeholder="Keterangan agenda, perlengkapan, peserta, atau catatan lain..."></textarea></label>
+
+          <label style="display:flex;align-items:center;gap:8px"><input id="important" type="checkbox" style="width:auto"/> <span>Tandai sebagai agenda penting</span></label>
+        </div>
+
+        <div id="formMessage" class="form-message"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="deleteBtn" class="secondary-btn" style="margin-right:auto">Hapus</button>
+        <button type="button" id="cancelBtn" class="secondary-btn">Batal</button>
+        <button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script src="agenda.js"></script>
+</body>
+</html>
