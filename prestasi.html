@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
   <style>
-    .ach-toolbar{display:grid;grid-template-columns:1.35fr .65fr .55fr .55fr;gap:10px;margin-bottom:16px}.ach-toolbar input,.ach-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}.ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.ach-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px;box-shadow:0 6px 18px rgba(5,79,50,.05)}.ach-card h3{margin:8px 0 5px;font-size:15px;color:var(--green-950)}.ach-card p{font-size:10px;color:var(--muted);margin:4px 0}.ach-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.ach-pills{display:flex;gap:5px;flex-wrap:wrap}.pill{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800}.p-year{background:#edf7f1;color:#0a6540}.p-level{background:#e9efff;color:#365aaf}.p-cat{background:#e6f5ec;color:#08743f}.p-rank{background:#fff2bd;color:#725a00}.ach-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:11px 0}.ach-meta div{background:#f8fbf9;border-radius:9px;padding:8px;font-size:9px}.ach-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.student-picker{height:180px}.link-row{display:flex;gap:8px;flex-wrap:wrap}.link-row a{font-size:10px;font-weight:700;color:var(--green-800)}.field-hint{display:block;margin-top:5px;color:var(--muted);font-size:10px}@media(max-width:1100px){.ach-toolbar{grid-template-columns:1fr 1fr}.ach-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:700px){.ach-toolbar{grid-template-columns:1fr}.ach-grid{grid-template-columns:1fr}}
+    .ach-toolbar{display:grid;grid-template-columns:1.35fr .65fr .55fr .55fr;gap:10px;margin-bottom:16px}.ach-toolbar input,.ach-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}.ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.ach-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px;box-shadow:0 6px 18px rgba(5,79,50,.05)}.ach-card h3{margin:8px 0 5px;font-size:15px;color:var(--green-950)}.ach-card p{font-size:10px;color:var(--muted);margin:4px 0}.ach-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.ach-pills{display:flex;gap:5px;flex-wrap:wrap}.pill{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800}.p-year{background:#edf7f1;color:#0a6540}.p-level{background:#e9efff;color:#365aaf}.p-cat{background:#e6f5ec;color:#08743f}.p-rank{background:#fff2bd;color:#725a00}.ach-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:11px 0}.ach-meta div{background:#f8fbf9;border-radius:9px;padding:8px;font-size:9px}.ach-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.student-picker{height:180px}.link-row{display:flex;gap:8px;flex-wrap:wrap}.link-row a{font-size:10px;font-weight:700;color:var(--green-800)}.field-hint{display:block;margin-top:5px;color:var(--muted);font-size:10px}.upload-box{border:1px dashed #bfd4c7;border-radius:12px;padding:12px;background:#f8fbf9}.upload-box strong{display:block;margin-bottom:5px;color:var(--green-950);font-size:11px}.upload-box input[type=file]{width:100%;font-size:10px}.stored-files{display:flex;flex-direction:column;gap:7px;margin-top:8px}.stored-file{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#fff;border:1px solid #dfe8e3;border-radius:10px;padding:8px}.stored-file-info{min-width:0}.stored-file-name{font-size:10px;font-weight:700;color:var(--green-950);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stored-file-meta{font-size:9px;color:var(--muted);margin-top:2px}.file-actions{display:flex;gap:5px;flex:0 0 auto}.file-btn{border:1px solid #cfe0d6;background:#fff;color:var(--green-800);border-radius:8px;padding:6px 8px;font-size:9px;font-weight:800;cursor:pointer}.file-btn.danger{color:#a22929;border-color:#efcaca}.file-count{font-size:10px;font-weight:800;color:var(--green-800)}@media(max-width:1100px){.ach-toolbar{grid-template-columns:1fr 1fr}.ach-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:700px){.ach-toolbar{grid-template-columns:1fr}.ach-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -58,8 +58,22 @@
       <label><span>Penyelenggara</span><input id="organizer"/></label>
       <label><span>Lokasi</span><input id="location"/></label>
       <label class="full"><span>Peserta Siswa *</span><select id="students" class="student-picker" multiple required></select><small>Tahan Ctrl untuk memilih lebih dari satu siswa di desktop.</small></label>
-      <label class="full"><span>URL Sertifikat</span><input id="certificateUrl" type="url" placeholder="https://..."/></label>
-      <label class="full"><span>URL Foto/Bukti</span><input id="evidenceUrl" type="url" placeholder="https://..."/></label>
+      <div class="full upload-box">
+        <strong>📄 Upload Sertifikat</strong>
+        <input id="certificateFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif"/>
+        <small class="field-hint">PDF/JPG/PNG/WEBP/HEIC, maksimal 10 MB per file.</small>
+      </div>
+      <div class="full upload-box">
+        <strong>📷 Upload Foto/Bukti</strong>
+        <input id="evidenceFiles" type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif"/>
+        <small class="field-hint">Bisa pilih beberapa foto sekaligus, maksimal 10 MB per file.</small>
+      </div>
+      <div class="full upload-box">
+        <strong>Berkas tersimpan</strong>
+        <div id="storedFiles" class="stored-files"><span class="field-hint">Belum ada berkas.</span></div>
+      </div>
+      <label class="full"><span>URL Sertifikat Eksternal <small>(opsional)</small></span><input id="certificateUrl" type="url" placeholder="https://..."/></label>
+      <label class="full"><span>URL Foto/Bukti Eksternal <small>(opsional)</small></span><input id="evidenceUrl" type="url" placeholder="https://..."/></label>
       <label class="full"><span>Catatan</span><textarea id="note" rows="3"></textarea></label>
     </div>
     <div id="formMessage" class="form-message"></div>
