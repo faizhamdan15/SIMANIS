@@ -58,6 +58,64 @@ function filtered(){
 }
 
 
+function render(){
+  const data=filtered(),scopeName=selectedYearName();
+  $("statTotal").textContent=data.length;
+  $("statNational").textContent=data.filter(r=>["NASIONAL","INTERNASIONAL"].includes(r.level)).length;
+  $("statTeam").textContent=data.filter(r=>r.participant_type==="TIM").length;
+  $("statParticipants").textContent=data.reduce((a,r)=>a+Number(r.participant_count||0),0);
+  $("statYearLabel").textContent=scopeName;
+  $("addBtn").disabled=!canCreate();
+
+  if(!data.length){
+    $("achievementGrid").innerHTML=`<div class="empty-state" style="grid-column:1/-1">Belum ada data prestasi untuk ${esc(scopeName.toLowerCase())} yang cocok dengan filter.</div>`;
+    return;
+  }
+
+  $("achievementGrid").innerHTML=data.map(r=>{
+    const fs=filesForAchievement(r.id),
+          certs=fs.filter(f=>f.file_type==="CERTIFICATE"),
+          evidence=fs.filter(f=>f.file_type==="EVIDENCE");
+
+    return `<article class="ach-card">
+      <div class="ach-head">
+        <div class="ach-pills">
+          <span class="pill p-year">TP ${esc(effectiveYearName(r))}</span>
+          <span class="pill p-level">${esc(r.level)}</span>
+          <span class="pill p-cat">${esc(r.category)}</span>
+        </div>
+        <span class="pill p-rank">${esc(r.achievement)}</span>
+      </div>
+
+      <h3>${esc(r.title)}</h3>
+      <p><b>${esc(r.competition_name)}</b></p>
+      <p>${r.event_date?new Date(r.event_date+'T00:00:00').toLocaleDateString('id-ID'):"Tanggal belum diisi"}${r.organizer?` · ${esc(r.organizer)}`:""}</p>
+
+      <div class="ach-meta">
+        <div><b>Peserta</b><br>${esc(r.participant_names||"-")}</div>
+        <div><b>Kelas</b><br>${esc(r.class_names||"-")}</div>
+        <div><b>Pembina</b><br>${esc(r.advisor_name||"-")}</div>
+        <div><b>Jenis</b><br>${esc(r.participant_type)} · ${Number(r.participant_count||0)} siswa</div>
+      </div>
+
+      <div class="link-row">
+        ${certs.map(f=>`<button class="file-btn" type="button" data-open-file="${f.id}">📄 ${esc(f.original_name)}</button>`).join("")}
+        ${evidence.map(f=>`<button class="file-btn" type="button" data-open-file="${f.id}">📷 ${esc(f.original_name)}</button>`).join("")}
+        ${r.certificate_url?`<a href="${esc(r.certificate_url)}" target="_blank" rel="noopener">Sertifikat eksternal ↗</a>`:""}
+        ${r.evidence_url?`<a href="${esc(r.evidence_url)}" target="_blank" rel="noopener">Bukti eksternal ↗</a>`:""}
+      </div>
+
+      <div class="ach-actions">
+        ${canEdit(r)?`<button class="mini-btn" data-edit="${r.id}">Edit</button>`:""}
+        ${fs.length?`<span class="file-count">${fs.length} berkas</span>`:""}
+      </div>
+    </article>`;
+  }).join("");
+
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
+  document.querySelectorAll("[data-open-file]").forEach(b=>b.onclick=()=>openStoredFile(b.dataset.openFile));
+}
+
 function humanDate(dateStr){return dateStr?new Date(dateStr+"T00:00:00").toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"}):"-"}
 function reportFilterLabel(){
   const parts=[];
