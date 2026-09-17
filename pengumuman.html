@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Pengumuman — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .announce-toolbar{display:grid;grid-template-columns:1.35fr .55fr .55fr .55fr;gap:10px;margin-bottom:16px}
+    .announce-toolbar input,.announce-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}
+    .announce-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+    .announce-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 6px 18px rgba(5,79,50,.05);position:relative}
+    .announce-card.pinned{border-color:#e5c558;box-shadow:0 7px 20px rgba(167,130,0,.08)}
+    .announce-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+    .announce-pills{display:flex;gap:5px;flex-wrap:wrap}
+    .pill{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800}
+    .p-cat{background:#e6f5ec;color:#08743f}.p-normal{background:#eef2f0;color:#52615a}.p-important{background:#fff0b8;color:#795e00}.p-urgent{background:#ffe0df;color:#a82f2b}
+    .p-active{background:#dff5e7;color:#08653a}.p-scheduled{background:#e8edff;color:#3f5aa7}.p-draft{background:#fff2bd;color:#725a00}.p-expired{background:#eceff2;color:#5d6470}.p-archived{background:#eceff2;color:#5d6470}
+    .announce-card h3{font-size:16px;line-height:1.35;color:var(--green-950);margin:12px 0 7px}
+    .announce-content{font-size:11px;line-height:1.65;color:#52655c;white-space:pre-line}
+    .announce-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px}
+    .announce-meta>div{background:#f7faf8;border-radius:10px;padding:8px;font-size:9px}
+    .announce-meta b{display:block;color:#213d31;margin-bottom:2px}
+    .announce-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:12px}
+    .pin-icon{font-size:17px}
+    .file-list{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+    .file-btn{border:1px solid #d6e5dd;background:#fff;border-radius:9px;padding:7px 9px;font-size:9px;font-weight:700;color:#0b7046;cursor:pointer}
+    .stored-file{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #edf1ef}
+    .stored-file:last-child{border-bottom:0}
+    .stored-file-name{font-size:10px;font-weight:700}.stored-file-meta{font-size:9px;color:var(--muted)}
+    .file-actions{display:flex;gap:5px}
+    .danger{color:#9e322d!important;border-color:#ecc6c4!important}
+    .target-wrap.hidden{display:none}
+    .field-hint{display:block;margin-top:5px;color:var(--muted);font-size:9px}
+    @media(max-width:1000px){.announce-toolbar{grid-template-columns:1fr 1fr}.announce-grid{grid-template-columns:1fr}}
+    @media(max-width:650px){.announce-toolbar{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Pengumuman...</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div>
+    <nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer">
+      <div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div>
+      <button id="logoutBtn" class="logout-btn">Keluar</button>
+    </div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar">
+      <div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Pengumuman</p></div>
+      <div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div>
+    </header>
+
+    <main class="main">
+      <section class="page-head">
+        <div><h2>Pengumuman</h2><p>Sampaikan informasi penting, jadwal, rapat, libur, dan pemberitahuan madrasah.</p></div>
+        <div class="action-row"><button id="addBtn" class="primary-btn" style="width:auto">+ Buat Pengumuman</button></div>
+      </section>
+
+      <section class="stats">
+        <article class="stat"><div class="stat-head"><span>Aktif</span><span class="stat-icon">📢</span></div><div id="statActive" class="stat-value">-</div><div class="stat-sub">Sedang berlaku</div></article>
+        <article class="stat"><div class="stat-head"><span>Terjadwal</span><span class="stat-icon">🗓️</span></div><div id="statScheduled" class="stat-value">-</div><div class="stat-sub">Akan ditampilkan</div></article>
+        <article class="stat"><div class="stat-head"><span>Draft</span><span class="stat-icon">✍️</span></div><div id="statDraft" class="stat-value">-</div><div class="stat-sub">Belum diterbitkan</div></article>
+        <article class="stat"><div class="stat-head"><span>Penting+</span><span class="stat-icon">⚠️</span></div><div id="statPriority" class="stat-value">-</div><div class="stat-sub">Penting & mendesak</div></article>
+      </section>
+
+      <section class="announce-toolbar">
+        <input id="searchInput" type="search" placeholder="Cari judul, isi, pembuat..."/>
+        <select id="categoryFilter"><option value="">Semua Kategori</option><option>UMUM</option><option>AKADEMIK</option><option>KESISWAAN</option><option>UJIAN</option><option>KEGIATAN</option><option>LIBUR</option><option>RAPAT</option><option>KEUANGAN</option><option>LAINNYA</option></select>
+        <select id="priorityFilter"><option value="">Semua Prioritas</option><option>NORMAL</option><option>PENTING</option><option>MENDESAK</option></select>
+        <select id="statusFilter"><option value="">Semua Status</option><option value="AKTIF">AKTIF</option><option value="TERJADWAL">TERJADWAL</option><option value="DRAFT">DRAFT</option><option value="BERAKHIR">BERAKHIR</option><option value="ARCHIVED">ARCHIVED</option></select>
+      </section>
+
+      <section id="announceGrid" class="announce-grid"></section>
+    </main>
+  </section>
+</div>
+
+<div id="modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modalTitle">Buat Pengumuman</h3><button id="closeModal" class="modal-close">✕</button></div>
+    <form id="form">
+      <div class="modal-body">
+        <input id="announcementId" type="hidden"/>
+
+        <div class="form-grid">
+          <label class="full"><span>Judul Pengumuman *</span><input id="title" required maxlength="180" placeholder="Contoh: Jadwal Penilaian Tengah Semester..."/></label>
+
+          <label><span>Kategori</span><select id="category"><option>UMUM</option><option>AKADEMIK</option><option>KESISWAAN</option><option>UJIAN</option><option>KEGIATAN</option><option>LIBUR</option><option>RAPAT</option><option>KEUANGAN</option><option>LAINNYA</option></select></label>
+
+          <label><span>Prioritas</span><select id="priority"><option>NORMAL</option><option>PENTING</option><option>MENDESAK</option></select></label>
+
+          <label><span>Sasaran</span><select id="audience"><option value="SELURUH_MADRASAH">Seluruh Madrasah</option><option value="GURU_PEGAWAI">Guru & Pegawai</option><option value="SISWA">Seluruh Siswa</option><option value="KELAS_TERTENTU">Kelas Tertentu</option></select></label>
+
+          <label id="targetClassWrap" class="target-wrap hidden"><span>Kelas Tujuan *</span><select id="targetClass"><option value="">Pilih kelas</option></select></label>
+
+          <label><span>Status</span><select id="status"><option value="DRAFT">Draft</option><option value="PUBLISHED">Terbit</option><option value="ARCHIVED">Arsip</option></select></label>
+
+          <label><span>Mulai Tampil</span><input id="startAt" type="datetime-local"/><small class="field-hint">Kosong = mulai saat diterbitkan.</small></label>
+
+          <label><span>Berakhir</span><input id="endAt" type="datetime-local"/><small class="field-hint">Opsional. Setelah waktu ini status tampil menjadi berakhir.</small></label>
+
+          <label style="display:flex;align-items:center;gap:8px;padding-top:24px"><input id="pinned" type="checkbox" style="width:auto"/> <span>Sematkan di bagian atas</span></label>
+
+          <label class="full"><span>Isi Pengumuman *</span><textarea id="content" required rows="8" placeholder="Tulis isi pengumuman secara jelas dan singkat..."></textarea></label>
+
+          <div class="full">
+            <span style="font-size:11px;font-weight:700">Lampiran</span>
+            <input id="attachments" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx" style="margin-top:6px"/>
+            <small class="field-hint">PDF, gambar, Word, atau Excel. Maksimal 10 MB per file.</small>
+            <div id="storedFiles" style="margin-top:8px"></div>
+          </div>
+        </div>
+
+        <div id="formMessage" class="form-message"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="deleteBtn" class="secondary-btn" style="margin-right:auto">Hapus</button>
+        <button type="button" id="cancelBtn" class="secondary-btn">Batal</button>
+        <button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script src="pengumuman.js"></script>
+</body>
+</html>

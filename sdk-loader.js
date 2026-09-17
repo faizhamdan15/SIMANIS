@@ -24,7 +24,8 @@
     "Absensi Siswa": "absensi-siswa.html",
     "Nilai": "nilai.html",
     "Prestasi": "prestasi.html",
-    "Berita Madrasah": "berita.html"
+    "Berita Madrasah": "berita.html",
+    "Pengumuman": "pengumuman.html"
   };
 
   document.addEventListener("click", function (event) {
