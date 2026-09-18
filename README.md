@@ -38,3 +38,4 @@ Halaman awal otomatis memakai `index.html`.
 
 ## Catatan keamanan
 `sb_publishable_...` boleh berada di frontend. Jangan pernah memasukkan Service Role Key atau database password ke file frontend.
+Trigger deployment V2
