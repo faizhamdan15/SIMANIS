@@ -115,9 +115,15 @@ async function loadData(){
  if(unitCode==="KEPALA_TU"){
    const year=new Date().getFullYear();
    const extra=await Promise.all([
-     api.db.select("office_letter_classifications","select=*&is_active=eq.true&order=sort_order.asc"),
-     api.db.select("office_letter_dispositions","select=*,office_letters(agenda_code,letter_number,subject,letter_type,sender_recipient)&order=disposition_date.desc,created_at.desc"),
-     api.db.select("office_letter_files","select=*,office_letters(agenda_code,letter_number,subject,letter_type)&order=created_at.desc"),
+     api.db.select("office_letter_classifications","select=*&is_active=eq.true&order=sort_order.asc").catch(err=>{
+       console.warn("Klasifikasi surat belum tersedia:",err); return [];
+     }),
+     api.db.select("office_letter_dispositions","select=*,office_letters(agenda_code,letter_number,subject,letter_type,sender_recipient)&order=disposition_date.desc,created_at.desc").catch(err=>{
+       console.warn("Disposisi surat belum tersedia:",err); return [];
+     }),
+     api.db.select("office_letter_files","select=*,office_letters(agenda_code,letter_number,subject,letter_type)&order=created_at.desc").catch(err=>{
+       console.warn("Arsip surat belum tersedia:",err); return [];
+     }),
      api.db.rpc("office_get_monthly_recap",{p_year:year}).catch(err=>{
        console.warn("Rekap TU belum tersedia:",err);
        return {summary:{incoming:0,outgoing:0,active:0,done:0,disposition_open:0},months:[],classifications:[]};
@@ -398,9 +404,15 @@ async function signedTuFileUrl(path){
 }
 async function openTuLetterDetail(id){
   try{
-    const h=await api.db.rpc("office_get_letter_detail",{p_letter_id:id});
+    let h=null;
+    try{h=await api.db.rpc("office_get_letter_detail",{p_letter_id:id})}
+    catch(err){console.warn("Detail RPC TU belum tersedia:",err)}
     const l=h?.letter||specific.find(x=>x.id===id);if(!l)throw new Error("Surat tidak ditemukan");
-    const dispositions=h?.dispositions||[],files=h?.files||[];
+    let dispositions=h?.dispositions||[],files=h?.files||[];
+    if(!h){
+      try{dispositions=await api.db.select("office_letter_dispositions",`select=*&letter_id=eq.${encodeURIComponent(id)}&order=disposition_date.desc,created_at.desc`)}catch(_){}
+      try{files=await api.db.select("office_letter_files",`select=*&letter_id=eq.${encodeURIComponent(id)}&order=is_primary.desc,created_at.desc`)}catch(_){}
+    }
     openModal(`Detail Surat · ${l.agenda_code||""}`,"tu_detail",id);
     setFields(`<div class="full tu-detail-grid">
       <div>
