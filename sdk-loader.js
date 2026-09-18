@@ -206,6 +206,29 @@
   }
 
 
+
+  // Wajib ganti password untuk akun hasil provisioning.
+  // Jika migrasi kolom belum dipasang, error diabaikan agar halaman lama tetap berjalan.
+  async function enforcePasswordChangeGate() {
+    try {
+      const current = location.pathname.split("/").pop() || "index.html";
+      if (["index.html", "", "account-security.html"].includes(current)) return;
+
+      const session = await getSession();
+      if (!session?.access_token || !session?.user?.id) return;
+
+      const res = await fetch(
+        `${base}/rest/v1/profiles?select=must_change_password&id=eq.${encodeURIComponent(session.user.id)}&limit=1`,
+        { headers: authHeaders(session.access_token) }
+      );
+      if (!res.ok) return;
+      const rows = await res.json();
+      if (rows?.[0]?.must_change_password === true) {
+        location.replace("account-security.html");
+      }
+    } catch (_) {}
+  }
+
   // Branding publik: dapat dibaca sebelum login tanpa membuka data sensitif.
   async function applyPublicBranding() {
     try {
@@ -239,8 +262,11 @@
     applyPublicBranding();
   }
 
-  window.simanisReady = Promise.resolve({
-    auth: { signIn, getSession, getUser, signOut, refreshSession },
-    db: { rest, rpc, select, count }
-  });
+  window.simanisReady = (async()=>{
+    await enforcePasswordChangeGate();
+    return {
+      auth: { signIn, getSession, getUser, signOut, refreshSession },
+      db: { rest, rpc, select, count }
+    };
+  })();
 })();

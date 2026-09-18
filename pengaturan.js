@@ -1,5 +1,6 @@
 const $=id=>document.getElementById(id);
-let api,profile,overview={school:{},academic_years:[],semesters:[],users:[],teachers:[],modules:[],permissions:[]},positionData=[];
+let api,profile,overview={school:{},academic_years:[],semesters:[],users:[],teachers:[],modules:[],permissions:[]},positionData=[],teacherAccounts=[],lastCredentials=[];
+const TEACHER_LOGIN_DOMAIN="akun.manuriska.sch.id";
 const ROLES=["SUPER_ADMIN","KEPALA_MADRASAH","TU","WAKA_KURIKULUM","WAKA_KESISWAAN","BENDAHARA","GURU","WALI_KELAS"];
 const BRAND_BUCKET="system-branding";
 
@@ -25,15 +26,16 @@ async function loadOverview(){
  overview=await api.db.rpc("settings_get_overview",{})||{};
  overview.school=overview.school||{};overview.academic_years=overview.academic_years||[];overview.semesters=overview.semesters||[];overview.users=overview.users||[];overview.teachers=overview.teachers||[];overview.modules=overview.modules||[];overview.permissions=overview.permissions||[];
  positionData=await api.db.rpc("settings_get_positions",{})||[];
+ try{teacherAccounts=await api.db.rpc("settings_get_teacher_accounts",{})||[]}catch(err){console.warn("Manajemen akun guru belum tersedia:",err);teacherAccounts=[]}
  renderAll();
 }
 function setTab(name){
  document.querySelectorAll(".settings-tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
- ["Identity","Academic","Users","Permissions","Positions","System"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
+ ["Identity","Academic","Users","Teacheraccounts","Permissions","Positions","System"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
 }
 document.querySelectorAll(".settings-tab").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
 
-function renderAll(){renderSchool();renderAcademic();renderUsers();renderPermissions();renderPositions();renderModules()}
+function renderAll(){renderSchool();renderAcademic();renderUsers();renderTeacherAccounts();renderPermissions();renderPositions();renderModules()}
 
 /* IDENTITY */
 function field(id,key){$(id).value=overview.school?.[key]||""}
@@ -131,6 +133,176 @@ async function saveUser(e){
  try{await api.db.rpc("settings_update_user",{p_user_id:$("userId").value,p_full_name:$("userFullName").value.trim(),p_phone:$("userPhone").value.trim()||null,p_role:$("userRole").value,p_is_active:$("userActive").value==="true",p_teacher_id:$("userTeacher").value||null});closeUser();await loadOverview()}catch(err){msg.textContent="Gagal: "+err.message}
 }
 
+
+/* TEACHER ACCOUNTS & JOBDESK */
+function accountStatusBadge(a){
+ const status=a.account_status||"NO_ACCOUNT";
+ const map={
+   NO_ACCOUNT:["no","BELUM PUNYA AKUN"],
+   MUST_CHANGE:["force","WAJIB GANTI PASSWORD"],
+   NEVER_LOGIN:["wait","BELUM PERNAH LOGIN"],
+   ACTIVE:["good","AKTIF"],
+   INACTIVE:["bad","NONAKTIF"]
+ };
+ const v=map[status]||["no",status];
+ return `<span class="account-badge ${v[0]}">${v[1]}</span>`;
+}
+function accountJobdeskText(a){
+ const p=Array.isArray(a.positions)?a.positions:[];
+ return p.length?p.map(x=>x.position_name||x.position_code).join(", "):"Guru";
+}
+function filteredTeacherAccounts(){
+ const q=$("teacherAccountSearch")?.value?.trim().toLowerCase()||"";
+ const st=$("teacherAccountStatusFilter")?.value||"";
+ const job=$("teacherAccountJobdeskFilter")?.value||"";
+ return teacherAccounts.filter(a=>{
+   const hay=`${a.teacher_code||""} ${a.full_name||""} ${a.username||""} ${a.email||""}`.toLowerCase();
+   const positions=Array.isArray(a.positions)?a.positions:[];
+   return(!q||hay.includes(q))&&(!st||a.account_status===st)&&(!job||positions.some(p=>p.position_code===job));
+ });
+}
+function renderTeacherAccounts(){
+ const total=teacherAccounts.length;
+ const has=teacherAccounts.filter(a=>a.user_id).length;
+ $("accTotalTeachers").textContent=total;
+ $("accHasAccount").textContent=has;
+ $("accMissingAccount").textContent=total-has;
+ $("accNeverLogin").textContent=teacherAccounts.filter(a=>a.account_status==="NEVER_LOGIN").length;
+ $("accMustChange").textContent=teacherAccounts.filter(a=>a.must_change_password).length;
+
+ $("teacherAccountJobdeskFilter").innerHTML='<option value="">Semua Jobdesk</option>'+positionData.map(p=>`<option value="${p.position_code}">${esc(p.position_name)}</option>`).join("");
+
+ const data=filteredTeacherAccounts();
+ $("teacherAccountBody").innerHTML=data.length?data.map(a=>`<tr>
+   <td><b>${esc(a.full_name)}</b><br><span style="color:#718078">Kode ${esc(a.teacher_code||"-")}</span></td>
+   <td>${a.user_id?`<b>${esc(a.username||"-")}</b><br><span style="color:#718078">${esc(a.email||"-")}</span>`:"-"}</td>
+   <td>${a.user_id?esc(roleLabel(a.role||"GURU")):"-"}</td>
+   <td>${esc(accountJobdeskText(a))}</td>
+   <td>${accountStatusBadge(a)}</td>
+   <td>${fmtDateTime(a.last_login_at)}</td>
+   <td><div class="account-actions">
+      ${a.user_id
+        ? `<button class="mini-btn" data-account-reset="${a.user_id}">Reset Password</button><button class="mini-btn" data-account-jobdesk="${a.user_id}">Jobdesk</button><button class="mini-btn" data-edit-user="${a.user_id}">Edit Akun</button>`
+        : `<button class="mini-btn" data-account-create="${a.teacher_id}">Buat Akun</button>`
+      }
+   </div></td>
+ </tr>`).join(""):'<tr><td colspan="7"><div class="empty-state">Guru tidak ditemukan.</div></td></tr>';
+
+ document.querySelectorAll("[data-account-create]").forEach(b=>b.onclick=()=>createTeacherAccount(b.dataset.accountCreate));
+ document.querySelectorAll("[data-account-reset]").forEach(b=>b.onclick=()=>resetTeacherPassword(b.dataset.accountReset));
+ document.querySelectorAll("[data-account-jobdesk]").forEach(b=>b.onclick=()=>openJobdesk(b.dataset.accountJobdesk));
+ document.querySelectorAll("#teacherAccountBody [data-edit-user]").forEach(b=>b.onclick=()=>openUser(b.dataset.editUser));
+
+ $("downloadCredentialsBtn").disabled=!lastCredentials.length;
+}
+async function callTeacherAccountAdmin(action,payload={}){
+ const session=await api.auth.getSession();
+ if(!session?.access_token)throw new Error("Sesi login tidak ditemukan.");
+ const cfg=window.SIMANIS_CONFIG;
+ const res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/functions/v1/teacher-account-admin`,{
+   method:"POST",
+   headers:{
+     apikey:cfg.SUPABASE_PUBLISHABLE_KEY,
+     Authorization:`Bearer ${session.access_token}`,
+     "Content-Type":"application/json"
+   },
+   body:JSON.stringify({action,login_domain:TEACHER_LOGIN_DOMAIN,...payload})
+ });
+ const text=await res.text();let body=null;try{body=text?JSON.parse(text):null}catch{body={error:text}}
+ if(!res.ok)throw new Error(body?.error||body?.message||text||`HTTP ${res.status}`);
+ return body||{};
+}
+async function createTeacherAccount(teacherId){
+ const a=teacherAccounts.find(x=>x.teacher_id===teacherId);
+ if(!a)return;
+ if(!confirm(`Buat akun SIMANIS untuk ${a.full_name}?`))return;
+ const msg=$("teacherAccountMessage");msg.className="message";msg.textContent="Membuat akun...";
+ try{
+   const result=await callTeacherAccountAdmin("create_teacher",{teacher_id:teacherId});
+   const creds=result.credentials?[result.credentials]:[];
+   if(creds.length)showCredentials(creds,result.errors||[]);
+   await loadOverview();
+   msg.className="message ok";msg.textContent="Akun guru berhasil dibuat.";
+ }catch(err){msg.textContent="Gagal: "+err.message}
+}
+async function bulkCreateTeacherAccounts(){
+ const missing=teacherAccounts.filter(a=>!a.user_id);
+ if(!missing.length){alert("Semua guru aktif sudah memiliki akun.");return}
+ if(!confirm(`Buat akun untuk ${missing.length} guru yang belum memiliki akun?\n\nPassword sementara akan dibuat berbeda untuk setiap guru.`))return;
+ const btn=$("bulkCreateTeacherAccountsBtn"),msg=$("teacherAccountMessage");
+ btn.disabled=true;btn.textContent="Membuat Akun...";msg.className="message";msg.textContent="Memproses akun guru. Jangan tutup halaman...";
+ try{
+   const result=await callTeacherAccountAdmin("bulk_create",{});
+   const creds=result.credentials||[];
+   if(creds.length)showCredentials(creds,result.errors||[]);
+   await loadOverview();
+   msg.className=(result.errors?.length?"message":"message ok");
+   msg.textContent=`Selesai. ${creds.length} akun baru dibuat${result.errors?.length?`, ${result.errors.length} gagal diproses.`:"."}`;
+ }catch(err){msg.textContent="Gagal: "+err.message}
+ finally{btn.disabled=false;btn.textContent="Buat Akun Semua Guru"}
+}
+async function resetTeacherPassword(userId){
+ const a=teacherAccounts.find(x=>x.user_id===userId);
+ if(!a)return;
+ if(!confirm(`Reset password ${a.full_name}?\n\nPassword lama tidak akan berlaku lagi.`))return;
+ const msg=$("teacherAccountMessage");msg.className="message";msg.textContent="Mereset password...";
+ try{
+   const result=await callTeacherAccountAdmin("reset_password",{user_id:userId});
+   if(result.credentials)showCredentials([result.credentials],[]);
+   await loadOverview();
+   msg.className="message ok";msg.textContent="Password berhasil direset. Guru wajib mengganti password saat login.";
+ }catch(err){msg.textContent="Gagal: "+err.message}
+}
+function showCredentials(creds,errors=[]){
+ lastCredentials=(creds||[]).map(x=>({...x}));
+ $("credentialBody").innerHTML=lastCredentials.map(c=>`<tr><td><b>${esc(c.full_name||"-")}</b></td><td>${esc(c.teacher_code||"-")}</td><td><b>${esc(c.username||"-")}</b></td><td class="credential-password">${esc(c.temporary_password||"-")}</td></tr>`).join("");
+ $("credentialErrors").textContent=errors.length?`${errors.length} guru gagal diproses: `+errors.map(e=>`${e.full_name||e.teacher_code||"?"}: ${e.error}`).join(" | "):"";
+ $("credentialModal").classList.remove("hidden");
+ $("downloadCredentialsBtn").disabled=!lastCredentials.length;
+}
+function closeCredentialModal(){$("credentialModal").classList.add("hidden")}
+function downloadCredentials(){
+ if(!lastCredentials.length){alert("Belum ada daftar akun dari proses terakhir.");return}
+ const rows=[["Nama Guru","Kode Guru","Username","Password Sementara"]];
+ lastCredentials.forEach(c=>rows.push([c.full_name||"",c.teacher_code||"",c.username||"",c.temporary_password||""]));
+ const csv=rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
+ const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download=`akun-guru-simanis-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),600);
+}
+function printCredentials(){
+ if(!lastCredentials.length)return;
+ const w=window.open("","_blank","width=900,height=700");
+ w.document.write(`<html><head><title>Akun Guru SIMANIS</title><style>body{font-family:Arial;padding:24px}h2{color:#075b3a}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:8px;text-align:left;font-size:12px}th{background:#f1f6f3}.note{font-size:11px;margin:10px 0 18px}</style></head><body><h2>Akun Guru SIMANIS</h2><div class="note">Password bersifat sementara. Guru wajib menggantinya setelah login pertama.</div><table><thead><tr><th>Guru</th><th>Kode</th><th>Username</th><th>Password Sementara</th></tr></thead><tbody>${lastCredentials.map(c=>`<tr><td>${esc(c.full_name)}</td><td>${esc(c.teacher_code)}</td><td>${esc(c.username)}</td><td>${esc(c.temporary_password)}</td></tr>`).join("")}</tbody></table></body></html>`);
+ w.document.close();w.focus();setTimeout(()=>w.print(),250);
+}
+function openJobdesk(userId){
+ const a=teacherAccounts.find(x=>x.user_id===userId);if(!a)return;
+ $("jobdeskUserId").value=userId;$("jobdeskModalTitle").textContent=`Atur Jobdesk · ${a.full_name}`;$("jobdeskMessage").textContent="";
+ $("jobdeskGrid").innerHTML=positionData.map(p=>{
+   const mine=p.holder_user_id===userId;
+   const holder=p.holder_user_id&&!mine?`Saat ini: ${p.holder_name||p.holder_email||"-"}`:(mine?"Saat ini dipegang guru ini":"Belum ada pemegang");
+   return `<div class="jobdesk-item"><label><input type="checkbox" data-jobdesk-position="${p.position_code}" ${mine?"checked":""}><div><b>${esc(p.position_name)}</b><p>${esc(holder)}</p></div></label></div>`
+ }).join("");
+ $("jobdeskModal").classList.remove("hidden");
+}
+function closeJobdesk(){$("jobdeskModal").classList.add("hidden")}
+async function saveJobdesk(e){
+ e.preventDefault();
+ const userId=$("jobdeskUserId").value,msg=$("jobdeskMessage");msg.className="message";msg.textContent="Menyimpan jobdesk...";
+ try{
+   for(const p of positionData){
+     const checked=document.querySelector(`[data-jobdesk-position="${p.position_code}"]`)?.checked||false;
+     const mine=p.holder_user_id===userId;
+     if(checked&&!mine)await api.db.rpc("settings_set_position_holder",{p_position_code:p.position_code,p_user_id:userId});
+     else if(!checked&&mine)await api.db.rpc("settings_set_position_holder",{p_position_code:p.position_code,p_user_id:null});
+   }
+   positionData=await api.db.rpc("settings_get_positions",{})||[];
+   teacherAccounts=await api.db.rpc("settings_get_teacher_accounts",{})||[];
+   renderPositions();renderTeacherAccounts();closeJobdesk();
+   $("teacherAccountMessage").className="message ok";$("teacherAccountMessage").textContent="Jobdesk guru berhasil diperbarui.";
+ }catch(err){msg.textContent="Gagal: "+err.message}
+}
+
 /* PERMISSIONS */
 function renderPermissions(){
  const role=$("permissionRole").value||ROLES.find(r=>r!=="SUPER_ADMIN");if(!$("permissionRole").value)$("permissionRole").value=role;
@@ -195,8 +367,13 @@ function exportConfig(){
 $("schoolForm").onsubmit=saveSchool;$("uploadLogoBtn").onclick=uploadLogo;
 $("addYearBtn").onclick=()=>openPeriodModal("year");$("addSemesterBtn").onclick=()=>openPeriodModal("semester");$("periodModalClose").onclick=closePeriodModal;$("periodCancelBtn").onclick=closePeriodModal;$("periodForm").onsubmit=savePeriod;$("activeYearSelect").onchange=renderActiveSemesterOptions;$("activatePeriodBtn").onclick=activatePeriod;
 $("userSearch").oninput=renderUsers;$("userRoleFilter").onchange=renderUsers;$("userModalClose").onclick=closeUser;$("userCancelBtn").onclick=closeUser;$("userForm").onsubmit=saveUser;
+$("teacherAccountSearch").oninput=renderTeacherAccounts;$("teacherAccountStatusFilter").onchange=renderTeacherAccounts;$("teacherAccountJobdeskFilter").onchange=renderTeacherAccounts;
+$("bulkCreateTeacherAccountsBtn").onclick=bulkCreateTeacherAccounts;$("downloadCredentialsBtn").onclick=downloadCredentials;
+$("credentialModalClose").onclick=closeCredentialModal;$("credentialDownloadBtn").onclick=downloadCredentials;$("credentialPrintBtn").onclick=printCredentials;
+$("jobdeskModalClose").onclick=closeJobdesk;$("jobdeskCancelBtn").onclick=closeJobdesk;$("jobdeskForm").onsubmit=saveJobdesk;
+
 $("permissionRole").onchange=renderPermissions;$("exportConfigBtn").onclick=exportConfig;$("refreshBtn").onclick=loadOverview;
-$("periodModal").onclick=e=>{if(e.target===$("periodModal"))closePeriodModal()};$("userModal").onclick=e=>{if(e.target===$("userModal"))closeUser()};
+$("periodModal").onclick=e=>{if(e.target===$("periodModal"))closePeriodModal()};$("userModal").onclick=e=>{if(e.target===$("userModal"))closeUser()};$("credentialModal").onclick=e=>{if(e.target===$("credentialModal"))closeCredentialModal()};$("jobdeskModal").onclick=e=>{if(e.target===$("jobdeskModal"))closeJobdesk()};
 
 (async()=>{
  try{

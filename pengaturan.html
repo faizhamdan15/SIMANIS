@@ -47,8 +47,35 @@
     .message{font-size:9px;min-height:16px;margin-top:7px;color:#a13d35}.message.ok{color:#08733f}
     .security-box{background:#f7faf8;border-left:4px solid #0b7347;border-radius:10px;padding:11px;font-size:9px;line-height:1.6;color:#4e6258}
     .logo-input{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.logo-input input{flex:1;min-width:220px}
+
+    .teacher-account-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+    .teacher-account-head .actions{margin:0}
+    .account-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-bottom:13px}
+    .account-summary .sum{background:#f7faf8;border:1px solid #e1e9e5;border-radius:12px;padding:11px}
+    .account-summary .sum span{display:block;font-size:8px;color:#72817a}
+    .account-summary .sum b{display:block;font-size:18px;color:#0b5f3d;margin-top:4px}
+    .account-filter{display:grid;grid-template-columns:1fr .75fr .75fr;gap:9px;margin-bottom:11px}
+    .account-actions{display:flex;gap:5px;flex-wrap:wrap}
+    .credential-note{background:#fff8df;border:1px solid #f0df9f;color:#6a5716;border-radius:11px;padding:10px;font-size:8.5px;line-height:1.55;margin-bottom:10px}
+    .credential-table{width:100%;border-collapse:collapse;min-width:700px}
+    .credential-table th,.credential-table td{border-bottom:1px solid #e8eeeb;padding:9px;text-align:left;font-size:9px}
+    .credential-table th{background:#f7faf8;color:#607269}
+    .credential-password{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:900;letter-spacing:.2px}
+    .jobdesk-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .jobdesk-item{border:1px solid #e1e9e5;border-radius:11px;padding:10px;background:#fbfdfc}
+    .jobdesk-item label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+    .jobdesk-item input{width:16px;height:16px;margin-top:1px;accent-color:#0b7347}
+    .jobdesk-item b{font-size:9.5px}.jobdesk-item p{font-size:8px;color:#718078;margin:3px 0 0}
+    .account-badge{display:inline-flex;padding:4px 7px;border-radius:999px;font-size:7.5px;font-weight:900}
+    .account-badge.no{background:#eceff2;color:#646b68}
+    .account-badge.wait{background:#fff0bd;color:#745800}
+    .account-badge.force{background:#ffe5d8;color:#8b481f}
+    .account-badge.good{background:#e0f5e8;color:#08733f}
+    .account-badge.bad{background:#f9dfdf;color:#922f2f}
+    .account-help{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .account-help>div{background:#f7faf8;border:1px solid #e1e9e5;border-radius:11px;padding:11px;font-size:8.5px;line-height:1.55;color:#52655c}
     @media(max-width:950px){.period-grid{grid-template-columns:1fr}.module-grid{grid-template-columns:1fr 1fr}}
-    @media(max-width:650px){.form-grid,.user-filter{grid-template-columns:1fr}.module-grid{grid-template-columns:1fr}.actions{justify-content:flex-start}}
+    @media(max-width:650px){.form-grid,.user-filter,.account-filter{grid-template-columns:1fr}.module-grid,.jobdesk-grid,.account-help{grid-template-columns:1fr}.account-summary{grid-template-columns:1fr 1fr}.actions{justify-content:flex-start}}
   </style>
 </head>
 <body>
@@ -77,6 +104,7 @@
         <button class="settings-tab active" data-tab="identity">Identitas Madrasah</button>
         <button class="settings-tab" data-tab="academic">Tahun & Semester</button>
         <button class="settings-tab" data-tab="users">Pengguna</button>
+        <button class="settings-tab" data-tab="teacheraccounts">Akun Guru & Jobdesk</button>
         <button class="settings-tab" data-tab="permissions">Hak Akses</button>
         <button class="settings-tab" data-tab="positions">Jabatan Struktural</button>
         <button class="settings-tab" data-tab="system">Modul & Sistem</button>
@@ -164,6 +192,76 @@
               <thead><tr><th>Pengguna</th><th>Role</th><th>Guru Terkait</th><th>Status</th><th>Login Terakhir</th><th>Aksi</th></tr></thead>
               <tbody id="userBody"></tbody>
             </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="panelTeacheraccounts" class="settings-panel hidden">
+        <article class="settings-card">
+          <div class="teacher-account-head">
+            <div>
+              <h3>Akun Guru & Jobdesk</h3>
+              <p style="margin:3px 0 0;font-size:9px;color:var(--muted)">Buat akun login untuk guru aktif, hubungkan otomatis ke master guru, lalu tetapkan jobdesk strukturalnya.</p>
+            </div>
+            <div class="actions">
+              <button id="downloadCredentialsBtn" class="secondary-btn" disabled>Download Akun Terakhir</button>
+              <button id="bulkCreateTeacherAccountsBtn" class="primary-btn">Buat Akun Semua Guru</button>
+            </div>
+          </div>
+
+          <div class="account-summary">
+            <div class="sum"><span>Guru Aktif</span><b id="accTotalTeachers">0</b></div>
+            <div class="sum"><span>Sudah Punya Akun</span><b id="accHasAccount">0</b></div>
+            <div class="sum"><span>Belum Punya Akun</span><b id="accMissingAccount">0</b></div>
+            <div class="sum"><span>Belum Pernah Login</span><b id="accNeverLogin">0</b></div>
+            <div class="sum"><span>Wajib Ganti Password</span><b id="accMustChange">0</b></div>
+          </div>
+
+          <div class="credential-note">
+            Password sementara <b>tidak disimpan di database SIMANIS</b>. Password hanya ditampilkan sekali setelah akun dibuat/reset. Simpan CSV hasil pembuatan akun sebelum menutup halaman.
+          </div>
+
+          <div class="account-filter">
+            <input id="teacherAccountSearch" type="search" placeholder="Cari nama / kode / username..."/>
+            <select id="teacherAccountStatusFilter">
+              <option value="">Semua Status Akun</option>
+              <option value="NO_ACCOUNT">Belum Punya Akun</option>
+              <option value="MUST_CHANGE">Wajib Ganti Password</option>
+              <option value="NEVER_LOGIN">Belum Pernah Login</option>
+              <option value="ACTIVE">Aktif</option>
+              <option value="INACTIVE">Nonaktif</option>
+            </select>
+            <select id="teacherAccountJobdeskFilter">
+              <option value="">Semua Jobdesk</option>
+            </select>
+          </div>
+
+          <div class="table-wrap">
+            <table class="settings-table" style="min-width:1180px">
+              <thead>
+                <tr>
+                  <th>Guru</th>
+                  <th>Username</th>
+                  <th>Role</th>
+                  <th>Jobdesk</th>
+                  <th>Status Akun</th>
+                  <th>Login Terakhir</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="teacherAccountBody"></tbody>
+            </table>
+          </div>
+          <div id="teacherAccountMessage" class="message"></div>
+        </article>
+
+        <article class="settings-card">
+          <h3>Skema Akun</h3>
+          <div class="account-help">
+            <div><b>Role dasar = GURU.</b><br>Akun baru otomatis terhubung ke <code>teacher_id</code>. Jabatan struktural tidak mengubah role dasar guru.</div>
+            <div><b>Login dengan username.</b><br>Contoh kode guru 01 dibuat menjadi <code>guru01</code>. SIMANIS menerjemahkannya ke email internal Auth secara otomatis.</div>
+            <div><b>Password pertama wajib diganti.</b><br>Guru diarahkan ke halaman Ganti Password sebelum dapat membuka modul SIMANIS lainnya.</div>
+            <div><b>Jobdesk mengikuti jabatan.</b><br>Ketika jabatan dipindahkan, akses unit kerja otomatis pindah dari pemegang lama ke pemegang baru.</div>
           </div>
         </article>
       </section>
@@ -263,6 +361,49 @@
         <div id="userMessage" class="message"></div>
       </div>
       <div class="modal-actions"><button type="button" id="userCancelBtn" class="secondary-btn">Batal</button><button type="submit" class="primary-btn" style="width:auto">Simpan</button></div>
+    </form>
+  </div>
+</div>
+
+
+<div id="credentialModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-head"><h3>Akun / Password Sementara</h3><button id="credentialModalClose" class="modal-close">✕</button></div>
+    <div class="modal-body">
+      <div class="credential-note">
+        Salin atau download daftar ini sekarang. Demi keamanan, password sementara tidak dapat ditampilkan kembali setelah modal ditutup.
+      </div>
+      <div class="table-wrap">
+        <table class="credential-table">
+          <thead><tr><th>Guru</th><th>Kode</th><th>Username</th><th>Password Sementara</th></tr></thead>
+          <tbody id="credentialBody"></tbody>
+        </table>
+      </div>
+      <div id="credentialErrors" class="message"></div>
+    </div>
+    <div class="modal-actions">
+      <button id="credentialPrintBtn" type="button" class="secondary-btn">Cetak</button>
+      <button id="credentialDownloadBtn" type="button" class="primary-btn" style="width:auto">Download CSV</button>
+    </div>
+  </div>
+</div>
+
+<div id="jobdeskModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-head"><h3 id="jobdeskModalTitle">Atur Jobdesk Guru</h3><button id="jobdeskModalClose" class="modal-close">✕</button></div>
+    <form id="jobdeskForm">
+      <div class="modal-body">
+        <input id="jobdeskUserId" type="hidden"/>
+        <div class="credential-note">
+          Satu jabatan struktural hanya memiliki satu pemegang aktif. Jika jabatan yang sudah dipegang orang lain dipilih, jabatan tersebut akan dipindahkan ke guru ini.
+        </div>
+        <div id="jobdeskGrid" class="jobdesk-grid"></div>
+        <div id="jobdeskMessage" class="message"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="jobdeskCancelBtn" type="button" class="secondary-btn">Batal</button>
+        <button type="submit" class="primary-btn" style="width:auto">Simpan Jobdesk</button>
+      </div>
     </form>
   </div>
 </div>

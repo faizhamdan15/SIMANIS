@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Ganti Password — SIMANIS</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .security-shell{min-height:100vh;background:#f4f7f5;display:grid;place-items:center;padding:22px}
+    .security-card{width:min(520px,100%);background:#fff;border:1px solid #dde7e2;border-radius:20px;padding:24px;box-shadow:0 18px 50px rgba(5,79,50,.1)}
+    .security-brand{display:flex;gap:12px;align-items:center;margin-bottom:18px}.security-brand img{width:56px;height:56px;object-fit:contain}
+    .security-brand h1{font-size:18px;color:#075b3a;margin:0}.security-brand p{font-size:9px;color:#718078;margin:3px 0}
+    .security-card h2{font-size:16px;color:#173f30;margin:8px 0}.security-card>p{font-size:9px;line-height:1.6;color:#64756d}
+    .security-card label{display:block;margin-top:11px}.security-card label span{font-size:9px;font-weight:800;color:#465b52;display:block;margin-bottom:5px}
+    .security-card input{width:100%;box-sizing:border-box;border:1px solid #d5e1db;border-radius:11px;padding:11px;font-size:10px}
+    .rules{background:#f7faf8;border-radius:11px;padding:10px;margin:11px 0;font-size:8.5px;line-height:1.6;color:#52655c}
+    .security-actions{display:flex;gap:8px;margin-top:16px}.security-actions button{flex:1}
+    .security-msg{font-size:9px;min-height:18px;margin-top:9px;color:#9a362e}.security-msg.ok{color:#08733f}
+  </style>
+</head>
+<body>
+  <main class="security-shell">
+    <section class="security-card">
+      <div class="security-brand"><img src="logo.png" alt="Logo"><div><h1>SIMANIS</h1><p>Keamanan Akun Guru</p></div></div>
+      <h2>Ganti Password Pertama</h2>
+      <p>Password sementara hanya digunakan untuk login awal. Buat password pribadi sebelum membuka layanan SIMANIS.</p>
+
+      <form id="passwordForm">
+        <label><span>Password Baru</span><input id="newPassword" type="password" autocomplete="new-password" required/></label>
+        <label><span>Ulangi Password Baru</span><input id="confirmPassword" type="password" autocomplete="new-password" required/></label>
+        <div class="rules">
+          Minimal 10 karakter dan mengandung huruf besar, huruf kecil, angka, serta simbol. Jangan gunakan password yang sama dengan akun lain.
+        </div>
+        <div id="securityMessage" class="security-msg"></div>
+        <div class="security-actions"><button id="logoutBtn" type="button" class="secondary-btn">Keluar</button><button id="savePasswordBtn" type="submit" class="primary-btn">Simpan Password</button></div>
+      </form>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="sdk-loader.js"></script>
+  <script src="account-security.js"></script>
+</body>
+</html>

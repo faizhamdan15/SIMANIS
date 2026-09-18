@@ -1,35 +1,37 @@
 <!doctype html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Login — SIMANIS</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css"/>
 </head>
 <body class="login-page">
   <main class="login-shell">
     <section class="login-brand">
-      <div class="brand-mark"><img src="logo.png" alt="Logo MA Nurul Islam" /></div>
-      <div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam</p></div>
-      <div class="brand-tagline">Satu Sistem, Semua Layanan Madrasah</div>
+      <img src="logo.png" alt="Logo MA Nurul Islam"/>
+      <div>
+        <h1>SIMANIS</h1>
+        <p>Sistem Informasi MA Nurul Islam</p>
+        <span>Satu Sistem, Semua Layanan Madrasah</span>
+      </div>
     </section>
 
     <section class="login-card">
       <div class="login-heading">
-        <span class="eyebrow">PORTAL MADRASAH</span>
         <h2>Masuk ke SIMANIS</h2>
-        <p>Gunakan akun yang telah terdaftar di sistem.</p>
+        <p>Guru dapat menggunakan username yang diberikan admin.</p>
       </div>
 
       <form id="loginForm">
-        <label><span>Email</span><input id="email" type="email" autocomplete="email" required placeholder="nama@email.com" /></label>
+        <label>
+          <span>Email / Username</span>
+          <input id="email" type="text" autocomplete="username" required placeholder="guru01 atau nama@email.com"/>
+        </label>
         <label>
           <span>Password</span>
           <div class="password-wrap">
-            <input id="password" type="password" autocomplete="current-password" required placeholder="••••••••" />
+            <input id="password" type="password" autocomplete="current-password" required placeholder="••••••••"/>
             <button type="button" id="togglePassword" class="ghost-btn">Lihat</button>
           </div>
         </label>
