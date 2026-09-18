@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Unit Kerja — SIMANIS</title>
+<link rel="stylesheet" href="styles.css"/>
+<style>
+.unit-hero{background:linear-gradient(135deg,#075b3a,#0b7347);color:#fff;border-radius:20px;padding:22px;margin-bottom:15px;box-shadow:0 14px 30px rgba(5,91,58,.13)}
+.unit-hero-top{display:flex;gap:14px;align-items:center}.unit-icon{width:52px;height:52px;border-radius:15px;background:rgba(255,255,255,.14);display:grid;place-items:center}.unit-icon svg{width:26px;height:26px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.unit-hero h2{margin:0 0 4px;font-size:22px}.unit-hero p{margin:0;color:#dcece5;font-size:10px;line-height:1.55}.unit-badge{display:inline-flex;margin-top:10px;background:#fff2c9;color:#735600;padding:5px 8px;border-radius:999px;font-size:8px;font-weight:900}
+.unit-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.unit-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px;box-shadow:0 6px 18px rgba(5,79,50,.05)}
+.unit-card h3{font-size:13px;margin:0 0 5px;color:#0a4b33}.unit-card>p{font-size:9px;color:#6d7c75;margin:0 0 12px;line-height:1.55}
+.focus-list{display:grid;gap:8px}.focus-item{border:1px solid #e1e9e5;background:#fbfdfc;border-radius:11px;padding:10px;font-size:9px;color:#496056;display:flex;gap:8px;align-items:flex-start}.dot{width:8px;height:8px;background:#0b7347;border-radius:50%;margin-top:3px;flex:0 0 auto}
+.quick-grid-unit{display:grid;grid-template-columns:1fr 1fr;gap:8px}.quick-unit{border:1px solid #dfe8e3;border-radius:11px;padding:10px;text-decoration:none;color:#153e2e;background:#fbfdfc}.quick-unit b{font-size:9.5px}.quick-unit p{font-size:8px;color:#718078;margin:3px 0 0}
+.access-note{background:#f4faf7;border-left:4px solid #0b7347;border-radius:10px;padding:11px;font-size:9px;line-height:1.6;color:#4e6258}
+@media(max-width:850px){.unit-grid{grid-template-columns:1fr}}@media(max-width:520px){.quick-grid-unit{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Unit Kerja...</div>
+<div class="app">
+<aside class="sidebar">
+  <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+  <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+  <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+</aside>
+<section class="content">
+<header class="topbar"><div><h1>SIMANIS</h1><p id="topSubtitle">Unit Kerja</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+<main class="main">
+<section class="unit-hero">
+ <div class="unit-hero-top"><div id="unitIcon" class="unit-icon"></div><div><h2 id="unitTitle">Unit Kerja</h2><p id="unitDesc">Ruang kerja jabatan struktural MA Nurul Islam.</p></div></div>
+ <span class="unit-badge">AKSES KHUSUS JABATAN</span>
+</section>
+<div class="unit-grid">
+ <article class="unit-card"><h3>Fokus Kerja</h3><p>Ringkasan area kerja utama unit ini.</p><div id="focusList" class="focus-list"></div></article>
+ <article class="unit-card"><h3>Modul SIMANIS Terkait</h3><p>Shortcut hanya ditampilkan bila akun Anda memang mempunyai hak akses pada modul tersebut.</p><div id="relatedModules" class="quick-grid-unit"></div></article>
+</div>
+<article class="unit-card" style="margin-top:14px"><h3>Ruang Unit Kerja</h3><div class="access-note">Menu ini bersifat khusus jabatan. Saat pemegang jabatan diganti melalui <b>Pengaturan → Jabatan Struktural</b>, akses menu otomatis berpindah ke akun pemegang baru tanpa mengubah role utama pengguna.</div></article>
+</main>
+</section>
+</div>
+<script src="config.js"></script><script src="sdk-loader.js"></script><script src="unit-kerja.js"></script>
+</body></html>

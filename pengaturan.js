@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-let api,profile,overview={school:{},academic_years:[],semesters:[],users:[],teachers:[],modules:[],permissions:[]};
+let api,profile,overview={school:{},academic_years:[],semesters:[],users:[],teachers:[],modules:[],permissions:[]},positionData=[];
 const ROLES=["SUPER_ADMIN","KEPALA_MADRASAH","TU","WAKA_KURIKULUM","WAKA_KESISWAAN","BENDAHARA","GURU","WALI_KELAS"];
 const BRAND_BUCKET="system-branding";
 
@@ -8,7 +8,7 @@ function roleLabel(r){return String(r||"-").replaceAll("_"," ")}
 function fmtDate(v){return v?new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",year:"numeric"}).format(new Date(v+"T00:00:00")):"-"}
 function fmtDateTime(v){return v?new Intl.DateTimeFormat("id-ID",{dateStyle:"medium",timeStyle:"short"}).format(new Date(v)):"-"}
 function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
-function routeFor(code){return{DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"}[code]||"#"}
+function routeFor(code){return{DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"}[code]||"#"}
 
 async function loadProfile(user){
  const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
@@ -24,15 +24,16 @@ async function loadMenu(){
 async function loadOverview(){
  overview=await api.db.rpc("settings_get_overview",{})||{};
  overview.school=overview.school||{};overview.academic_years=overview.academic_years||[];overview.semesters=overview.semesters||[];overview.users=overview.users||[];overview.teachers=overview.teachers||[];overview.modules=overview.modules||[];overview.permissions=overview.permissions||[];
+ positionData=await api.db.rpc("settings_get_positions",{})||[];
  renderAll();
 }
 function setTab(name){
  document.querySelectorAll(".settings-tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
- ["Identity","Academic","Users","Permissions","System"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
+ ["Identity","Academic","Users","Permissions","Positions","System"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
 }
 document.querySelectorAll(".settings-tab").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
 
-function renderAll(){renderSchool();renderAcademic();renderUsers();renderPermissions();renderModules()}
+function renderAll(){renderSchool();renderAcademic();renderUsers();renderPermissions();renderPositions();renderModules()}
 
 /* IDENTITY */
 function field(id,key){$(id).value=overview.school?.[key]||""}
@@ -140,6 +141,40 @@ function renderPermissions(){
 async function savePermission(moduleCode){
  const role=$("permissionRole").value,row=[...$("permissionBody").querySelectorAll(`input[data-module="${moduleCode}"]`)],get=t=>row.find(x=>x.dataset.perm===t)?.checked||false;
  try{await api.db.rpc("settings_set_permission",{p_role:role,p_module_code:moduleCode,p_can_view:get("view"),p_can_create:get("create"),p_can_update:get("update"),p_can_delete:get("delete")});await loadOverview();$("permissionRole").value=role;renderPermissions()}catch(err){alert("Gagal menyimpan hak akses: "+err.message)}
+}
+
+
+/* STRUCTURAL POSITIONS */
+function renderPositions(){
+ const holderOptions=overview.users
+   .filter(u=>u.is_active)
+   .sort((a,b)=>String(a.full_name||"").localeCompare(String(b.full_name||""),"id"));
+ $("positionGrid").innerHTML=positionData.map(p=>`<article class="module-card">
+   <h4>${esc(p.position_name)}</h4>
+   <p>Akses menu khusus: ${esc(p.module_code)}</p>
+   <label style="margin-top:9px"><span>Pemegang Jabatan</span>
+     <select data-position-user="${p.position_code}">
+       <option value="">— Belum ditetapkan —</option>
+       ${holderOptions.map(u=>`<option value="${u.id}" ${u.id===p.holder_user_id?"selected":""}>${esc(u.full_name||u.email||"-")} · ${esc(roleLabel(u.role))}</option>`).join("")}
+     </select>
+   </label>
+   <div style="margin-top:8px;font-size:8px;color:#6c7b74">${p.holder_user_id?`Saat ini: <b>${esc(p.holder_name||"-")}</b>${p.holder_email?` · ${esc(p.holder_email)}`:""}`:"Belum ada pemegang jabatan."}</div>
+   <div class="module-controls"><button class="mini-btn" data-save-position="${p.position_code}">Simpan Penugasan</button></div>
+ </article>`).join("");
+ document.querySelectorAll("[data-save-position]").forEach(b=>b.onclick=()=>savePositionHolder(b.dataset.savePosition));
+}
+async function savePositionHolder(code){
+ const select=document.querySelector(`[data-position-user="${code}"]`),userId=select?.value||null;
+ const pos=positionData.find(p=>p.position_code===code);
+ const name=select?.selectedOptions?.[0]?.textContent||"belum ditetapkan";
+ if(!confirm(`Simpan pemegang ${pos?.position_name||code} menjadi ${name}?`))return;
+ const msg=$("positionMessage");msg.className="message";msg.textContent="Menyimpan penugasan...";
+ try{
+   await api.db.rpc("settings_set_position_holder",{p_position_code:code,p_user_id:userId});
+   positionData=await api.db.rpc("settings_get_positions",{})||[];
+   renderPositions();
+   msg.className="message ok";msg.textContent="Penugasan jabatan berhasil diperbarui.";
+ }catch(err){msg.textContent="Gagal: "+err.message}
 }
 
 /* MODULES / SYSTEM */

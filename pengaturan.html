@@ -78,6 +78,7 @@
         <button class="settings-tab" data-tab="academic">Tahun & Semester</button>
         <button class="settings-tab" data-tab="users">Pengguna</button>
         <button class="settings-tab" data-tab="permissions">Hak Akses</button>
+        <button class="settings-tab" data-tab="positions">Jabatan Struktural</button>
         <button class="settings-tab" data-tab="system">Modul & Sistem</button>
       </div>
 
@@ -178,6 +179,22 @@
               <thead><tr><th>Modul</th><th>Lihat</th><th>Tambah</th><th>Ubah</th><th>Hapus</th><th>Aksi</th></tr></thead>
               <tbody id="permissionBody"></tbody>
             </table>
+          </div>
+        </article>
+      </section>
+
+
+      <section id="panelPositions" class="settings-panel hidden">
+        <article class="settings-card">
+          <h3>Jabatan Struktural / Unit Kerja</h3>
+          <p>Tentukan pemegang jabatan. Menu unit kerja hanya muncul pada akun yang ditugaskan sebagai pemegang jabatan tersebut.</p>
+          <div id="positionGrid" class="module-grid"></div>
+          <div id="positionMessage" class="message"></div>
+        </article>
+        <article class="settings-card">
+          <h3>Prinsip Akses</h3>
+          <div class="security-box">
+            Penugasan jabatan tidak mengubah role utama pengguna. Satu orang dapat tetap ber-role GURU/TU/BENDAHARA dan sekaligus memegang jabatan struktural. Saat jabatan dipindahkan, menu unit kerja otomatis hilang dari pemegang lama dan muncul pada pemegang baru.
           </div>
         </article>
       </section>

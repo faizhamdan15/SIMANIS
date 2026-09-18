@@ -29,7 +29,14 @@
     "Agenda Madrasah": "agenda.html",
     "Keuangan": "keuangan.html",
     "Portal Wali Siswa": "wali-admin.html",
-    "Pengaturan": "pengaturan.html"
+    "Pengaturan": "pengaturan.html",
+    "PKM Kurikulum": "unit-kerja.html?unit=PKM_KURIKULUM",
+    "PKM Kesiswaan": "unit-kerja.html?unit=PKM_KESISWAAN",
+    "PKM Bendahara & Sarpras": "unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",
+    "PKM Humasy": "unit-kerja.html?unit=PKM_HUMASY",
+    "Kepala TU": "unit-kerja.html?unit=KEPALA_TU",
+    "Kepala Laboratorium IPA": "unit-kerja.html?unit=KALAB_IPA",
+    "Kepala Laboratorium Bisnis": "unit-kerja.html?unit=KALAB_BISNIS"
   };
 
   document.addEventListener("click", function (event) {
@@ -44,7 +51,9 @@
     event.stopImmediatePropagation();
 
     const current = location.pathname.split("/").pop() || "index.html";
-    if (current !== route) location.href = route;
+    const targetFile = route.split("?")[0];
+    const targetQuery = route.includes("?") ? "?" + route.split("?").slice(1).join("?") : "";
+    if (current !== targetFile || location.search !== targetQuery) location.href = route;
   }, true);
 
   function readSession() {
