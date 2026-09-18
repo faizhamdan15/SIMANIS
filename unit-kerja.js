@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[];
+let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[];
 const unitCode=new URLSearchParams(location.search).get("unit")||"";
 
 const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"};
@@ -32,6 +32,22 @@ function dateID(v){return v?new Intl.DateTimeFormat("id-ID",{day:"2-digit",month
 function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
 function badge(st){const bad=["CANCELLED","RUSAK_BERAT","HILANG","HABIS"],warn=["ONGOING","PROCESS","FOLLOW_UP","RUSAK_RINGAN","DRAFT","READY","MAINTENANCE","OPEN"];return`<span class="badge ${bad.includes(st)?"bad":warn.includes(st)?"warn":""}">${esc(st||"-")}</span>`}
 function today(){return new Date().toISOString().slice(0,10)}
+
+function assetDeepLink(assetId){
+  return `${location.origin}${location.pathname}?unit=PKM_BENDAHARA_SARPRAS&asset=${encodeURIComponent(assetId)}`;
+}
+function qrCanvas(target,text,size=180){
+  target.innerHTML="";
+  if(window.QRCode?.toCanvas){
+    const canvas=document.createElement("canvas");target.appendChild(canvas);
+    window.QRCode.toCanvas(canvas,text,{width:size,margin:1,errorCorrectionLevel:"M"},err=>{
+      if(err){target.innerHTML=`<div class="empty">QR gagal dibuat.<br><small>${esc(text)}</small></div>`}
+    });
+  }else{
+    target.innerHTML=`<div class="empty">Generator QR belum termuat.<br><small>${esc(text)}</small></div>`;
+  }
+}
+
 
 async function loadProfile(user){const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);if(!r?.[0])throw new Error("Profil pengguna tidak ditemukan.");if(!r[0].is_active)throw new Error("Akun tidak aktif.");return r[0]}
 async function loadMenu(){myModules=await api.db.rpc("get_my_modules",{})||[];$("sidebarMenu").innerHTML=myModules.map(x=>`<a href="${x.route||ROUTES[x.code]||"#"}" class="nav-item ${x.code===unitCode?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("")}
@@ -105,16 +121,127 @@ function renderSpecific(){
  const u=UNITS[unitCode];let body="";
  if(unitCode==="PKM_KURIKULUM")body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Supervisi</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Guru</th><th>Jenis</th><th>Nilai</th><th>Status</th><th>Tindak Lanjut</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${dateID(x.supervision_date)}</td><td>${esc(x.teachers?.full_name||"-")}</td><td>${esc(x.supervision_type)}</td><td>${x.score??"-"}</td><td>${badge(x.status)}</td><td>${esc(x.follow_up||"-")}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada supervisi.</div></td></tr>'}</tbody></table></div></article>`;
  else if(unitCode==="PKM_KESISWAAN")body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Catatan Siswa</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Siswa</th><th>Kategori</th><th>Catatan</th><th>Poin</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${dateID(x.case_date)}</td><td>${esc(x.students?.full_name||"-")}<br>${esc(x.students?.nisn||"")}</td><td>${esc(x.category)}</td><td><b>${esc(x.title)}</b><br>${esc(x.description||"")}</td><td>${x.points}</td><td>${badge(x.status)}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada catatan pembinaan.</div></td></tr>'}</tbody></table></div></article>`;
- else if(unitCode==="PKM_BENDAHARA_SARPRAS")body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Aset</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Kode</th><th>Aset</th><th>Lokasi</th><th>Jumlah</th><th>Kondisi</th><th>Nilai</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${esc(x.asset_code||"-")}</td><td><b>${esc(x.asset_name)}</b><br>${esc(x.category||"-")}</td><td>${esc(x.location||"-")}</td><td>${x.quantity} ${esc(x.unit||"")}</td><td>${badge(x.condition)}</td><td>${money(x.acquisition_value)}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada data aset.</div></td></tr>'}</tbody></table></div></article>`;
+ else if(unitCode==="PKM_BENDAHARA_SARPRAS")body=`<article class="cardx">
+ <div class="asset-toolbar">
+   <label><span>Cari Aset</span><input id="assetSearch" type="search" placeholder="Kode / nama / lokasi..."></label>
+   <label><span>Kondisi</span><select id="assetConditionFilter"><option value="">Semua Kondisi</option><option>BAIK</option><option>RUSAK_RINGAN</option><option>RUSAK_BERAT</option><option>HILANG</option></select></label>
+   <label><span>Lokasi</span><select id="assetLocationFilter"><option value="">Semua Lokasi</option>${[...new Set(specific.map(a=>a.location).filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")}</select></label>
+   <div class="actions" style="margin:0"><button class="secondary-btn" id="printAllQrBtn">Cetak QR</button><button class="primary-btn" id="addSpecificBtn">+ Aset</button></div>
+ </div>
+ <div id="assetTableWrap"></div>
+ </article>`;
  else if(unitCode==="PKM_HUMASY")body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Rencana Publikasi</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Channel</th><th>Konten</th><th>PIC</th><th>Status</th><th>Link</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${dateID(x.publish_date)}</td><td>${esc(x.channel)}</td><td><b>${esc(x.title)}</b><br>${esc(x.content_type||"")}</td><td>${esc(x.person_in_charge||"-")}</td><td>${badge(x.status)}</td><td>${x.published_link?`<a href="${esc(x.published_link)}" target="_blank">Buka</a>`:"-"}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada rencana publikasi.</div></td></tr>'}</tbody></table></div></article>`;
  else if(unitCode==="KEPALA_TU")body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Surat</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Jenis</th><th>No. Surat</th><th>Tanggal</th><th>Asal/Tujuan</th><th>Perihal</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${esc(x.letter_type==="INCOMING"?"MASUK":"KELUAR")}</td><td>${esc(x.letter_number||"-")}</td><td>${dateID(x.letter_date)}</td><td>${esc(x.sender_recipient)}</td><td>${esc(x.subject)}</td><td>${badge(x.status)}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada surat tercatat.</div></td></tr>'}</tbody></table></div></article>`;
  else body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Inventaris</button><button class="secondary-btn" id="bookingBtn">Jadwal Penggunaan</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Kode</th><th>Item</th><th>Kategori</th><th>Jumlah</th><th>Kondisi</th><th>Lokasi</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${esc(x.item_code||"-")}</td><td>${esc(x.item_name)}</td><td>${esc(x.category||"-")}</td><td>${x.quantity} ${esc(x.unit||"")}</td><td>${badge(x.condition)}</td><td>${esc(x.location||"-")}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada inventaris laboratorium.</div></td></tr>'}</tbody></table></div></article>`;
- $("panelSpecific").innerHTML=body;$("addSpecificBtn").onclick=()=>openSpecific();document.querySelectorAll("[data-edit-specific]").forEach(b=>b.onclick=()=>openSpecific(b.dataset.editSpecific));if($("bookingBtn"))$("bookingBtn").onclick=openBooking
+ $("panelSpecific").innerHTML=body;
+ if($("addSpecificBtn"))$("addSpecificBtn").onclick=()=>openSpecific();
+ document.querySelectorAll("[data-edit-specific]").forEach(b=>b.onclick=()=>openSpecific(b.dataset.editSpecific));
+ if($("bookingBtn"))$("bookingBtn").onclick=openBooking;
+ if(unitCode==="PKM_BENDAHARA_SARPRAS"){
+   renderAssetTable();
+   $("assetSearch").oninput=renderAssetTable;
+   $("assetConditionFilter").onchange=renderAssetTable;
+   $("assetLocationFilter").onchange=renderAssetTable;
+   $("printAllQrBtn").onclick=printFilteredQrLabels;
+ }
 }
+
+function filteredAssets(){
+  if(unitCode!=="PKM_BENDAHARA_SARPRAS")return specific;
+  const q=$("assetSearch")?.value?.trim().toLowerCase()||"";
+  const cond=$("assetConditionFilter")?.value||"";
+  const loc=$("assetLocationFilter")?.value||"";
+  return specific.filter(a=>{
+    const hay=`${a.asset_code||""} ${a.asset_name||""} ${a.category||""} ${a.location||""}`.toLowerCase();
+    return(!q||hay.includes(q))&&(!cond||a.condition===cond)&&(!loc||a.location===loc);
+  });
+}
+function renderAssetTable(){
+  const holder=$("assetTableWrap");if(!holder)return;
+  const data=filteredAssets();
+  holder.innerHTML=`<div class="table-wrap"><table class="tablex"><thead><tr><th>Kode</th><th>Aset</th><th>Lokasi</th><th>Jumlah</th><th>Kondisi</th><th>Nilai</th><th>Aksi</th></tr></thead><tbody>${data.length?data.map(x=>`<tr><td><b>${esc(x.asset_code||"-")}</b></td><td><b>${esc(x.asset_name)}</b><br><span style="color:#73817a">${esc(x.category||"-")}</span></td><td>${esc(x.location||"-")}</td><td>${x.quantity} ${esc(x.unit||"")}</td><td>${badge(x.condition)}</td><td>${money(x.acquisition_value)}</td><td><button class="mini-btn" data-asset-detail="${x.id}">Detail</button> <button class="mini-btn" data-asset-qr="${x.id}">QR</button> <button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Aset tidak ditemukan.</div></td></tr>'}</tbody></table></div>`;
+  holder.querySelectorAll("[data-asset-detail]").forEach(b=>b.onclick=()=>openAssetDetail(b.dataset.assetDetail));
+  holder.querySelectorAll("[data-asset-qr]").forEach(b=>b.onclick=()=>openAssetQr(b.dataset.assetQr));
+  holder.querySelectorAll("[data-edit-specific]").forEach(b=>b.onclick=()=>openSpecific(b.dataset.editSpecific));
+}
+async function openAssetDetail(id){
+  try{
+    const h=await api.db.rpc("get_asset_history",{p_asset_id:id});
+    const a=h?.asset||specific.find(x=>x.id===id);if(!a)throw new Error("Aset tidak ditemukan");
+    assetMaintenance=h?.maintenance||[];assetMutations=h?.mutations||[];
+    openModal(`Detail Aset · ${a.asset_code||""}`,"asset_detail",id);
+    setFields(`<div class="full asset-detail-grid">
+      <div>
+        <div class="asset-info">
+          <div><span>Nama Aset</span><b>${esc(a.asset_name)}</b></div>
+          <div><span>Kode Aset</span><b>${esc(a.asset_code||"-")}</b></div>
+          <div><span>Kategori</span><b>${esc(a.category||"-")}</b></div>
+          <div><span>Lokasi</span><b>${esc(a.location||"-")}</b></div>
+          <div><span>Jumlah</span><b>${a.quantity} ${esc(a.unit||"")}</b></div>
+          <div><span>Kondisi</span><b>${esc(a.condition)}</b></div>
+          <div><span>Nilai Perolehan</span><b>${money(a.acquisition_value)}</b></div>
+          <div><span>Penanggung Jawab</span><b>${esc(a.responsible_person||"-")}</b></div>
+        </div>
+        <div class="actions" style="justify-content:flex-start">
+          <button type="button" class="secondary-btn" id="detailQrBtn">QR Label</button>
+          <button type="button" class="secondary-btn" id="detailMutationBtn">Mutasi Lokasi</button>
+          <button type="button" class="secondary-btn" id="detailMaintenanceBtn">Pemeliharaan</button>
+          <button type="button" class="secondary-btn" id="detailEditBtn">Edit Aset</button>
+        </div>
+      </div>
+      <div>
+        <div class="asset-history"><h4 style="margin:0;font-size:10px">Riwayat Pemeliharaan</h4>
+          ${assetMaintenance.length?assetMaintenance.map(m=>`<div class="history-row"><b>${dateID(m.maintenance_date)} · ${esc(m.status)}</b><p>${esc(m.description)}</p><p>Biaya: ${money(m.cost)}${m.vendor?` · ${esc(m.vendor)}`:""}</p></div>`).join(""):'<div class="empty">Belum ada riwayat pemeliharaan.</div>'}
+          <h4 style="margin:6px 0 0;font-size:10px">Riwayat Mutasi</h4>
+          ${assetMutations.length?assetMutations.map(m=>`<div class="history-row"><b>${dateID(m.mutation_date)}</b><p>${esc(m.from_location||"-")} → <b>${esc(m.to_location)}</b></p><p>${esc(m.person_in_charge||"-")}${m.note?` · ${esc(m.note)}`:""}</p></div>`).join(""):'<div class="empty">Belum ada riwayat mutasi.</div>'}
+        </div>
+      </div>
+    </div>`);
+    const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="none";
+    $("detailQrBtn").onclick=()=>openAssetQr(id);
+    $("detailMutationBtn").onclick=()=>openAssetMutation(id);
+    $("detailMaintenanceBtn").onclick=()=>openAssetMaintenance(id);
+    $("detailEditBtn").onclick=()=>openSpecific(id);
+  }catch(err){alert("Gagal membuka detail aset: "+err.message)}
+}
+function openAssetQr(id){
+  const a=specific.find(x=>x.id===id);if(!a)return;
+  openModal(`QR Aset · ${a.asset_code||""}`,"asset_qr",id);
+  setFields(`<div class="full qr-box"><div id="singleQr"></div><div class="qr-code-text">${esc(a.asset_code||"-")}</div><div style="font-size:9px;margin-top:4px">${esc(a.asset_name)}</div><div style="font-size:8px;color:#718078;margin-top:3px">${esc(a.location||"-")}</div></div><div class="full actions"><button type="button" id="printSingleQrBtn" class="primary-btn">Cetak Label QR</button></div>`);
+  const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="none";
+  qrCanvas($("singleQr"),assetDeepLink(id),180);
+  $("printSingleQrBtn").onclick=()=>printQrLabels([a]);
+}
+function openAssetMutation(id){
+  const a=specific.find(x=>x.id===id);if(!a)return;
+  openModal(`Mutasi Lokasi · ${a.asset_code||""}`,"asset_mutation",id);
+  setFields(`<div class="full" style="font-size:9px;background:#f7faf8;padding:10px;border-radius:10px">Lokasi saat ini: <b>${esc(a.location||"-")}</b></div>`+inp("fDate","Tanggal Mutasi","date",today())+inp("fToLocation","Lokasi Tujuan *","text","")+inp("fPIC","Penanggung Jawab","text",a.responsible_person||"")+ta("fNote","Catatan",""));
+}
+function openAssetMaintenance(id){
+  const a=specific.find(x=>x.id===id);if(!a)return;
+  openModal(`Pemeliharaan · ${a.asset_code||""}`,"asset_maintenance",id);
+  setFields(inp("fDate","Tanggal","date",today())+inp("fCost","Biaya","number",0)+inp("fVendor","Vendor/Teknisi","text","")+sel("fStatus","Status",[["PLANNED","PLANNED"],["PROCESS","PROCESS"],["DONE","DONE"],["CANCELLED","CANCELLED"]],"PLANNED")+inp("fNext","Pemeliharaan Berikutnya","date","")+ta("fDesc","Deskripsi *","")+ta("fNote","Catatan",""));
+}
+async function printQrLabels(data){
+  if(!data.length){alert("Tidak ada aset untuk dicetak.");return}
+  const sheet=$("labelSheet");sheet.innerHTML=data.map(a=>`<article class="asset-label"><div id="labelqr-${a.id}"></div><div><h3>MA NURUL ISLAM</h3><p>${esc(a.asset_name)}</p><p class="code">${esc(a.asset_code||"-")}</p><p>${esc(a.location||"-")}</p></div></article>`).join("");
+  await new Promise(resolve=>{
+    let left=data.length;if(!window.QRCode?.toCanvas){resolve();return}
+    data.forEach(a=>{
+      const box=$(`labelqr-${a.id}`),canvas=document.createElement("canvas");box.appendChild(canvas);
+      window.QRCode.toCanvas(canvas,assetDeepLink(a.id),{width:140,margin:1,errorCorrectionLevel:"M"},()=>{left--;if(left<=0)resolve()});
+    });
+    setTimeout(resolve,1200);
+  });
+  document.body.classList.add("print-labels");
+  setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove("print-labels"),300)},150);
+}
+function printFilteredQrLabels(){printQrLabels(filteredAssets())}
+
 function renderAll(){renderStats();renderSummary();renderPrograms();renderLogs();renderSpecific()}
 
 function setFields(html){$("entryFields").innerHTML=html}
-function openModal(title,mode,id=""){$("entryTitle").textContent=title;$("entryMode").value=mode;$("entryId").value=id;$("entryMessage").textContent="";$("entryModal").classList.remove("hidden")}
+function openModal(title,mode,id=""){$("entryTitle").textContent=title;$("entryMode").value=mode;$("entryId").value=id;$("entryMessage").textContent="";const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="";$("entryModal").classList.remove("hidden")}
 function closeModal(){$("entryModal").classList.add("hidden")}
 function inp(id,label,type="text",val="",full=false){return`<label class="${full?"full":""}"><span>${label}</span><input id="${id}" type="${type}" value="${esc(val??"")}"></label>`}
 function sel(id,label,opts,val="",full=false){return`<label class="${full?"full":""}"><span>${label}</span><select id="${id}">${opts.map(([v,n])=>`<option value="${esc(v)}" ${String(v)===String(val)?"selected":""}>${esc(n)}</option>`).join("")}</select></label>`}
@@ -146,7 +273,14 @@ async function saveEntry(e){
  e.preventDefault();const mode=v("entryMode"),id=v("entryId");$("entryMessage").textContent="Menyimpan...";
  try{
   let table,payload;
-  if(mode==="program"){table="unit_work_programs";payload={unit_code:unitCode,title:v("fTitle"),category:v("fCategory")||null,start_date:v("fStart")||null,end_date:v("fEnd")||null,person_in_charge:v("fPIC")||null,progress:Number(v("fProgress")||0),budget_plan:Number(v("fBudget")||0),status:v("fStatus"),note:v("fNote")||null}}
+  if(mode==="asset_mutation"){
+    await api.db.rpc("record_asset_mutation",{p_asset_id:id,p_to_location:v("fToLocation"),p_person_in_charge:v("fPIC")||null,p_note:v("fNote")||null,p_mutation_date:v("fDate")||today()});
+    closeModal();await loadData();return;
+  }
+  else if(mode==="asset_maintenance"){
+    table="asset_maintenance";payload={asset_id:id,maintenance_date:v("fDate")||today(),description:v("fDesc"),cost:Number(v("fCost")||0),vendor:v("fVendor")||null,status:v("fStatus"),next_maintenance_date:v("fNext")||null,note:v("fNote")||null};
+  }
+  else if(mode==="program"){table="unit_work_programs";payload={unit_code:unitCode,title:v("fTitle"),category:v("fCategory")||null,start_date:v("fStart")||null,end_date:v("fEnd")||null,person_in_charge:v("fPIC")||null,progress:Number(v("fProgress")||0),budget_plan:Number(v("fBudget")||0),status:v("fStatus"),note:v("fNote")||null}}
   else if(mode==="log"){table="unit_activity_logs";payload={unit_code:unitCode,activity_date:v("fDate")||today(),title:v("fTitle"),description:v("fDesc")||null,result:v("fResult")||null,follow_up:v("fFollow")||null,person_in_charge:v("fPIC")||null}}
   else if(mode==="booking"){table="lab_bookings";payload={lab_code:UNITS[unitCode].lab,usage_date:v("fDate"),start_time:v("fStart"),end_time:v("fEnd"),class_id:v("fClass")||null,teacher_id:v("fTeacher")||null,activity:v("fActivity"),person_in_charge:v("fPIC")||null,status:v("fStatus"),note:v("fNote")||null}}
   else if(unitCode==="PKM_KURIKULUM"){table="curriculum_supervisions";payload={teacher_id:v("fTeacher"),semester_id:v("fSemester")||null,supervision_date:v("fDate"),supervision_type:v("fType"),score:v("fScore")===""?null:Number(v("fScore")),status:v("fStatus"),strengths:v("fStrength")||null,notes:v("fNotes")||null,follow_up:v("fFollow")||null}}
@@ -155,7 +289,8 @@ async function saveEntry(e){
   else if(unitCode==="PKM_HUMASY"){table="humas_publication_plans";payload={publish_date:v("fDate"),channel:v("fChannel"),title:v("fTitle"),content_type:v("fType")||null,status:v("fStatus"),person_in_charge:v("fPIC")||null,published_link:v("fLink")||null,note:v("fNote")||null}}
   else if(unitCode==="KEPALA_TU"){table="office_letters";payload={letter_type:v("fLetterType"),letter_number:v("fNumber")||null,letter_date:v("fLetterDate"),administration_date:v("fAdminDate"),sender_recipient:v("fSender"),subject:v("fSubject"),classification:v("fClass")||null,disposition:v("fDisposition")||null,status:v("fStatus"),note:v("fNote")||null}}
   else {table="lab_inventory";payload={lab_code:UNITS[unitCode].lab,item_code:v("fCode")||null,item_name:v("fName"),category:v("fCategory")||null,quantity:Number(v("fQty")||0),unit:v("fUnit")||"UNIT",condition:v("fCondition"),location:v("fLocation")||null,minimum_stock:Number(v("fMin")||0),note:v("fNote")||null}}
-  if(!payload.title&&!payload.asset_name&&!payload.item_name&&!payload.activity&&!payload.subject&&!payload.teacher_id&&!payload.student_id)throw new Error("Data utama wajib diisi.");
+  if(mode==="asset_maintenance" && !payload.description)throw new Error("Deskripsi pemeliharaan wajib diisi.");
+  if(mode!=="asset_maintenance" && !payload.title&&!payload.asset_name&&!payload.item_name&&!payload.activity&&!payload.subject&&!payload.teacher_id&&!payload.student_id)throw new Error("Data utama wajib diisi.");
   if(id)await restWrite(`${table}?id=eq.${encodeURIComponent(id)}`,"PATCH",payload);else await restWrite(table,"POST",payload);
   closeModal();await loadData()
  }catch(err){$("entryMessage").textContent="Gagal: "+err.message}
@@ -168,5 +303,8 @@ $("entryForm").onsubmit=saveEntry;$("entryClose").onclick=closeModal;$("entryCan
  api=await window.simanisReady;const user=await api.auth.getUser();if(!user){location.href="index.html";return}
  profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name;$("sideUserRole").textContent=roleLabel(profile.role);$("headerUser").textContent=profile.full_name;$("currentDate").textContent=localDateID();
  if(!UNITS[unitCode])throw new Error("Parameter unit kerja tidak valid.");if(!await checkAccess())throw new Error("Akun ini tidak ditugaskan pada unit kerja tersebut.");
- await loadMenu();await loadMasters();renderHeader();renderTabs();await loadData();$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"}
+ await loadMenu();await loadMasters();renderHeader();renderTabs();await loadData();
+ const assetParam=new URLSearchParams(location.search).get("asset");
+ if(unitCode==="PKM_BENDAHARA_SARPRAS"&&assetParam&&specific.some(a=>a.id===assetParam)){setTab("specific");setTimeout(()=>openAssetDetail(assetParam),100)}
+ $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"}
 }catch(err){console.error(err);alert("Unit Kerja gagal dimuat: "+err.message);if(String(err.message).includes("tidak ditugaskan"))location.href="dashboard.html"}finally{$("loading").style.display="none"}})();

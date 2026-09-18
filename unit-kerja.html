@@ -17,6 +17,22 @@
 .modalx{max-width:720px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form-grid .full{grid-column:1/-1}label span{display:block;font-size:9px;font-weight:800;margin-bottom:5px;color:#465b52}input,select,textarea{width:100%;border:1px solid #d5e1db;border-radius:10px;padding:10px;background:#fff;font:inherit;font-size:10px}textarea{resize:vertical}
 .progress{height:8px;background:#edf2ef;border-radius:999px;overflow:hidden;margin-top:5px}.progress span{display:block;height:100%;background:#0b7347}
 .focus{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.focus-item{border:1px solid #e1e9e5;background:#fbfdfc;border-radius:11px;padding:10px;font-size:9px;color:#496056}
+
+.asset-toolbar{display:grid;grid-template-columns:1fr .75fr .75fr auto;gap:8px;align-items:end;margin-bottom:10px}
+.asset-detail-grid{display:grid;grid-template-columns:1fr .9fr;gap:12px}
+.asset-info{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.asset-info div{background:#f7faf8;border-radius:10px;padding:9px}
+.asset-info span{font-size:7.5px;color:#72817a;display:block}.asset-info b{font-size:9.5px;color:#173f30;display:block;margin-top:3px}
+.asset-history{display:grid;gap:8px}.history-row{border:1px solid #e2eae6;border-radius:10px;padding:9px}.history-row b{font-size:9px}.history-row p{font-size:8px;color:#6f7f77;margin:3px 0}
+.qr-box{background:#fff;border:1px solid #dce7e1;border-radius:14px;padding:13px;text-align:center}.qr-box canvas,.qr-box img{max-width:180px!important;height:auto!important}.qr-code-text{font-size:12px;font-weight:900;letter-spacing:1px;color:#075b3a;margin-top:8px}
+.label-sheet{display:none}
+@media print{
+ body.print-labels .app,body.print-labels .modal-backdrop{display:none!important}
+ body.print-labels .label-sheet{display:grid!important;grid-template-columns:repeat(3,1fr);gap:8mm;padding:8mm}
+ .asset-label{border:1px solid #111;border-radius:4mm;padding:5mm;display:grid;grid-template-columns:30mm 1fr;gap:4mm;align-items:center;break-inside:avoid;min-height:42mm}
+ .asset-label canvas,.asset-label img{width:28mm!important;height:28mm!important}
+ .asset-label h3{font:700 10pt Arial;margin:0 0 2mm}.asset-label p{font:8pt Arial;margin:1mm 0}.asset-label .code{font:700 9pt monospace}
+}
 @media(max-width:900px){.grid2{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.focus{grid-template-columns:1fr}}
 @media(max-width:560px){.form-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
 </style>
@@ -73,5 +89,6 @@
  </div>
 </div>
 
-<script src="config.js"></script><script src="sdk-loader.js"></script><script src="unit-kerja.js"></script>
+<section id="labelSheet" class="label-sheet"></section>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script><script src="config.js"></script><script src="sdk-loader.js"></script><script src="unit-kerja.js"></script>
 </body></html>
