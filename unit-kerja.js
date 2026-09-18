@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[];
+let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[],summons=[],activityGroups=[],activityMembers=[],studentAffairsRecap={summary:{},class_recap:[],student_recap:[]};
 const unitCode=new URLSearchParams(location.search).get("unit")||"";
 
 const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"};
@@ -32,6 +32,7 @@ function dateID(v){return v?new Intl.DateTimeFormat("id-ID",{day:"2-digit",month
 function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
 function badge(st){const bad=["CANCELLED","RUSAK_BERAT","HILANG","HABIS"],warn=["ONGOING","PROCESS","FOLLOW_UP","RUSAK_RINGAN","DRAFT","READY","MAINTENANCE","OPEN"];return`<span class="badge ${bad.includes(st)?"bad":warn.includes(st)?"warn":""}">${esc(st||"-")}</span>`}
 function today(){return new Date().toISOString().slice(0,10)}
+function xDateSafe(v){return /^\d{4}-\d{2}-\d{2}$/.test(String(v||""))}
 
 function assetDeepLink(assetId){
   return `${location.origin}${location.pathname}?unit=PKM_BENDAHARA_SARPRAS&asset=${encodeURIComponent(assetId)}`;
@@ -91,17 +92,30 @@ async function loadData(){
    ]);
    docTypes=extra[0]||[];teacherDocs=extra[1]||[];calendarEvents=extra[2]||[];rubricItems=extra[3]||[];teacherRecap=extra[4]||[];
  }
+ if(unitCode==="PKM_KESISWAAN"){
+   const activeSemester=semesters.find(s=>s.is_active)||semesters[0];
+   const extra=await Promise.all([
+     api.db.select("student_summons","select=*,students(full_name,nisn),student_guidance_cases(case_code,title)&order=summon_date.desc,created_at.desc"),
+     api.db.select("student_activity_groups","select=*,teachers(full_name)&is_active=eq.true&order=group_type.asc,name.asc"),
+     api.db.select("student_activity_members","select=*,students(full_name,nisn),student_activity_groups(name,group_type)&is_active=eq.true&order=created_at.desc"),
+     activeSemester?api.db.rpc("student_affairs_get_recap",{p_semester_id:activeSemester.id}):Promise.resolve({summary:{},class_recap:[],student_recap:[]})
+   ]);
+   summons=extra[0]||[];activityGroups=extra[1]||[];activityMembers=extra[2]||[];studentAffairsRecap=extra[3]||{summary:{},class_recap:[],student_recap:[]};
+ }
  renderAll();
 }
 function setTab(name){
  document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
- ["Summary","Programs","Logs","Specific","Documents","Calendar","Recap"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
+ ["Summary","Programs","Logs","Specific","Documents","Calendar","Recap","Summons","Activities","Studentrecap"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
 }
 function renderTabs(){
  const u=UNITS[unitCode];
  const base=[["summary","Ringkasan"],["programs","Program Kerja"],["logs","Log Aktivitas"],["specific",u.specificTab]];
  if(unitCode==="PKM_KURIKULUM"){
    base.push(["documents","Perangkat Ajar"],["calendar","Kalender Akademik"],["recap","Rekap Guru"]);
+ }
+ if(unitCode==="PKM_KESISWAAN"){
+   base.push(["summons","Surat Panggilan"],["activities","Organisasi & Ekskul"],["studentrecap","Rekap Siswa"]);
  }
  $("tabs").innerHTML=base.map(([k,n],i)=>`<button class="tabbtn ${i===0?"active":""}" data-tab="${k}">${esc(n)}</button>`).join("");
  document.querySelectorAll(".tabbtn").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
@@ -137,7 +151,15 @@ function renderSpecific(){
  <div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Supervisi Digital</button></div>
  <div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Guru</th><th>Jenis</th><th>Observer</th><th>Nilai</th><th>Status</th><th>Rekomendasi</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${dateID(x.supervision_date)}</td><td>${esc(x.teachers?.full_name||"-")}</td><td>${esc(x.supervision_type)}</td><td>${esc(x.observer_name||"-")}</td><td><b>${x.score??"-"}</b></td><td>${badge(x.status)}</td><td>${esc(x.recommendation||x.follow_up||"-")}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="8"><div class="empty">Belum ada supervisi.</div></td></tr>'}</tbody></table></div>
  </article>`;
- else if(unitCode==="PKM_KESISWAAN")body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Catatan Siswa</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Siswa</th><th>Kategori</th><th>Catatan</th><th>Poin</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${dateID(x.case_date)}</td><td>${esc(x.students?.full_name||"-")}<br>${esc(x.students?.nisn||"")}</td><td>${esc(x.category)}</td><td><b>${esc(x.title)}</b><br>${esc(x.description||"")}</td><td>${x.points}</td><td>${badge(x.status)}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada catatan pembinaan.</div></td></tr>'}</tbody></table></div></article>`;
+ else if(unitCode==="PKM_KESISWAAN")body=`<article class="cardx">
+ <div class="kesiswaan-toolbar">
+   <label><span>Cari</span><input id="caseSearch" type="search" placeholder="Nama siswa / kode / catatan..."></label>
+   <label><span>Kategori</span><select id="caseCategoryFilter"><option value="">Semua</option><option>PELANGGARAN</option><option>PEMBINAAN</option><option>KONSELING</option><option>PENGHARGAAN</option><option>LAINNYA</option></select></label>
+   <label><span>Status</span><select id="caseStatusFilter"><option value="">Semua</option><option>OPEN</option><option>PROCESS</option><option>CLOSED</option></select></label>
+   <button class="primary-btn" id="addSpecificBtn" style="width:auto">+ Catatan Siswa</button>
+ </div>
+ <div id="caseTableWrap"></div>
+ </article>`;
  else if(unitCode==="PKM_BENDAHARA_SARPRAS")body=`<article class="cardx">
  <div class="asset-toolbar">
    <label><span>Cari Aset</span><input id="assetSearch" type="search" placeholder="Kode / nama / lokasi..."></label>
@@ -160,6 +182,12 @@ function renderSpecific(){
    $("assetConditionFilter").onchange=renderAssetTable;
    $("assetLocationFilter").onchange=renderAssetTable;
    $("printAllQrBtn").onclick=printFilteredQrLabels;
+ }
+ if(unitCode==="PKM_KESISWAAN"){
+   renderCaseTable();
+   $("caseSearch").oninput=renderCaseTable;
+   $("caseCategoryFilter").onchange=renderCaseTable;
+   $("caseStatusFilter").onchange=renderCaseTable;
  }
 }
 
@@ -255,6 +283,198 @@ async function printQrLabels(data){
 }
 function printFilteredQrLabels(){printQrLabels(filteredAssets())}
 
+
+
+function filteredCases(){
+  const q=$("caseSearch")?.value?.trim().toLowerCase()||"";
+  const cat=$("caseCategoryFilter")?.value||"";
+  const st=$("caseStatusFilter")?.value||"";
+  return specific.filter(x=>{
+    const hay=`${x.case_code||""} ${x.students?.full_name||""} ${x.students?.nisn||""} ${x.title||""} ${x.description||""}`.toLowerCase();
+    return(!q||hay.includes(q))&&(!cat||x.category===cat)&&(!st||x.status===st);
+  });
+}
+function renderCaseTable(){
+  const holder=$("caseTableWrap");if(!holder)return;
+  const data=filteredCases();
+  holder.innerHTML=`<div class="table-wrap"><table class="tablex"><thead><tr><th>Kode</th><th>Tanggal</th><th>Siswa</th><th>Kategori</th><th>Tingkat</th><th>Catatan</th><th>Poin</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${data.length?data.map(x=>`<tr>
+    <td><b>${esc(x.case_code||"-")}</b></td>
+    <td>${dateID(x.case_date)}</td>
+    <td><b>${esc(x.students?.full_name||"-")}</b><br>${esc(x.students?.nisn||"")}</td>
+    <td>${esc(x.category)}</td>
+    <td>${x.severity?badge(x.severity):"-"}</td>
+    <td><b>${esc(x.title)}</b><br><span style="color:#73817a">${esc(x.description||"")}</span></td>
+    <td><b>${Number(x.points||0)}</b></td>
+    <td>${badge(x.status)}</td>
+    <td><button class="mini-btn" data-case-detail="${x.id}">Detail</button> <button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td>
+  </tr>`).join(""):'<tr><td colspan="9"><div class="empty">Catatan siswa tidak ditemukan.</div></td></tr>'}</tbody></table></div>`;
+  holder.querySelectorAll("[data-case-detail]").forEach(b=>b.onclick=()=>openCaseDetail(b.dataset.caseDetail));
+  holder.querySelectorAll("[data-edit-specific]").forEach(b=>b.onclick=()=>openSpecific(b.dataset.editSpecific));
+}
+async function openCaseDetail(id){
+  try{
+    const x=specific.find(v=>v.id===id);if(!x)throw new Error("Catatan tidak ditemukan");
+    const followups=await api.db.select("student_guidance_followups",`select=*&case_id=eq.${encodeURIComponent(id)}&order=followup_date.desc,created_at.desc`);
+    openModal(`Detail Pembinaan · ${x.case_code||""}`,"case_detail",id);
+    setFields(`<div class="full case-detail-grid">
+      <div>
+        <div class="case-info">
+          <div><span>Siswa</span><b>${esc(x.students?.full_name||"-")}</b></div>
+          <div><span>Kode</span><b>${esc(x.case_code||"-")}</b></div>
+          <div><span>Kategori</span><b>${esc(x.category)}</b></div>
+          <div><span>Tingkat</span><b>${esc(x.severity||"-")}</b></div>
+          <div><span>Poin</span><b>${Number(x.points||0)}</b></div>
+          <div><span>Status</span><b>${esc(x.status)}</b></div>
+          <div><span>Penangan</span><b>${esc(x.handled_by||"-")}</b></div>
+          <div><span>Orang Tua</span><b>${x.parent_contacted?"Sudah dihubungi":"Belum dihubungi"}</b></div>
+        </div>
+        <div style="margin-top:10px;font-size:9px;line-height:1.6"><b>${esc(x.title)}</b><br>${esc(x.description||"-")}</div>
+        <div class="actions" style="justify-content:flex-start">
+          <button type="button" class="secondary-btn" id="caseFollowBtn">+ Tindak Lanjut</button>
+          <button type="button" class="secondary-btn" id="caseSummonBtn">Surat Panggilan</button>
+          <button type="button" class="secondary-btn" id="caseEditBtn">Edit Catatan</button>
+        </div>
+      </div>
+      <div>
+        <h4 style="margin:0 0 7px;font-size:10px">Riwayat Tindak Lanjut</h4>
+        <div class="timeline">${followups.length?followups.map(f=>`<div class="timeline-item"><b>${dateID(f.followup_date)} · ${esc(f.action_type)}</b><p>${esc(f.description)}</p><p><b>Hasil:</b> ${esc(f.result||"-")}</p>${f.next_action?`<p><b>Selanjutnya:</b> ${esc(f.next_action)}</p>`:""}</div>`).join(""):'<div class="empty">Belum ada tindak lanjut.</div>'}</div>
+      </div>
+    </div>`);
+    const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="none";
+    $("caseFollowBtn").onclick=()=>openCaseFollowup(id);
+    $("caseSummonBtn").onclick=()=>openSummon("",id,x.student_id);
+    $("caseEditBtn").onclick=()=>openSpecific(id);
+  }catch(err){alert("Gagal membuka detail: "+err.message)}
+}
+function openCaseFollowup(caseId){
+  const x=specific.find(v=>v.id===caseId);
+  openModal(`Tindak Lanjut · ${x?.case_code||""}`,"case_followup",caseId);
+  setFields(
+    inp("fDate","Tanggal","date",today())+
+    sel("fActionType","Jenis",[["PEMBINAAN","Pembinaan"],["KONSELING","Konseling"],["PANGGILAN_ORANG_TUA","Panggilan Orang Tua"],["KOORDINASI_WALI_KELAS","Koordinasi Wali Kelas"],["PENGHARGAAN","Penghargaan"],["LAINNYA","Lainnya"]],"PEMBINAAN")+
+    inp("fHandler","Penangan","text",profile.full_name||"")+
+    ta("fDesc","Uraian Tindak Lanjut *","")+
+    ta("fResult","Hasil","")+
+    ta("fNext","Tindak Lanjut Berikutnya","")
+  );
+}
+function renderSummons(){
+  $("panelSummons").innerHTML=`<article class="cardx">
+    <div class="actions"><button class="primary-btn" id="addSummonBtn">+ Surat Panggilan</button></div>
+    <div class="table-wrap"><table class="tablex"><thead><tr><th>Nomor</th><th>Siswa</th><th>Tanggal Surat</th><th>Jadwal Pertemuan</th><th>Alasan</th><th>Status</th><th>Aksi</th></tr></thead><tbody>
+      ${summons.length?summons.map(s=>`<tr><td><b>${esc(s.summon_number||"-")}</b></td><td>${esc(s.students?.full_name||"-")}<br>${esc(s.students?.nisn||"")}</td><td>${dateID(s.summon_date)}</td><td>${dateID(s.meeting_date)}${s.meeting_time?` · ${String(s.meeting_time).slice(0,5)}`:""}</td><td>${esc(s.reason)}</td><td>${badge(s.status)}</td><td><button class="mini-btn" data-print-summon="${s.id}">Cetak</button> <button class="mini-btn" data-edit-summon="${s.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada surat panggilan.</div></td></tr>'}
+    </tbody></table></div>
+  </article>`;
+  $("addSummonBtn").onclick=()=>openSummon();
+  document.querySelectorAll("[data-edit-summon]").forEach(b=>b.onclick=()=>openSummon(b.dataset.editSummon));
+  document.querySelectorAll("[data-print-summon]").forEach(b=>b.onclick=()=>printSummon(b.dataset.printSummon));
+}
+function openSummon(id="",caseId="",studentId=""){
+  const s=summons.find(x=>x.id===id)||{};
+  const student=studentId||s.student_id||"";
+  openModal(id?"Edit Surat Panggilan":"Tambah Surat Panggilan","summon",id);
+  setFields(
+    sel("fStudent","Siswa *",students.map(st=>[st.id,`${st.full_name} · ${st.nisn||"-"}`]),student)+
+    inp("fSummonDate","Tanggal Surat","date",s.summon_date||today())+
+    inp("fMeetingDate","Tanggal Pertemuan","date",s.meeting_date||today())+
+    inp("fMeetingTime","Jam Pertemuan","time",s.meeting_time?String(s.meeting_time).slice(0,5):"08:00")+
+    inp("fParent","Nama Orang Tua/Wali","text",s.parent_name||"")+
+    inp("fPlace","Tempat","text",s.place||"MA Nurul Islam")+
+    sel("fStatus","Status",[["DRAFT","DRAFT"],["ISSUED","ISSUED"],["ATTENDED","ATTENDED"],["COMPLETED","COMPLETED"],["CANCELLED","CANCELLED"]],s.status||"DRAFT")+
+    ta("fReason","Alasan Panggilan *",s.reason||"")+
+    ta("fResult","Hasil Pertemuan",s.result||"")+
+    ta("fNote","Catatan",s.note||"")+
+    `<input id="fCaseId" type="hidden" value="${esc(caseId||s.case_id||"")}">`
+  );
+}
+async function printSummon(id){
+  try{
+    const s=summons.find(x=>x.id===id);if(!s)return;
+    const brand=await api.db.rpc("get_public_system_settings",{})||{};
+    const signatory=profile.full_name||"PKM Kesiswaan";
+    $("summonPrint").innerHTML=`<div class="kop"><h1>${esc(brand.school_name||"MA Nurul Islam")}</h1><h2>SURAT PANGGILAN ORANG TUA / WALI</h2><p>${esc([brand.address,brand.district,brand.regency].filter(Boolean).join(", "))}</p></div>
+      <div class="meta"><p>Nomor: <b>${esc(s.summon_number||"-")}</b></p><p>Tanggal: ${dateID(s.summon_date)}</p></div>
+      <p class="bodyp">Yth. Bapak/Ibu Orang Tua/Wali dari <b>${esc(s.students?.full_name||"-")}</b>,</p>
+      <p class="bodyp">Dengan hormat, sehubungan dengan keperluan pembinaan dan pendampingan peserta didik, kami mengharap kehadiran Bapak/Ibu pada:</p>
+      <table style="margin:5mm 0 5mm 10mm;border-collapse:collapse"><tr><td style="padding:1.5mm 8mm 1.5mm 0">Hari/Tanggal</td><td>: ${dateID(s.meeting_date)}</td></tr><tr><td style="padding:1.5mm 8mm 1.5mm 0">Pukul</td><td>: ${esc(s.meeting_time?String(s.meeting_time).slice(0,5):"-")}</td></tr><tr><td style="padding:1.5mm 8mm 1.5mm 0">Tempat</td><td>: ${esc(s.place||"MA Nurul Islam")}</td></tr><tr><td style="padding:1.5mm 8mm 1.5mm 0">Keperluan</td><td>: ${esc(s.reason)}</td></tr></table>
+      <p class="bodyp">Demikian surat panggilan ini disampaikan. Atas perhatian dan kehadiran Bapak/Ibu, kami sampaikan terima kasih.</p>
+      <div class="sign"><div><p>Mengetahui,<br>Kepala Madrasah</p><div class="space"></div><b>${esc(brand.headmaster_name||"________________")}</b></div><div><p>PKM Kesiswaan</p><div class="space"></div><b>${esc(signatory)}</b></div></div>`;
+    document.body.classList.add("print-summon");setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove("print-summon"),300)},100);
+  }catch(err){alert("Gagal mencetak surat: "+err.message)}
+}
+function renderActivities(){
+  const ay=activeAcademicYearId();
+  $("panelActivities").innerHTML=`<article class="cardx">
+    <div class="actions"><button class="primary-btn" id="addGroupBtn">+ Organisasi/Ekskul</button></div>
+    <div class="group-grid">${activityGroups.length?activityGroups.map(g=>{
+      const members=activityMembers.filter(m=>m.group_id===g.id&&(!ay||m.academic_year_id===ay));
+      return`<article class="group-card"><div style="display:flex;justify-content:space-between;gap:8px"><div><span class="badge">${esc(g.group_type)}</span><h4>${esc(g.name)}</h4></div><b style="font-size:18px;color:#0b7347">${members.length}</b></div><p>Pembina: ${esc(g.teachers?.full_name||"-")}</p><p>${esc(g.schedule_text||"-")}${g.location?` · ${esc(g.location)}`:""}</p><div class="actions" style="justify-content:flex-start;margin-bottom:0"><button class="mini-btn" data-group-members="${g.id}">Anggota</button><button class="mini-btn" data-edit-group="${g.id}">Edit</button></div></article>`
+    }).join(""):'<div class="empty">Belum ada organisasi/ekstrakurikuler.</div>'}</div>
+  </article>`;
+  $("addGroupBtn").onclick=()=>openGroup();
+  document.querySelectorAll("[data-edit-group]").forEach(b=>b.onclick=()=>openGroup(b.dataset.editGroup));
+  document.querySelectorAll("[data-group-members]").forEach(b=>b.onclick=()=>openGroupMembers(b.dataset.groupMembers));
+}
+function openGroup(id=""){
+  const g=activityGroups.find(x=>x.id===id)||{};
+  openModal(id?"Edit Organisasi/Ekskul":"Tambah Organisasi/Ekskul","activity_group",id);
+  setFields(
+    sel("fGroupType","Jenis",[["ORGANISASI","Organisasi"],["EKSTRAKURIKULER","Ekstrakurikuler"]],g.group_type||"EKSTRAKURIKULER")+
+    inp("fName","Nama *","text",g.name,true)+
+    sel("fAdvisor","Pembina",[[ "", "Tidak dipilih"],...teachers.map(t=>[t.id,t.full_name])],g.advisor_teacher_id||"")+
+    inp("fSchedule","Jadwal","text",g.schedule_text||"")+
+    inp("fLocation","Lokasi","text",g.location||"")+
+    ta("fDesc","Deskripsi",g.description||"")
+  );
+}
+function openGroupMembers(groupId){
+  const g=activityGroups.find(x=>x.id===groupId);if(!g)return;
+  const ay=activeAcademicYearId();
+  const members=activityMembers.filter(m=>m.group_id===groupId&&(!ay||m.academic_year_id===ay));
+  openModal(`Anggota · ${g.name}`,"group_members",groupId);
+  setFields(`<div class="full"><div class="actions" style="justify-content:flex-start"><button type="button" class="primary-btn" id="addMemberBtn">+ Anggota</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Siswa</th><th>Jabatan/Peran</th><th>Tanggal Bergabung</th><th>Aksi</th></tr></thead><tbody>${members.length?members.map(m=>`<tr><td>${esc(m.students?.full_name||"-")}<br>${esc(m.students?.nisn||"")}</td><td>${esc(m.position_name||"-")}</td><td>${dateID(m.joined_date)}</td><td><button type="button" class="mini-btn" data-del-member="${m.id}">Hapus</button></td></tr>`).join(""):'<tr><td colspan="4"><div class="empty">Belum ada anggota.</div></td></tr>'}</tbody></table></div></div>`);
+  const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="none";
+  $("addMemberBtn").onclick=()=>openAddMember(groupId);
+  document.querySelectorAll("[data-del-member]").forEach(b=>b.onclick=async()=>{if(!confirm("Hapus anggota ini?"))return;await del("student_activity_members",b.dataset.delMember);closeModal()});
+}
+function openAddMember(groupId){
+  const g=activityGroups.find(x=>x.id===groupId);
+  openModal(`Tambah Anggota · ${g?.name||""}`,"activity_member",groupId);
+  setFields(
+    sel("fStudent","Siswa *",students.map(s=>[s.id,`${s.full_name} · ${s.nisn||"-"}`]),"")+
+    inp("fPosition","Jabatan/Peran","text","")+
+    inp("fJoined","Tanggal Bergabung","date",today())+
+    ta("fNote","Catatan","")
+  );
+}
+function renderStudentRecap(){
+  const cls=$("recapClassFilter")?.value||"";
+  const sum=studentAffairsRecap.summary||{},classesRecap=studentAffairsRecap.class_recap||[],allStudents=studentAffairsRecap.student_recap||[];
+  const rows=cls?allStudents.filter(x=>x.class_id===cls):allStudents;
+  $("panelStudentrecap").innerHTML=`<article class="cardx">
+    <div class="recap-cards">
+      <div class="recap-card"><span>Total Catatan</span><b>${Number(sum.total_cases||0)}</b></div>
+      <div class="recap-card"><span>Kasus Terbuka</span><b>${Number(sum.open_cases||0)}</b></div>
+      <div class="recap-card"><span>Pelanggaran</span><b>${Number(sum.violation_cases||0)}</b></div>
+      <div class="recap-card"><span>Penghargaan</span><b>${Number(sum.reward_cases||0)}</b></div>
+    </div>
+    <div class="kesiswaan-toolbar" style="grid-template-columns:1fr auto">
+      <label><span>Filter Kelas</span><select id="recapClassFilter"><option value="">Semua Kelas</option>${classesRecap.map(c=>`<option value="${c.class_id}" ${cls===c.class_id?"selected":""}>${esc(c.class_name)}</option>`).join("")}</select></label>
+      <button class="secondary-btn" id="exportStudentRecapBtn" style="width:auto">Export CSV</button>
+    </div>
+    <div class="table-wrap"><table class="tablex"><thead><tr><th>Kelas</th><th>Siswa</th><th>Kasus Terbuka</th><th>Pelanggaran</th><th>Pembinaan/Konseling</th><th>Penghargaan</th><th>Total Poin</th><th>Terakhir</th></tr></thead><tbody>
+      ${rows.length?rows.map(r=>`<tr><td>${esc(r.class_name)}</td><td><b>${esc(r.student_name)}</b><br>${esc(r.nisn||"")}</td><td>${r.open_cases}</td><td>${r.violation_count}</td><td>${r.guidance_count}</td><td>${r.reward_count}</td><td><b>${r.total_points}</b></td><td>${r.last_case_date?dateID(r.last_case_date):"-"}</td></tr>`).join(""):'<tr><td colspan="8"><div class="empty">Tidak ada data siswa.</div></td></tr>'}
+    </tbody></table></div>
+  </article>`;
+  $("recapClassFilter").onchange=renderStudentRecap;
+  $("exportStudentRecapBtn").onclick=()=>exportStudentAffairsRecap(rows);
+}
+function exportStudentAffairsRecap(rows){
+  const data=[["Kelas","Nama Siswa","NISN","Kasus Terbuka","Pelanggaran","Pembinaan/Konseling","Penghargaan","Total Poin","Catatan Terakhir"]];
+  rows.forEach(r=>data.push([r.class_name,r.student_name,r.nisn||"",r.open_cases,r.violation_count,r.guidance_count,r.reward_count,r.total_points,r.last_case_date||""]));
+  const csv=data.map(row=>row.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`rekap-kesiswaan-${activeSemester()?.name||"semester"}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
+}
 
 function activeSemester(){
   return semesters.find(s=>s.is_active)||semesters[0]||null;
@@ -381,7 +601,7 @@ function exportTeacherRecap(){
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`rekap-kurikulum-${activeSemester()?.name||"semester"}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
 }
 
-function renderAll(){renderStats();renderSummary();renderPrograms();renderLogs();renderSpecific();if(unitCode==="PKM_KURIKULUM"){renderDocuments();renderAcademicCalendar();renderTeacherRecap()}}
+function renderAll(){renderStats();renderSummary();renderPrograms();renderLogs();renderSpecific();if(unitCode==="PKM_KURIKULUM"){renderDocuments();renderAcademicCalendar();renderTeacherRecap()}if(unitCode==="PKM_KESISWAAN"){renderSummons();renderActivities();renderStudentRecap()}}
 
 function setFields(html){$("entryFields").innerHTML=html}
 function openModal(title,mode,id=""){$("entryTitle").textContent=title;$("entryMode").value=mode;$("entryId").value=id;$("entryMessage").textContent="";const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="";$("entryModal").classList.remove("hidden")}
@@ -416,7 +636,22 @@ function openSpecific(id=""){
      ta("fFollow","Tindak Lanjut",x.follow_up)
    );
  }
- else if(unitCode==="PKM_KESISWAAN")setFields(sel("fStudent","Siswa *",students.map(s=>[s.id,`${s.full_name} · ${s.nisn||"-"}`]),x.student_id)+inp("fDate","Tanggal","date",x.case_date||today())+sel("fCategory","Kategori",[["PELANGGARAN","Pelanggaran"],["PEMBINAAN","Pembinaan"],["KONSELING","Konseling"],["PENGHARGAAN","Penghargaan"],["LAINNYA","Lainnya"]],x.category||"PEMBINAAN")+inp("fTitle","Judul *","text",x.title,true)+inp("fPoints","Poin","number",x.points??0)+inp("fHandler","Penangan","text",x.handled_by)+sel("fStatus","Status",[["OPEN","OPEN"],["PROCESS","PROCESS"],["CLOSED","CLOSED"]],x.status||"OPEN")+ta("fDesc","Deskripsi",x.description)+ta("fAction","Tindakan",x.action_taken)+ta("fFollow","Tindak Lanjut",x.follow_up));
+ else if(unitCode==="PKM_KESISWAAN")setFields(
+   sel("fStudent","Siswa *",students.map(s=>[s.id,`${s.full_name} · ${s.nisn||"-"}`]),x.student_id)+
+   inp("fDate","Tanggal","date",x.case_date||today())+
+   sel("fCategory","Kategori",[["PELANGGARAN","Pelanggaran"],["PEMBINAAN","Pembinaan"],["KONSELING","Konseling"],["PENGHARGAAN","Penghargaan"],["LAINNYA","Lainnya"]],x.category||"PEMBINAAN")+
+   sel("fSeverity","Tingkat",[["","-"],["RINGAN","Ringan"],["SEDANG","Sedang"],["BERAT","Berat"]],x.severity||"")+
+   inp("fTitle","Judul *","text",x.title,true)+
+   inp("fPoints","Poin","number",x.points??0)+
+   inp("fHandler","Penangan","text",x.handled_by)+
+   sel("fStatus","Status",[["OPEN","OPEN"],["PROCESS","PROCESS"],["CLOSED","CLOSED"]],x.status||"OPEN")+
+   sel("fParentContacted","Orang Tua Dihubungi?",[["false","Belum"],["true","Sudah"]],String(!!x.parent_contacted))+
+   inp("fParentDate","Tanggal Kontak","date",x.parent_contact_date||"")+
+   ta("fDesc","Deskripsi",x.description)+
+   ta("fAction","Tindakan",x.action_taken)+
+   ta("fFollow","Tindak Lanjut",x.follow_up)+
+   ta("fHomeroom","Catatan Wali Kelas",x.homeroom_note||"")
+ );
  else if(unitCode==="PKM_BENDAHARA_SARPRAS")setFields(inp("fCode","Kode Aset","text",x.asset_code)+inp("fName","Nama Aset *","text",x.asset_name)+inp("fCategory","Kategori","text",x.category)+inp("fLocation","Lokasi","text",x.location)+inp("fDate","Tanggal Perolehan","date",x.acquisition_date)+inp("fValue","Nilai Perolehan","number",x.acquisition_value??0)+inp("fQty","Jumlah","number",x.quantity??1)+inp("fUnit","Satuan","text",x.unit||"UNIT")+sel("fCondition","Kondisi",[["BAIK","Baik"],["RUSAK_RINGAN","Rusak Ringan"],["RUSAK_BERAT","Rusak Berat"],["HILANG","Hilang"]],x.condition||"BAIK")+sel("fStatus","Status",[["ACTIVE","ACTIVE"],["MAINTENANCE","MAINTENANCE"],["DISPOSED","DISPOSED"]],x.status||"ACTIVE")+inp("fPIC","Penanggung Jawab","text",x.responsible_person)+ta("fNote","Catatan",x.note));
  else if(unitCode==="PKM_HUMASY")setFields(inp("fDate","Tanggal Publikasi","date",x.publish_date||today())+sel("fChannel","Channel",[["WEBSITE","Website"],["INSTAGRAM","Instagram"],["FACEBOOK","Facebook"],["YOUTUBE","YouTube"],["WHATSAPP","WhatsApp"],["LAINNYA","Lainnya"]],x.channel||"INSTAGRAM")+inp("fTitle","Judul Konten *","text",x.title,true)+inp("fType","Jenis Konten","text",x.content_type)+inp("fPIC","PIC","text",x.person_in_charge)+sel("fStatus","Status",[["IDEA","IDEA"],["DRAFT","DRAFT"],["READY","READY"],["PUBLISHED","PUBLISHED"],["CANCELLED","CANCELLED"]],x.status||"IDEA")+inp("fLink","Link Publikasi","text",x.published_link,true)+ta("fNote","Catatan",x.note));
  else if(unitCode==="KEPALA_TU")setFields(sel("fLetterType","Jenis Surat",[["INCOMING","Surat Masuk"],["OUTGOING","Surat Keluar"]],x.letter_type||"INCOMING")+inp("fNumber","Nomor Surat","text",x.letter_number)+inp("fLetterDate","Tanggal Surat","date",x.letter_date||today())+inp("fAdminDate","Tanggal Administrasi","date",x.administration_date||today())+inp("fSender","Asal/Tujuan *","text",x.sender_recipient,true)+inp("fSubject","Perihal *","text",x.subject,true)+inp("fClass","Klasifikasi","text",x.classification)+sel("fStatus","Status",[["RECORDED","RECORDED"],["PROCESS","PROCESS"],["DONE","DONE"],["ARCHIVED","ARCHIVED"]],x.status||"RECORDED")+ta("fDisposition","Disposisi",x.disposition)+ta("fNote","Catatan",x.note));
@@ -431,7 +666,24 @@ async function saveEntry(e){
  e.preventDefault();const mode=v("entryMode"),id=v("entryId");$("entryMessage").textContent="Menyimpan...";
  try{
   let table,payload;
-  if(mode==="curr_doc"){
+  if(mode==="case_followup"){
+    table="student_guidance_followups";
+    payload={case_id:id,followup_date:v("fDate")||today(),action_type:v("fActionType"),description:v("fDesc"),result:v("fResult")||null,next_action:v("fNext")||null,handled_by:v("fHandler")||null};
+  }
+  else if(mode==="summon"){
+    table="student_summons";
+    payload={student_id:v("fStudent"),case_id:v("fCaseId")||null,summon_date:v("fSummonDate")||today(),meeting_date:v("fMeetingDate"),meeting_time:v("fMeetingTime")||null,parent_name:v("fParent")||null,reason:v("fReason"),place:v("fPlace")||"MA Nurul Islam",status:v("fStatus"),result:v("fResult")||null,note:v("fNote")||null};
+  }
+  else if(mode==="activity_group"){
+    table="student_activity_groups";
+    payload={group_type:v("fGroupType"),name:v("fName"),description:v("fDesc")||null,advisor_teacher_id:v("fAdvisor")||null,schedule_text:v("fSchedule")||null,location:v("fLocation")||null,is_active:true};
+  }
+  else if(mode==="activity_member"){
+    table="student_activity_members";
+    payload={group_id:id,student_id:v("fStudent"),academic_year_id:activeAcademicYearId(),position_name:v("fPosition")||null,joined_date:v("fJoined")||null,is_active:true,note:v("fNote")||null};
+    id="";
+  }
+  else if(mode==="curr_doc"){
     const sem=activeSemester();if(!sem)throw new Error("Semester aktif tidak ditemukan.");
     const teacherId=v("fTeacher"),docTypeId=v("fDocType"),type=docTypes.find(t=>t.id===docTypeId);
     if(!teacherId||!docTypeId)throw new Error("Guru dan jenis perangkat wajib dipilih.");
@@ -493,13 +745,33 @@ async function saveEntry(e){
     const score=max>0?Math.round((got/max)*10000)/100:null;
     payload={teacher_id:v("fTeacher"),semester_id:v("fSemester")||null,supervision_date:v("fDate"),supervision_type:v("fType"),score,status:v("fStatus"),strengths:v("fStrength")||null,notes:v("fNotes")||null,follow_up:v("fFollow")||null,observer_name:v("fObserver")||null,recommendation:v("fRecommendation")||null,rubric_scores:scores};
   }
-  else if(unitCode==="PKM_KESISWAAN"){table="student_guidance_cases";payload={student_id:v("fStudent"),case_date:v("fDate"),category:v("fCategory"),title:v("fTitle"),description:v("fDesc")||null,points:Number(v("fPoints")||0),action_taken:v("fAction")||null,follow_up:v("fFollow")||null,status:v("fStatus"),handled_by:v("fHandler")||null}}
+  else if(unitCode==="PKM_KESISWAAN"){table="student_guidance_cases";payload={
+    student_id:v("fStudent"),
+    case_date:v("fDate"),
+    category:v("fCategory"),
+    severity:v("fSeverity")||null,
+    title:v("fTitle"),
+    description:v("fDesc")||null,
+    points:Number(v("fPoints")||0),
+    action_taken:v("fAction")||null,
+    follow_up:v("fFollow")||null,
+    status:v("fStatus"),
+    handled_by:v("fHandler")||null,
+    parent_contacted:v("fParentContacted")==="true",
+    parent_contact_date:v("fParentDate")||null,
+    homeroom_note:v("fHomeroom")||null,
+    resolution_date:v("fStatus")==="CLOSED"?today():null
+  }}
   else if(unitCode==="PKM_BENDAHARA_SARPRAS"){table="school_assets";payload={asset_code:v("fCode")||null,asset_name:v("fName"),category:v("fCategory")||null,location:v("fLocation")||null,acquisition_date:v("fDate")||null,acquisition_value:Number(v("fValue")||0),quantity:Number(v("fQty")||0),unit:v("fUnit")||"UNIT",condition:v("fCondition"),status:v("fStatus"),responsible_person:v("fPIC")||null,note:v("fNote")||null}}
   else if(unitCode==="PKM_HUMASY"){table="humas_publication_plans";payload={publish_date:v("fDate"),channel:v("fChannel"),title:v("fTitle"),content_type:v("fType")||null,status:v("fStatus"),person_in_charge:v("fPIC")||null,published_link:v("fLink")||null,note:v("fNote")||null}}
   else if(unitCode==="KEPALA_TU"){table="office_letters";payload={letter_type:v("fLetterType"),letter_number:v("fNumber")||null,letter_date:v("fLetterDate"),administration_date:v("fAdminDate"),sender_recipient:v("fSender"),subject:v("fSubject"),classification:v("fClass")||null,disposition:v("fDisposition")||null,status:v("fStatus"),note:v("fNote")||null}}
   else {table="lab_inventory";payload={lab_code:UNITS[unitCode].lab,item_code:v("fCode")||null,item_name:v("fName"),category:v("fCategory")||null,quantity:Number(v("fQty")||0),unit:v("fUnit")||"UNIT",condition:v("fCondition"),location:v("fLocation")||null,minimum_stock:Number(v("fMin")||0),note:v("fNote")||null}}
   if(mode==="asset_maintenance" && !payload.description)throw new Error("Deskripsi pemeliharaan wajib diisi.");
-  if(!["asset_maintenance","curr_doc","curr_verify","curr_calendar"].includes(mode) && !payload.title&&!payload.asset_name&&!payload.item_name&&!payload.activity&&!payload.subject&&!payload.teacher_id&&!payload.student_id)throw new Error("Data utama wajib diisi.");
+  if(mode==="case_followup" && !payload.description)throw new Error("Uraian tindak lanjut wajib diisi.");
+  if(mode==="summon" && (!payload.student_id||!payload.reason||!payload.meeting_date))throw new Error("Siswa, alasan, dan tanggal pertemuan wajib diisi.");
+  if(mode==="activity_group" && !payload.name)throw new Error("Nama organisasi/ekskul wajib diisi.");
+  if(mode==="activity_member" && (!payload.student_id||!payload.academic_year_id))throw new Error("Siswa dan tahun pelajaran aktif wajib tersedia.");
+  if(!["asset_maintenance","curr_doc","curr_verify","curr_calendar","case_followup","summon","activity_group","activity_member"].includes(mode) && !payload.title&&!payload.asset_name&&!payload.item_name&&!payload.activity&&!payload.subject&&!payload.teacher_id&&!payload.student_id)throw new Error("Data utama wajib diisi.");
   if(mode==="curr_calendar" && !payload.title)throw new Error("Nama kegiatan wajib diisi.");
   if(id)await restWrite(`${table}?id=eq.${encodeURIComponent(id)}`,"PATCH",payload);else await restWrite(table,"POST",payload);
   closeModal();await loadData()
