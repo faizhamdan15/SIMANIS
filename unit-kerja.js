@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[],summons=[],activityGroups=[],activityMembers=[],studentAffairsRecap={summary:{},class_recap:[],student_recap:[]},humasDocs=[],humasSocial=[],humasNews=[],humasRecap={summary:{},months:[],channels:[]};
+let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[],summons=[],activityGroups=[],activityMembers=[],studentAffairsRecap={summary:{},class_recap:[],student_recap:[]},humasDocs=[],humasSocial=[],humasNews=[],humasRecap={summary:{},months:[],channels:[]},letterClasses=[],tuDispositions=[],tuFiles=[],tuRecap={summary:{},months:[],classifications:[]};
 const unitCode=new URLSearchParams(location.search).get("unit")||"";
 
 const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"};
@@ -112,11 +112,21 @@ async function loadData(){
    ]);
    humasDocs=extra[0]||[];humasSocial=extra[1]||[];humasNews=extra[2]||[];humasRecap=extra[3]||{summary:{},months:[],channels:[]};
  }
+ if(unitCode==="KEPALA_TU"){
+   const year=new Date().getFullYear();
+   const extra=await Promise.all([
+     api.db.select("office_letter_classifications","select=*&is_active=eq.true&order=sort_order.asc"),
+     api.db.select("office_letter_dispositions","select=*,office_letters(agenda_code,letter_number,subject,letter_type,sender_recipient)&order=disposition_date.desc,created_at.desc"),
+     api.db.select("office_letter_files","select=*,office_letters(agenda_code,letter_number,subject,letter_type)&order=created_at.desc"),
+     api.db.rpc("office_get_monthly_recap",{p_year:year})
+   ]);
+   letterClasses=extra[0]||[];tuDispositions=extra[1]||[];tuFiles=extra[2]||[];tuRecap=extra[3]||{summary:{},months:[],classifications:[]};
+ }
  renderAll();
 }
 function setTab(name){
  document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
- ["Summary","Programs","Logs","Specific","Documents","Calendar","Recap","Summons","Activities","Studentrecap","Contentcalendar","Documentation","Socialmedia","Humasnews","Humasrecap"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
+ ["Summary","Programs","Logs","Specific","Documents","Calendar","Recap","Summons","Activities","Studentrecap","Contentcalendar","Documentation","Socialmedia","Humasnews","Humasrecap","Letteragenda","Dispositions","Letterarchive","Turecap"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
 }
 function renderTabs(){
  const u=UNITS[unitCode];
@@ -129,6 +139,9 @@ function renderTabs(){
  }
  if(unitCode==="PKM_HUMASY"){
    base.push(["contentcalendar","Kalender Konten"],["documentation","Dokumentasi"],["socialmedia","Media Sosial"],["humasnews","Berita"],["humasrecap","Rekap Bulanan"]);
+ }
+ if(unitCode==="KEPALA_TU"){
+   base.push(["letteragenda","Agenda Surat"],["dispositions","Disposisi"],["letterarchive","Arsip Digital"],["turecap","Rekap Surat"]);
  }
  $("tabs").innerHTML=base.map(([k,n],i)=>`<button class="tabbtn ${i===0?"active":""}" data-tab="${k}">${esc(n)}</button>`).join("");
  document.querySelectorAll(".tabbtn").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
@@ -191,7 +204,16 @@ function renderSpecific(){
  </div>
  <div id="humasPlanTable"></div>
  </article>`;
- else if(unitCode==="KEPALA_TU")body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Surat</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Jenis</th><th>No. Surat</th><th>Tanggal</th><th>Asal/Tujuan</th><th>Perihal</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${esc(x.letter_type==="INCOMING"?"MASUK":"KELUAR")}</td><td>${esc(x.letter_number||"-")}</td><td>${dateID(x.letter_date)}</td><td>${esc(x.sender_recipient)}</td><td>${esc(x.subject)}</td><td>${badge(x.status)}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada surat tercatat.</div></td></tr>'}</tbody></table></div></article>`;
+ else if(unitCode==="KEPALA_TU")body=`<article class="cardx">
+ <div class="tu-toolbar">
+  <label><span>Cari</span><input id="tuSearch" type="search" placeholder="Agenda / nomor / perihal / asal tujuan..."></label>
+  <label><span>Jenis</span><select id="tuTypeFilter"><option value="">Semua Jenis</option><option value="INCOMING">Surat Masuk</option><option value="OUTGOING">Surat Keluar</option></select></label>
+  <label><span>Status</span><select id="tuStatusFilter"><option value="">Semua Status</option><option>RECORDED</option><option>PROCESS</option><option>DONE</option><option>ARCHIVED</option></select></label>
+  <label><span>Klasifikasi</span><select id="tuClassFilter"><option value="">Semua</option>${letterClasses.map(c=>`<option value="${esc(c.code)}">${esc(c.name)}</option>`).join("")}</select></label>
+  <button class="primary-btn" id="addSpecificBtn" style="width:auto">+ Surat</button>
+ </div>
+ <div id="tuLetterTable"></div>
+ </article>`;
  else body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Inventaris</button><button class="secondary-btn" id="bookingBtn">Jadwal Penggunaan</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Kode</th><th>Item</th><th>Kategori</th><th>Jumlah</th><th>Kondisi</th><th>Lokasi</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${esc(x.item_code||"-")}</td><td>${esc(x.item_name)}</td><td>${esc(x.category||"-")}</td><td>${x.quantity} ${esc(x.unit||"")}</td><td>${badge(x.condition)}</td><td>${esc(x.location||"-")}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada inventaris laboratorium.</div></td></tr>'}</tbody></table></div></article>`;
  $("panelSpecific").innerHTML=body;
  if($("addSpecificBtn"))$("addSpecificBtn").onclick=()=>openSpecific();
@@ -215,6 +237,13 @@ function renderSpecific(){
    $("humasSearch").oninput=renderHumasPlanTable;
    $("humasChannelFilter").onchange=renderHumasPlanTable;
    $("humasStatusFilter").onchange=renderHumasPlanTable;
+ }
+ if(unitCode==="KEPALA_TU"){
+   renderTuLetterTable();
+   $("tuSearch").oninput=renderTuLetterTable;
+   $("tuTypeFilter").onchange=renderTuLetterTable;
+   $("tuStatusFilter").onchange=renderTuLetterTable;
+   $("tuClassFilter").onchange=renderTuLetterTable;
  }
 }
 
@@ -312,6 +341,168 @@ function printFilteredQrLabels(){printQrLabels(filteredAssets())}
 
 
 
+
+
+function filteredTuLetters(){
+  const q=$("tuSearch")?.value?.trim().toLowerCase()||"";
+  const type=$("tuTypeFilter")?.value||"";
+  const st=$("tuStatusFilter")?.value||"";
+  const cls=$("tuClassFilter")?.value||"";
+  return specific.filter(x=>{
+    const hay=`${x.agenda_code||""} ${x.letter_number||""} ${x.subject||""} ${x.sender_recipient||""} ${x.classification||""}`.toLowerCase();
+    return(!q||hay.includes(q))&&(!type||x.letter_type===type)&&(!st||x.status===st)&&(!cls||x.classification===cls);
+  });
+}
+function renderTuLetterTable(){
+  const holder=$("tuLetterTable");if(!holder)return;
+  const data=filteredTuLetters();
+  holder.innerHTML=`<div class="table-wrap"><table class="tablex"><thead><tr><th>Agenda</th><th>Jenis</th><th>No. Surat</th><th>Tanggal</th><th>Asal/Tujuan</th><th>Perihal</th><th>Klasifikasi</th><th>Prioritas</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${data.length?data.map(x=>`<tr>
+   <td><b>${esc(x.agenda_code||"-")}</b></td>
+   <td>${esc(x.letter_type==="INCOMING"?"MASUK":"KELUAR")}</td>
+   <td>${esc(x.letter_number||"-")}</td>
+   <td>${dateID(x.letter_date)}</td>
+   <td>${esc(x.sender_recipient)}</td>
+   <td><b>${esc(x.subject)}</b></td>
+   <td>${esc(x.classification||"-")}</td>
+   <td>${badge(x.priority||"BIASA")}</td>
+   <td>${badge(x.status)}</td>
+   <td><button class="mini-btn" data-tu-detail="${x.id}">Detail</button> <button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td>
+  </tr>`).join(""):'<tr><td colspan="10"><div class="empty">Surat tidak ditemukan.</div></td></tr>'}</tbody></table></div>`;
+  holder.querySelectorAll("[data-tu-detail]").forEach(b=>b.onclick=()=>openTuLetterDetail(b.dataset.tuDetail));
+  holder.querySelectorAll("[data-edit-specific]").forEach(b=>b.onclick=()=>openSpecific(b.dataset.editSpecific));
+}
+async function uploadTuLetterFile(file,letterId){
+  const session=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG;
+  if(file.size>15*1024*1024)throw new Error("Ukuran file maksimal 15 MB.");
+  const ext=(file.name.split(".").pop()||"bin").replace(/[^a-z0-9]/gi,"").toLowerCase();
+  const path=`${letterId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/tu-surat/${path}`,{
+    method:"POST",
+    headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":file.type||"application/octet-stream","x-upsert":"false"},
+    body:file
+  });
+  const txt=await res.text();if(!res.ok)throw new Error(txt);return path;
+}
+async function signedTuFileUrl(path){
+  const session=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG;
+  const res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/sign/tu-surat/${path.split("/").map(encodeURIComponent).join("/")}`,{
+    method:"POST",
+    headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json"},
+    body:JSON.stringify({expiresIn:300})
+  });
+  const data=await res.json();if(!res.ok)throw new Error(data?.message||"Gagal membuat link file");
+  return `${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1${data.signedURL}`;
+}
+async function openTuLetterDetail(id){
+  try{
+    const h=await api.db.rpc("office_get_letter_detail",{p_letter_id:id});
+    const l=h?.letter||specific.find(x=>x.id===id);if(!l)throw new Error("Surat tidak ditemukan");
+    const dispositions=h?.dispositions||[],files=h?.files||[];
+    openModal(`Detail Surat · ${l.agenda_code||""}`,"tu_detail",id);
+    setFields(`<div class="full tu-detail-grid">
+      <div>
+        <div class="tu-info">
+          <div><span>Agenda</span><b>${esc(l.agenda_code||"-")}</b></div>
+          <div><span>Jenis</span><b>${l.letter_type==="INCOMING"?"Surat Masuk":"Surat Keluar"}</b></div>
+          <div><span>Nomor</span><b>${esc(l.letter_number||"-")}</b></div>
+          <div><span>Tanggal</span><b>${dateID(l.letter_date)}</b></div>
+          <div><span>Asal/Tujuan</span><b>${esc(l.sender_recipient||"-")}</b></div>
+          <div><span>Klasifikasi</span><b>${esc(l.classification||"-")}</b></div>
+          <div><span>Prioritas</span><b>${esc(l.priority||"BIASA")}</b></div>
+          <div><span>Status</span><b>${esc(l.status)}</b></div>
+        </div>
+        <div style="margin-top:10px;font-size:9px;line-height:1.6"><b>${esc(l.subject)}</b><br>${esc(l.note||"")}</div>
+        <div class="actions" style="justify-content:flex-start">
+          <button type="button" class="secondary-btn" id="tuAddDispoBtn">+ Disposisi</button>
+          <button type="button" class="secondary-btn" id="tuUploadBtn">+ Arsip File</button>
+          <button type="button" class="secondary-btn" id="tuPrintDispoBtn">Cetak Lembar Disposisi</button>
+          <button type="button" class="secondary-btn" id="tuEditBtn">Edit Surat</button>
+        </div>
+      </div>
+      <div>
+        <h4 style="font-size:10px;margin:0 0 7px">Riwayat Disposisi</h4>
+        <div class="dispo-list">${dispositions.length?dispositions.map(d=>`<div class="dispo-row"><b>${dateID(d.disposition_date)} · ${esc(d.to_name)}</b><p>${esc(d.instruction)}</p><p>Status: ${esc(d.status)}${d.due_date?` · Batas ${dateID(d.due_date)}`:""}</p>${d.result?`<p>Hasil: ${esc(d.result)}</p>`:""}</div>`).join(""):'<div class="empty">Belum ada disposisi.</div>'}</div>
+        <h4 style="font-size:10px;margin:10px 0 7px">Arsip Digital</h4>
+        <div class="file-list-tu">${files.length?files.map(f=>`<div class="file-row-tu"><div><b>${esc(f.document_label||f.original_filename||"Dokumen")}</b><p>${esc(f.original_filename||"-")}</p></div><button type="button" class="mini-btn" data-tu-open-file="${f.id}">Buka</button></div>`).join(""):'<div class="empty">Belum ada file.</div>'}</div>
+      </div>
+    </div>`);
+    const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="none";
+    $("tuAddDispoBtn").onclick=()=>openTuDisposition("",id);
+    $("tuUploadBtn").onclick=()=>openTuFileUpload(id);
+    $("tuPrintDispoBtn").onclick=()=>printDispositionSheet(l,dispositions);
+    $("tuEditBtn").onclick=()=>openSpecific(id);
+    document.querySelectorAll("[data-tu-open-file]").forEach(b=>b.onclick=async()=>{const f=files.find(x=>x.id===b.dataset.tuOpenFile);if(!f)return;const url=await signedTuFileUrl(f.file_path);window.open(url,"_blank","noopener")});
+  }catch(err){alert("Gagal membuka detail surat: "+err.message)}
+}
+function openTuDisposition(id="",letterId=""){
+  const d=tuDispositions.find(x=>x.id===id)||{};
+  openModal(id?"Edit Disposisi":"Tambah Disposisi","tu_disposition",id);
+  setFields(
+    `<input id="fLetterId" type="hidden" value="${esc(letterId||d.letter_id||"")}">`+
+    inp("fDate","Tanggal Disposisi","date",d.disposition_date||today())+
+    inp("fFrom","Dari","text",d.from_name||"Kepala Madrasah")+
+    inp("fTo","Tujuan Disposisi *","text",d.to_name||"")+
+    inp("fDue","Batas Waktu","date",d.due_date||"")+
+    sel("fStatus","Status",[["OPEN","OPEN"],["PROCESS","PROCESS"],["DONE","DONE"],["CANCELLED","CANCELLED"]],d.status||"OPEN")+
+    ta("fInstruction","Instruksi *",d.instruction||"")+
+    ta("fResult","Hasil",d.result||"")
+  );
+}
+function openTuFileUpload(letterId){
+  openModal("Tambah Arsip Digital","tu_file","");
+  setFields(
+    `<input id="fLetterId" type="hidden" value="${esc(letterId)}">`+
+    inp("fLabel","Label Dokumen","text","Surat / Lampiran")+
+    sel("fPrimary","Dokumen Utama?",[["false","Tidak"],["true","Ya"]],"false")+
+    `<label class="full"><span>File *</span><input id="fTuFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"></label>`+
+    `<div class="full" style="font-size:8px;color:#718078">PDF/JPG/PNG/WEBP/DOC/DOCX maksimal 15 MB.</div>`
+  );
+}
+function renderLetterAgenda(){
+  const data=[...specific].sort((a,b)=>String(b.administration_date||"").localeCompare(String(a.administration_date||"")));
+  $("panelLetteragenda").innerHTML=`<article class="cardx"><div class="actions"><button class="secondary-btn" id="exportAgendaBtn">Export CSV</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Agenda</th><th>Jenis</th><th>Tgl Agenda</th><th>Tgl Surat</th><th>Nomor</th><th>Asal/Tujuan</th><th>Perihal</th><th>Klasifikasi</th><th>Status</th></tr></thead><tbody>${data.length?data.map(l=>`<tr><td><b>${esc(l.agenda_code||"-")}</b></td><td>${l.letter_type==="INCOMING"?"MASUK":"KELUAR"}</td><td>${dateID(l.administration_date)}</td><td>${dateID(l.letter_date)}</td><td>${esc(l.letter_number||"-")}</td><td>${esc(l.sender_recipient)}</td><td>${esc(l.subject)}</td><td>${esc(l.classification||"-")}</td><td>${badge(l.status)}</td></tr>`).join(""):'<tr><td colspan="9"><div class="empty">Belum ada agenda surat.</div></td></tr>'}</tbody></table></div></article>`;
+  $("exportAgendaBtn").onclick=exportTuAgenda;
+}
+function exportTuAgenda(){
+  const rows=[["Agenda","Jenis","Tanggal Agenda","Tanggal Surat","Nomor Surat","Asal/Tujuan","Perihal","Klasifikasi","Prioritas","Status"]];
+  specific.forEach(l=>rows.push([l.agenda_code||"",l.letter_type==="INCOMING"?"MASUK":"KELUAR",l.administration_date||"",l.letter_date||"",l.letter_number||"",l.sender_recipient||"",l.subject||"",l.classification||"",l.priority||"",l.status||""]));
+  const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`agenda-surat-${new Date().getFullYear()}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
+}
+function renderTuDispositions(){
+  $("panelDispositions").innerHTML=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addStandaloneDispoBtn">+ Disposisi</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Surat</th><th>Dari</th><th>Tujuan</th><th>Instruksi</th><th>Batas</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${tuDispositions.length?tuDispositions.map(d=>`<tr><td>${dateID(d.disposition_date)}</td><td><b>${esc(d.office_letters?.agenda_code||"-")}</b><br>${esc(d.office_letters?.subject||"-")}</td><td>${esc(d.from_name||"-")}</td><td>${esc(d.to_name)}</td><td>${esc(d.instruction)}</td><td>${dateID(d.due_date)}</td><td>${badge(d.status)}</td><td><button class="mini-btn" data-edit-dispo="${d.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="8"><div class="empty">Belum ada disposisi.</div></td></tr>'}</tbody></table></div></article>`;
+  $("addStandaloneDispoBtn").onclick=()=>{
+    if(!specific.length){alert("Belum ada surat.");return}
+    openModal("Pilih Surat untuk Disposisi","tu_pick_disposition","");
+    setFields(sel("fPickLetter","Surat",specific.filter(l=>l.letter_type==="INCOMING").map(l=>[l.id,`${l.agenda_code||"-"} · ${l.subject}`]),"",true));
+  };
+  document.querySelectorAll("[data-edit-dispo]").forEach(b=>b.onclick=()=>openTuDisposition(b.dataset.editDispo));
+}
+function renderTuArchive(){
+  $("panelLetterarchive").innerHTML=`<article class="cardx"><div class="file-list-tu">${tuFiles.length?tuFiles.map(f=>`<div class="file-row-tu"><div><b>${esc(f.office_letters?.agenda_code||"-")} · ${esc(f.document_label||f.original_filename||"Dokumen")}</b><p>${esc(f.office_letters?.subject||"-")} · ${esc(f.original_filename||"-")}</p></div><button class="mini-btn" data-archive-open="${f.id}">Buka</button></div>`).join(""):'<div class="empty">Belum ada arsip digital.</div>'}</div></article>`;
+  document.querySelectorAll("[data-archive-open]").forEach(b=>b.onclick=async()=>{try{const f=tuFiles.find(x=>x.id===b.dataset.archiveOpen);const url=await signedTuFileUrl(f.file_path);window.open(url,"_blank","noopener")}catch(err){alert("Gagal membuka arsip: "+err.message)}});
+}
+function renderTuRecap(){
+  const s=tuRecap.summary||{},months=tuRecap.months||[],names=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"],max=Math.max(1,...months.flatMap(m=>[Number(m.incoming||0),Number(m.outgoing||0)]));
+  $("panelTurecap").innerHTML=`<article class="cardx">
+   <div class="tu-recap-cards">
+    <div class="tu-recap-card"><span>Surat Masuk</span><b>${Number(s.incoming||0)}</b></div>
+    <div class="tu-recap-card"><span>Surat Keluar</span><b>${Number(s.outgoing||0)}</b></div>
+    <div class="tu-recap-card"><span>Aktif/Proses</span><b>${Number(s.active||0)}</b></div>
+    <div class="tu-recap-card"><span>Selesai</span><b>${Number(s.done||0)}</b></div>
+    <div class="tu-recap-card"><span>Disposisi Terbuka</span><b>${Number(s.disposition_open||0)}</b></div>
+   </div>
+   <div class="grid2">
+    <div><h3>Surat per Bulan</h3><div class="tu-month-bars">${months.map(m=>`<div class="tu-month-col"><div class="tu-month-pair"><div class="tu-bar" style="height:${Math.max(2,Math.round(Number(m.incoming||0)/max*100))}%"></div><div class="tu-bar out" style="height:${Math.max(2,Math.round(Number(m.outgoing||0)/max*100))}%"></div></div><b>${names[m.month_no-1]}</b><small>${m.incoming}/${m.outgoing}</small></div>`).join("")}</div></div>
+    <div><h3>Klasifikasi</h3><div class="table-wrap"><table class="tablex" style="min-width:0"><thead><tr><th>Klasifikasi</th><th>Jumlah</th></tr></thead><tbody>${(tuRecap.classifications||[]).map(c=>`<tr><td>${esc(c.classification)}</td><td>${c.count}</td></tr>`).join("")||'<tr><td colspan="2">Belum ada data.</td></tr>'}</tbody></table></div></div>
+   </div>
+  </article>`;
+}
+async function printDispositionSheet(letter,dispositions){
+  const brand=await api.db.rpc("get_public_system_settings",{})||{};
+  $("dispositionPrint").innerHTML=`<div class="kop"><h1>${esc(brand.school_name||"MA Nurul Islam")}</h1><p>${esc([brand.address,brand.district,brand.regency].filter(Boolean).join(", "))}</p></div><h2>LEMBAR DISPOSISI</h2><table><tr><th>Agenda</th><td>${esc(letter.agenda_code||"-")}</td><th>Tanggal Diterima</th><td>${dateID(letter.received_date||letter.administration_date)}</td></tr><tr><th>Nomor Surat</th><td>${esc(letter.letter_number||"-")}</td><th>Tanggal Surat</th><td>${dateID(letter.letter_date)}</td></tr><tr><th>Asal Surat</th><td colspan="3">${esc(letter.sender_recipient||"-")}</td></tr><tr><th>Perihal</th><td colspan="3">${esc(letter.subject||"-")}</td></tr><tr><th>Sifat</th><td>${esc(letter.confidentiality||"BIASA")}</td><th>Prioritas</th><td>${esc(letter.priority||"BIASA")}</td></tr></table><h2 style="text-align:left">Riwayat Disposisi</h2><table><thead><tr><th>Tanggal</th><th>Tujuan</th><th>Instruksi</th><th>Status</th></tr></thead><tbody>${dispositions.length?dispositions.map(d=>`<tr><td>${dateID(d.disposition_date)}</td><td>${esc(d.to_name)}</td><td>${esc(d.instruction)}</td><td>${esc(d.status)}</td></tr>`).join(""):'<tr><td colspan="4">Belum ada disposisi.</td></tr>'}</tbody></table><div class="sign"><p>${esc(brand.regency||"")}, ${dateID(today())}<br>Kepala Madrasah</p><div class="space"></div><b>${esc(brand.headmaster_name||"________________")}</b></div>`;
+  document.body.classList.add("print-disposition");setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove("print-disposition"),300)},100);
+}
 
 function filteredHumasPlans(){
   const q=$("humasSearch")?.value?.trim().toLowerCase()||"";
@@ -755,7 +946,7 @@ function exportTeacherRecap(){
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`rekap-kurikulum-${activeSemester()?.name||"semester"}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
 }
 
-function renderAll(){renderStats();renderSummary();renderPrograms();renderLogs();renderSpecific();if(unitCode==="PKM_KURIKULUM"){renderDocuments();renderAcademicCalendar();renderTeacherRecap()}if(unitCode==="PKM_KESISWAAN"){renderSummons();renderActivities();renderStudentRecap()}if(unitCode==="PKM_HUMASY"){renderContentCalendar();renderDocumentation();renderSocialMedia();renderHumasNews();renderHumasRecap()}}
+function renderAll(){renderStats();renderSummary();renderPrograms();renderLogs();renderSpecific();if(unitCode==="PKM_KURIKULUM"){renderDocuments();renderAcademicCalendar();renderTeacherRecap()}if(unitCode==="PKM_KESISWAAN"){renderSummons();renderActivities();renderStudentRecap()}if(unitCode==="PKM_HUMASY"){renderContentCalendar();renderDocumentation();renderSocialMedia();renderHumasNews();renderHumasRecap()}if(unitCode==="KEPALA_TU"){renderLetterAgenda();renderTuDispositions();renderTuArchive();renderTuRecap()}}
 
 function setFields(html){$("entryFields").innerHTML=html}
 function openModal(title,mode,id=""){$("entryTitle").textContent=title;$("entryMode").value=mode;$("entryId").value=id;$("entryMessage").textContent="";const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="";$("entryModal").classList.remove("hidden")}
@@ -824,7 +1015,23 @@ function openSpecific(id=""){
    ta("fCaption","Caption",x.caption_text||"")+
    ta("fNote","Catatan",x.note)
  );
- else if(unitCode==="KEPALA_TU")setFields(sel("fLetterType","Jenis Surat",[["INCOMING","Surat Masuk"],["OUTGOING","Surat Keluar"]],x.letter_type||"INCOMING")+inp("fNumber","Nomor Surat","text",x.letter_number)+inp("fLetterDate","Tanggal Surat","date",x.letter_date||today())+inp("fAdminDate","Tanggal Administrasi","date",x.administration_date||today())+inp("fSender","Asal/Tujuan *","text",x.sender_recipient,true)+inp("fSubject","Perihal *","text",x.subject,true)+inp("fClass","Klasifikasi","text",x.classification)+sel("fStatus","Status",[["RECORDED","RECORDED"],["PROCESS","PROCESS"],["DONE","DONE"],["ARCHIVED","ARCHIVED"]],x.status||"RECORDED")+ta("fDisposition","Disposisi",x.disposition)+ta("fNote","Catatan",x.note));
+ else if(unitCode==="KEPALA_TU")setFields(
+   sel("fLetterType","Jenis Surat",[["INCOMING","Surat Masuk"],["OUTGOING","Surat Keluar"]],x.letter_type||"INCOMING")+
+   inp("fNumber","Nomor Surat","text",x.letter_number)+
+   inp("fLetterDate","Tanggal Surat","date",x.letter_date||today())+
+   inp("fAdminDate","Tanggal Administrasi","date",x.administration_date||today())+
+   inp("fReceivedDate","Tanggal Diterima","date",x.received_date||"")+
+   inp("fSender","Asal/Tujuan *","text",x.sender_recipient,true)+
+   inp("fSubject","Perihal *","text",x.subject,true)+
+   sel("fClass","Klasifikasi",[[ "", "Belum diklasifikasikan"],...letterClasses.map(c=>[c.code,c.name])],x.classification||"")+
+   sel("fPriority","Prioritas",[["BIASA","Biasa"],["PENTING","Penting"],["SEGERA","Segera"]],x.priority||"BIASA")+
+   sel("fConfidentiality","Sifat",[["BIASA","Biasa"],["TERBATAS","Terbatas"],["RAHASIA","Rahasia"]],x.confidentiality||"BIASA")+
+   inp("fPIC","Penanggung Jawab","text",x.responsible_person||"")+
+   inp("fDueDate","Batas Tindak Lanjut","date",x.due_date||"")+
+   sel("fStatus","Status",[["RECORDED","RECORDED"],["PROCESS","PROCESS"],["DONE","DONE"],["ARCHIVED","ARCHIVED"]],x.status||"RECORDED")+
+   ta("fDisposition","Catatan Disposisi Awal",x.disposition)+
+   ta("fNote","Catatan",x.note)
+ );
  else setFields(inp("fCode","Kode Item","text",x.item_code)+inp("fName","Nama Item *","text",x.item_name)+inp("fCategory","Kategori","text",x.category)+inp("fQty","Jumlah","number",x.quantity??0)+inp("fUnit","Satuan","text",x.unit||"UNIT")+sel("fCondition","Kondisi",[["BAIK","Baik"],["RUSAK_RINGAN","Rusak Ringan"],["RUSAK_BERAT","Rusak Berat"],["HABIS","Habis"]],x.condition||"BAIK")+inp("fLocation","Lokasi","text",x.location)+inp("fMin","Stok Minimum","number",x.minimum_stock??0)+ta("fNote","Catatan",x.note))
 }
 function openBooking(){
@@ -836,7 +1043,40 @@ async function saveEntry(e){
  e.preventDefault();const mode=v("entryMode"),id=v("entryId");$("entryMessage").textContent="Menyimpan...";
  try{
   let table,payload;
-  if(mode==="humas_doc"){
+  if(mode==="tu_pick_disposition"){
+    const letterId=v("fPickLetter");if(!letterId)throw new Error("Pilih surat.");
+    openTuDisposition("",letterId);return;
+  }
+  else if(mode==="tu_disposition"){
+    table="office_letter_dispositions";
+    payload={
+      letter_id:v("fLetterId"),
+      disposition_date:v("fDate")||today(),
+      from_name:v("fFrom")||null,
+      to_name:v("fTo"),
+      instruction:v("fInstruction"),
+      due_date:v("fDue")||null,
+      status:v("fStatus"),
+      result:v("fResult")||null,
+      completed_at:v("fStatus")==="DONE"?new Date().toISOString():null
+    };
+  }
+  else if(mode==="tu_file"){
+    const letterId=v("fLetterId"),file=$("fTuFile")?.files?.[0];
+    if(!letterId||!file)throw new Error("Surat dan file wajib tersedia.");
+    const path=await uploadTuLetterFile(file,letterId);
+    table="office_letter_files";
+    payload={
+      letter_id:letterId,
+      file_path:path,
+      original_filename:file.name,
+      mime_type:file.type||null,
+      file_size:file.size,
+      document_label:v("fLabel")||null,
+      is_primary:v("fPrimary")==="true"
+    };
+  }
+  else if(mode==="humas_doc"){
     const existing=humasDocs.find(x=>x.id===id)||null;
     const file=$("fMediaFile")?.files?.[0];
     if(!existing && !file)throw new Error("File dokumentasi wajib dipilih.");
@@ -985,16 +1225,35 @@ async function saveEntry(e){
     published_at:v("fStatus")==="PUBLISHED"?new Date().toISOString():null,
     note:v("fNote")||null
   }}
-  else if(unitCode==="KEPALA_TU"){table="office_letters";payload={letter_type:v("fLetterType"),letter_number:v("fNumber")||null,letter_date:v("fLetterDate"),administration_date:v("fAdminDate"),sender_recipient:v("fSender"),subject:v("fSubject"),classification:v("fClass")||null,disposition:v("fDisposition")||null,status:v("fStatus"),note:v("fNote")||null}}
+  else if(unitCode==="KEPALA_TU"){table="office_letters";payload={
+    letter_type:v("fLetterType"),
+    letter_number:v("fNumber")||null,
+    letter_date:v("fLetterDate"),
+    administration_date:v("fAdminDate"),
+    received_date:v("fReceivedDate")||null,
+    sender_recipient:v("fSender"),
+    subject:v("fSubject"),
+    classification:v("fClass")||null,
+    priority:v("fPriority")||"BIASA",
+    confidentiality:v("fConfidentiality")||"BIASA",
+    responsible_person:v("fPIC")||null,
+    due_date:v("fDueDate")||null,
+    disposition:v("fDisposition")||null,
+    status:v("fStatus"),
+    completed_at:["DONE","ARCHIVED"].includes(v("fStatus"))?new Date().toISOString():null,
+    note:v("fNote")||null
+  }}
   else {table="lab_inventory";payload={lab_code:UNITS[unitCode].lab,item_code:v("fCode")||null,item_name:v("fName"),category:v("fCategory")||null,quantity:Number(v("fQty")||0),unit:v("fUnit")||"UNIT",condition:v("fCondition"),location:v("fLocation")||null,minimum_stock:Number(v("fMin")||0),note:v("fNote")||null}}
   if(mode==="asset_maintenance" && !payload.description)throw new Error("Deskripsi pemeliharaan wajib diisi.");
+  if(mode==="tu_disposition" && (!payload.letter_id||!payload.to_name||!payload.instruction))throw new Error("Surat, tujuan, dan instruksi disposisi wajib diisi.");
+  if(mode==="tu_file" && !payload.file_path)throw new Error("File arsip wajib diupload.");
   if(mode==="humas_doc" && !payload.title)throw new Error("Judul dokumentasi wajib diisi.");
   if(mode==="humas_social" && !payload.account_name)throw new Error("Nama akun media wajib diisi.");
   if(mode==="case_followup" && !payload.description)throw new Error("Uraian tindak lanjut wajib diisi.");
   if(mode==="summon" && (!payload.student_id||!payload.reason||!payload.meeting_date))throw new Error("Siswa, alasan, dan tanggal pertemuan wajib diisi.");
   if(mode==="activity_group" && !payload.name)throw new Error("Nama organisasi/ekskul wajib diisi.");
   if(mode==="activity_member" && (!payload.student_id||!payload.academic_year_id))throw new Error("Siswa dan tahun pelajaran aktif wajib tersedia.");
-  if(!["asset_maintenance","curr_doc","curr_verify","curr_calendar","case_followup","summon","activity_group","activity_member","humas_doc","humas_social"].includes(mode) && !payload.title&&!payload.asset_name&&!payload.item_name&&!payload.activity&&!payload.subject&&!payload.teacher_id&&!payload.student_id)throw new Error("Data utama wajib diisi.");
+  if(!["asset_maintenance","curr_doc","curr_verify","curr_calendar","case_followup","summon","activity_group","activity_member","humas_doc","humas_social","tu_disposition","tu_file"].includes(mode) && !payload.title&&!payload.asset_name&&!payload.item_name&&!payload.activity&&!payload.subject&&!payload.teacher_id&&!payload.student_id)throw new Error("Data utama wajib diisi.");
   if(mode==="curr_calendar" && !payload.title)throw new Error("Nama kegiatan wajib diisi.");
   if(id)await restWrite(`${table}?id=eq.${encodeURIComponent(id)}`,"PATCH",payload);else await restWrite(table,"POST",payload);
   closeModal();await loadData()
