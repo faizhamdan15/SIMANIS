@@ -61,6 +61,20 @@
  .summon-print h1,.summon-print h2,.summon-print p{margin:0}.summon-print .kop{text-align:center;border-bottom:3px double #111;padding-bottom:4mm;margin-bottom:7mm}.summon-print .kop h1{font-size:16pt}.summon-print .kop h2{font-size:13pt;margin-top:1mm}.summon-print .meta{margin:4mm 0 7mm}.summon-print .bodyp{line-height:1.6;text-align:justify;margin:3mm 0}.summon-print .sign{display:grid;grid-template-columns:1fr 1fr;gap:20mm;margin-top:14mm;text-align:center}.summon-print .space{height:24mm}
 }
 @media(max-width:850px){.kesiswaan-toolbar{grid-template-columns:1fr 1fr}.case-detail-grid{grid-template-columns:1fr}.group-grid{grid-template-columns:1fr}.recap-cards{grid-template-columns:1fr 1fr}}
+
+.humas-toolbar{display:grid;grid-template-columns:1fr .85fr .85fr auto;gap:8px;align-items:end;margin-bottom:10px}
+.humas-calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
+.humas-day{min-height:92px;border:1px solid #e1e9e5;border-radius:11px;background:#fff;padding:7px}
+.humas-day-head{font-size:8px;color:#708078;font-weight:900;margin-bottom:5px}.humas-day.today{border-color:#0b7347;box-shadow:inset 0 0 0 1px #0b7347}
+.humas-event{display:block;border-radius:8px;background:#edf7f2;color:#0b5f3d;padding:5px 6px;margin:4px 0;font-size:7.5px;line-height:1.35;cursor:pointer}
+.humas-event.published{background:#e9f4ee}.humas-event.draft{background:#fff4d2;color:#795d00}.humas-event.cancelled{background:#f2f2f2;color:#777}
+.media-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.media-card{border:1px solid #e1e9e5;border-radius:13px;overflow:hidden;background:#fff}.media-preview{height:120px;background:#edf4f0;display:grid;place-items:center;color:#0b7347;font-size:9px;font-weight:900}.media-preview img,.media-preview video{width:100%;height:100%;object-fit:cover}.media-info{padding:10px}.media-info h4{font-size:9.5px;margin:0 0 4px}.media-info p{font-size:8px;color:#718078;margin:3px 0}
+.social-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.social-card{border:1px solid #e1e9e5;border-radius:13px;padding:11px;background:#fff}.social-card h4{font-size:10px;margin:0 0 4px}.social-card p{font-size:8px;color:#718078;margin:3px 0}.social-card .big{font-size:18px;color:#0b7347;font-weight:900;margin-top:7px}
+.news-list-humas{display:grid;gap:8px}.news-row-humas{border:1px solid #e2eae6;border-radius:11px;padding:10px;display:grid;grid-template-columns:1fr auto;gap:10px}.news-row-humas b{font-size:9.5px}.news-row-humas p{font-size:8px;color:#718078;margin:3px 0}
+.humas-recap-cards{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px}.humas-recap-card{background:#f7faf8;border:1px solid #e1e9e5;border-radius:11px;padding:10px}.humas-recap-card span{font-size:7.5px;color:#72817a}.humas-recap-card b{display:block;font-size:16px;color:#0b5f3d;margin-top:4px}
+.month-bars{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;align-items:end;height:160px}.month-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.month-track{height:120px;width:100%;max-width:26px;background:#edf2ef;border-radius:8px 8px 3px 3px;display:flex;align-items:end;overflow:hidden}.month-fill{width:100%;background:#0b7347;border-radius:8px 8px 0 0;min-height:2px}.month-col b{font-size:7px;margin-top:4px}.month-col small{font-size:7px;color:#7d8983}
+@media(max-width:900px){.media-grid,.social-grid{grid-template-columns:1fr 1fr}.humas-recap-cards{grid-template-columns:repeat(3,1fr)}.humas-calendar{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:620px){.humas-toolbar{grid-template-columns:1fr 1fr}.media-grid,.social-grid{grid-template-columns:1fr}.humas-recap-cards{grid-template-columns:1fr 1fr}.humas-calendar{grid-template-columns:1fr 1fr}.month-bars{overflow:auto}}
 @media(max-width:900px){.grid2{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.focus{grid-template-columns:1fr}}
 @media(max-width:560px){.form-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
 </style>
@@ -111,6 +125,13 @@
 <section id="panelSummons" class="panel hidden"></section>
 <section id="panelActivities" class="panel hidden"></section>
 <section id="panelStudentrecap" class="panel hidden"></section>
+
+<section id="panelContentcalendar" class="panel hidden"></section>
+<section id="panelDocumentation" class="panel hidden"></section>
+<section id="panelSocialmedia" class="panel hidden"></section>
+<section id="panelHumasnews" class="panel hidden"></section>
+<section id="panelHumasrecap" class="panel hidden"></section>
+
 
 
 </main>

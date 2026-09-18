@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[],summons=[],activityGroups=[],activityMembers=[],studentAffairsRecap={summary:{},class_recap:[],student_recap:[]};
+let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[],summons=[],activityGroups=[],activityMembers=[],studentAffairsRecap={summary:{},class_recap:[],student_recap:[]},humasDocs=[],humasSocial=[],humasNews=[],humasRecap={summary:{},months:[],channels:[]};
 const unitCode=new URLSearchParams(location.search).get("unit")||"";
 
 const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"};
@@ -102,11 +102,21 @@ async function loadData(){
    ]);
    summons=extra[0]||[];activityGroups=extra[1]||[];activityMembers=extra[2]||[];studentAffairsRecap=extra[3]||{summary:{},class_recap:[],student_recap:[]};
  }
+ if(unitCode==="PKM_HUMASY"){
+   const year=new Date().getFullYear();
+   const extra=await Promise.all([
+     api.db.select("humas_documentations","select=*&order=activity_date.desc,created_at.desc"),
+     api.db.select("humas_social_accounts","select=*&is_active=eq.true&order=platform.asc,account_name.asc"),
+     api.db.select("news_articles","select=id,title,slug,excerpt,category,status,published_at,created_at&order=published_at.desc.nullslast,created_at.desc&limit=20"),
+     api.db.rpc("humas_get_monthly_recap",{p_year:year})
+   ]);
+   humasDocs=extra[0]||[];humasSocial=extra[1]||[];humasNews=extra[2]||[];humasRecap=extra[3]||{summary:{},months:[],channels:[]};
+ }
  renderAll();
 }
 function setTab(name){
  document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
- ["Summary","Programs","Logs","Specific","Documents","Calendar","Recap","Summons","Activities","Studentrecap"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
+ ["Summary","Programs","Logs","Specific","Documents","Calendar","Recap","Summons","Activities","Studentrecap","Contentcalendar","Documentation","Socialmedia","Humasnews","Humasrecap"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
 }
 function renderTabs(){
  const u=UNITS[unitCode];
@@ -116,6 +126,9 @@ function renderTabs(){
  }
  if(unitCode==="PKM_KESISWAAN"){
    base.push(["summons","Surat Panggilan"],["activities","Organisasi & Ekskul"],["studentrecap","Rekap Siswa"]);
+ }
+ if(unitCode==="PKM_HUMASY"){
+   base.push(["contentcalendar","Kalender Konten"],["documentation","Dokumentasi"],["socialmedia","Media Sosial"],["humasnews","Berita"],["humasrecap","Rekap Bulanan"]);
  }
  $("tabs").innerHTML=base.map(([k,n],i)=>`<button class="tabbtn ${i===0?"active":""}" data-tab="${k}">${esc(n)}</button>`).join("");
  document.querySelectorAll(".tabbtn").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
@@ -169,7 +182,15 @@ function renderSpecific(){
  </div>
  <div id="assetTableWrap"></div>
  </article>`;
- else if(unitCode==="PKM_HUMASY")body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Rencana Publikasi</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Channel</th><th>Konten</th><th>PIC</th><th>Status</th><th>Link</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${dateID(x.publish_date)}</td><td>${esc(x.channel)}</td><td><b>${esc(x.title)}</b><br>${esc(x.content_type||"")}</td><td>${esc(x.person_in_charge||"-")}</td><td>${badge(x.status)}</td><td>${x.published_link?`<a href="${esc(x.published_link)}" target="_blank">Buka</a>`:"-"}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada rencana publikasi.</div></td></tr>'}</tbody></table></div></article>`;
+ else if(unitCode==="PKM_HUMASY")body=`<article class="cardx">
+ <div class="humas-toolbar">
+  <label><span>Cari</span><input id="humasSearch" type="search" placeholder="Judul / campaign / PIC..."></label>
+  <label><span>Channel</span><select id="humasChannelFilter"><option value="">Semua Channel</option><option>WEBSITE</option><option>INSTAGRAM</option><option>FACEBOOK</option><option>YOUTUBE</option><option>WHATSAPP</option><option>LAINNYA</option></select></label>
+  <label><span>Status</span><select id="humasStatusFilter"><option value="">Semua Status</option><option>IDEA</option><option>DRAFT</option><option>READY</option><option>PUBLISHED</option><option>CANCELLED</option></select></label>
+  <button class="primary-btn" id="addSpecificBtn" style="width:auto">+ Rencana Publikasi</button>
+ </div>
+ <div id="humasPlanTable"></div>
+ </article>`;
  else if(unitCode==="KEPALA_TU")body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Surat</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Jenis</th><th>No. Surat</th><th>Tanggal</th><th>Asal/Tujuan</th><th>Perihal</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${esc(x.letter_type==="INCOMING"?"MASUK":"KELUAR")}</td><td>${esc(x.letter_number||"-")}</td><td>${dateID(x.letter_date)}</td><td>${esc(x.sender_recipient)}</td><td>${esc(x.subject)}</td><td>${badge(x.status)}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada surat tercatat.</div></td></tr>'}</tbody></table></div></article>`;
  else body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Inventaris</button><button class="secondary-btn" id="bookingBtn">Jadwal Penggunaan</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Kode</th><th>Item</th><th>Kategori</th><th>Jumlah</th><th>Kondisi</th><th>Lokasi</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${esc(x.item_code||"-")}</td><td>${esc(x.item_name)}</td><td>${esc(x.category||"-")}</td><td>${x.quantity} ${esc(x.unit||"")}</td><td>${badge(x.condition)}</td><td>${esc(x.location||"-")}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada inventaris laboratorium.</div></td></tr>'}</tbody></table></div></article>`;
  $("panelSpecific").innerHTML=body;
@@ -188,6 +209,12 @@ function renderSpecific(){
    $("caseSearch").oninput=renderCaseTable;
    $("caseCategoryFilter").onchange=renderCaseTable;
    $("caseStatusFilter").onchange=renderCaseTable;
+ }
+ if(unitCode==="PKM_HUMASY"){
+   renderHumasPlanTable();
+   $("humasSearch").oninput=renderHumasPlanTable;
+   $("humasChannelFilter").onchange=renderHumasPlanTable;
+   $("humasStatusFilter").onchange=renderHumasPlanTable;
  }
 }
 
@@ -284,6 +311,133 @@ async function printQrLabels(data){
 function printFilteredQrLabels(){printQrLabels(filteredAssets())}
 
 
+
+
+function filteredHumasPlans(){
+  const q=$("humasSearch")?.value?.trim().toLowerCase()||"";
+  const channel=$("humasChannelFilter")?.value||"";
+  const st=$("humasStatusFilter")?.value||"";
+  return specific.filter(x=>{
+    const hay=`${x.title||""} ${x.campaign_name||""} ${x.person_in_charge||""} ${x.content_type||""}`.toLowerCase();
+    return(!q||hay.includes(q))&&(!channel||x.channel===channel)&&(!st||x.status===st);
+  });
+}
+function renderHumasPlanTable(){
+  const holder=$("humasPlanTable");if(!holder)return;
+  const data=filteredHumasPlans();
+  holder.innerHTML=`<div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Channel</th><th>Konten</th><th>Campaign</th><th>PIC</th><th>Status</th><th>Reach</th><th>Engagement</th><th>Aksi</th></tr></thead><tbody>${data.length?data.map(x=>`<tr>
+   <td>${dateID(x.publish_date)}${x.planned_time?`<br>${String(x.planned_time).slice(0,5)}`:""}</td>
+   <td>${esc(x.channel)}</td>
+   <td><b>${esc(x.title)}</b><br><span style="color:#73817a">${esc(x.content_type||"-")}</span></td>
+   <td>${esc(x.campaign_name||"-")}</td>
+   <td>${esc(x.person_in_charge||"-")}</td>
+   <td>${badge(x.status)}</td>
+   <td>${Number(x.reach_count||0).toLocaleString("id-ID")}</td>
+   <td>${Number(x.engagement_count||0).toLocaleString("id-ID")}</td>
+   <td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button>${x.published_link?` <button class="mini-btn" data-open-pub="${x.id}">Buka</button>`:""}</td>
+  </tr>`).join(""):'<tr><td colspan="9"><div class="empty">Rencana publikasi tidak ditemukan.</div></td></tr>'}</tbody></table></div>`;
+  holder.querySelectorAll("[data-edit-specific]").forEach(b=>b.onclick=()=>openSpecific(b.dataset.editSpecific));
+  holder.querySelectorAll("[data-open-pub]").forEach(b=>b.onclick=()=>{const x=specific.find(v=>v.id===b.dataset.openPub);if(x?.published_link)window.open(x.published_link,"_blank","noopener")});
+}
+function monthStartDate(year,month){return new Date(year,month-1,1)}
+function renderContentCalendar(){
+  const now=new Date(),year=now.getFullYear(),month=now.getMonth()+1;
+  const first=new Date(year,month-1,1),last=new Date(year,month,0),days=[];
+  for(let d=1;d<=last.getDate();d++)days.push(new Date(year,month-1,d));
+  const monthPlans=specific.filter(x=>{const dt=new Date(x.publish_date+"T00:00:00");return dt.getFullYear()===year&&dt.getMonth()+1===month});
+  $("panelContentcalendar").innerHTML=`<article class="cardx"><div class="dash-title"><h3>Kalender Konten · ${new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric"}).format(first)}</h3><span>${monthPlans.length} rencana</span></div><div class="humas-calendar">${days.map(d=>{
+    const ds=d.toISOString().slice(0,10),ev=monthPlans.filter(x=>x.publish_date===ds);
+    return`<div class="humas-day ${ds===today()?"today":""}"><div class="humas-day-head">${d.getDate()}</div>${ev.map(x=>`<span class="humas-event ${String(x.status||"").toLowerCase()}" data-calendar-plan="${x.id}"><b>${esc(x.channel)}</b><br>${esc(x.title)}</span>`).join("")}</div>`
+  }).join("")}</div></article>`;
+  document.querySelectorAll("[data-calendar-plan]").forEach(el=>el.onclick=()=>openSpecific(el.dataset.calendarPlan));
+}
+async function uploadHumasMedia(file){
+  const session=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG;
+  if(file.size>25*1024*1024)throw new Error("Ukuran file maksimal 25 MB.");
+  const ext=(file.name.split(".").pop()||"bin").replace(/[^a-z0-9]/gi,"").toLowerCase();
+  const path=`${new Date().getFullYear()}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/humas-media/${path}`,{
+    method:"POST",
+    headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":file.type||"application/octet-stream","x-upsert":"false"},
+    body:file
+  });
+  const txt=await res.text();if(!res.ok)throw new Error(txt);return path;
+}
+async function signedHumasMediaUrl(path){
+  const session=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG;
+  const res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/sign/humas-media/${path.split("/").map(encodeURIComponent).join("/")}`,{
+    method:"POST",
+    headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json"},
+    body:JSON.stringify({expiresIn:300})
+  });
+  const data=await res.json();if(!res.ok)throw new Error(data?.message||"Gagal membuat link media");
+  return `${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1${data.signedURL}`;
+}
+function renderDocumentation(){
+  $("panelDocumentation").innerHTML=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addDocHumasBtn">+ Dokumentasi</button></div><div class="media-grid">${humasDocs.length?humasDocs.map(d=>`<article class="media-card"><div class="media-preview" id="media-${d.id}">${d.file_path?"MEDIA":"TANPA FILE"}</div><div class="media-info"><h4>${esc(d.title)}</h4><p>${dateID(d.activity_date)} · ${esc(d.activity_name||"-")}</p><p>${esc(d.location||"-")} · ${esc(d.photographer||"-")}</p><div class="actions" style="justify-content:flex-start;margin-bottom:0">${d.file_path?`<button class="mini-btn" data-view-media="${d.id}">Lihat</button>`:""}<button class="mini-btn" data-edit-media="${d.id}">Edit</button></div></div></article>`).join(""):'<div class="empty">Belum ada dokumentasi.</div>'}</div></article>`;
+  $("addDocHumasBtn").onclick=()=>openHumasDocumentation();
+  document.querySelectorAll("[data-edit-media]").forEach(b=>b.onclick=()=>openHumasDocumentation(b.dataset.editMedia));
+  document.querySelectorAll("[data-view-media]").forEach(b=>b.onclick=()=>openHumasMedia(b.dataset.viewMedia));
+}
+function openHumasDocumentation(id=""){
+  const d=humasDocs.find(x=>x.id===id)||{};
+  openModal(id?"Edit Dokumentasi":"Tambah Dokumentasi","humas_doc",id);
+  setFields(
+    inp("fDate","Tanggal Kegiatan","date",d.activity_date||today())+
+    inp("fTitle","Judul Dokumentasi *","text",d.title,true)+
+    inp("fActivity","Nama Kegiatan","text",d.activity_name||"")+
+    inp("fLocation","Lokasi","text",d.location||"")+
+    inp("fPhotographer","Dokumentator","text",d.photographer||profile.full_name||"")+
+    sel("fFeatured","Tandai Unggulan?",[["false","Tidak"],["true","Ya"]],String(!!d.is_featured))+
+    `<label class="full"><span>File Foto/Video ${d.file_path?"(opsional jika tidak diganti)":"*"}</span><input id="fMediaFile" type="file" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm"></label>`+
+    ta("fDesc","Deskripsi",d.description||"")
+  );
+}
+async function openHumasMedia(id){
+  try{
+    const d=humasDocs.find(x=>x.id===id);if(!d?.file_path)throw new Error("File tidak ditemukan");
+    const url=await signedHumasMediaUrl(d.file_path);window.open(url,"_blank","noopener");
+  }catch(err){alert("Gagal membuka media: "+err.message)}
+}
+function renderSocialMedia(){
+  $("panelSocialmedia").innerHTML=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSocialBtn">+ Akun Media</button></div><div class="social-grid">${humasSocial.length?humasSocial.map(s=>`<article class="social-card"><span class="badge">${esc(s.platform)}</span><h4>${esc(s.account_name)}</h4><p>${esc(s.username_handle||"-")}</p><div class="big">${Number(s.follower_count||0).toLocaleString("id-ID")}</div><p>Followers/Subscribers · Update ${dateID(s.last_updated)}</p><div class="actions" style="justify-content:flex-start;margin-bottom:0">${s.profile_url?`<button class="mini-btn" data-open-social="${s.id}">Buka</button>`:""}<button class="mini-btn" data-edit-social="${s.id}">Edit</button></div></article>`).join(""):'<div class="empty">Belum ada akun media sosial.</div>'}</div></article>`;
+  $("addSocialBtn").onclick=()=>openSocial();
+  document.querySelectorAll("[data-edit-social]").forEach(b=>b.onclick=()=>openSocial(b.dataset.editSocial));
+  document.querySelectorAll("[data-open-social]").forEach(b=>b.onclick=()=>{const s=humasSocial.find(x=>x.id===b.dataset.openSocial);if(s?.profile_url)window.open(s.profile_url,"_blank","noopener")});
+}
+function openSocial(id=""){
+  const s=humasSocial.find(x=>x.id===id)||{};
+  openModal(id?"Edit Akun Media":"Tambah Akun Media","humas_social",id);
+  setFields(
+    sel("fPlatform","Platform",[["INSTAGRAM","Instagram"],["FACEBOOK","Facebook"],["YOUTUBE","YouTube"],["TIKTOK","TikTok"],["WHATSAPP","WhatsApp"],["WEBSITE","Website"],["LAINNYA","Lainnya"]],s.platform||"INSTAGRAM")+
+    inp("fAccount","Nama Akun *","text",s.account_name||"")+
+    inp("fUsername","Username/Handle","text",s.username_handle||"")+
+    inp("fUrl","URL Profil","text",s.profile_url||"",true)+
+    inp("fFollowers","Followers/Subscribers","number",s.follower_count??0)+
+    inp("fUpdated","Tanggal Update","date",s.last_updated||today())+
+    ta("fNote","Catatan",s.note||"")
+  );
+}
+function renderHumasNews(){
+  $("panelHumasnews").innerHTML=`<article class="cardx"><div class="actions"><a href="berita.html" class="primary-btn" style="width:auto;text-decoration:none">Buka Modul Berita</a></div><div class="news-list-humas">${humasNews.length?humasNews.map(n=>`<div class="news-row-humas"><div><b>${esc(n.title)}</b><p>${esc(n.category||"BERITA")} · ${n.published_at?dateID(n.published_at.slice(0,10)):"Belum terbit"} · ${esc(n.status)}</p><p>${esc(n.excerpt||"")}</p></div><span class="badge">${esc(n.status)}</span></div>`).join(""):'<div class="empty">Belum ada berita.</div>'}</div></article>`;
+}
+function renderHumasRecap(){
+  const s=humasRecap.summary||{},months=humasRecap.months||[],monthNames=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"],max=Math.max(1,...months.map(m=>Number(m.published||0)));
+  $("panelHumasrecap").innerHTML=`<article class="cardx">
+   <div class="humas-recap-cards">
+    <div class="humas-recap-card"><span>Rencana</span><b>${Number(s.planned||0)}</b></div>
+    <div class="humas-recap-card"><span>Terbit</span><b>${Number(s.published||0)}</b></div>
+    <div class="humas-recap-card"><span>Dokumentasi</span><b>${Number(s.documentation_count||0)}</b></div>
+    <div class="humas-recap-card"><span>Berita</span><b>${Number(s.news_count||0)}</b></div>
+    <div class="humas-recap-card"><span>Reach</span><b>${Number(s.reach||0).toLocaleString("id-ID")}</b></div>
+    <div class="humas-recap-card"><span>Engagement</span><b>${Number(s.engagement||0).toLocaleString("id-ID")}</b></div>
+   </div>
+   <div class="grid2">
+    <div><h3>Publikasi per Bulan</h3><div class="month-bars">${months.map(m=>`<div class="month-col"><div class="month-track"><div class="month-fill" style="height:${Math.max(2,Math.round(Number(m.published||0)/max*100))}%"></div></div><b>${monthNames[m.month_no-1]}</b><small>${m.published}</small></div>`).join("")}</div></div>
+    <div><h3>Channel</h3><div class="table-wrap"><table class="tablex" style="min-width:0"><thead><tr><th>Channel</th><th>Rencana</th><th>Terbit</th></tr></thead><tbody>${(humasRecap.channels||[]).map(c=>`<tr><td>${esc(c.channel)}</td><td>${c.planned}</td><td>${c.published}</td></tr>`).join("")||'<tr><td colspan="3">Belum ada data.</td></tr>'}</tbody></table></div></div>
+   </div>
+  </article>`;
+}
 
 function filteredCases(){
   const q=$("caseSearch")?.value?.trim().toLowerCase()||"";
@@ -601,7 +755,7 @@ function exportTeacherRecap(){
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`rekap-kurikulum-${activeSemester()?.name||"semester"}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
 }
 
-function renderAll(){renderStats();renderSummary();renderPrograms();renderLogs();renderSpecific();if(unitCode==="PKM_KURIKULUM"){renderDocuments();renderAcademicCalendar();renderTeacherRecap()}if(unitCode==="PKM_KESISWAAN"){renderSummons();renderActivities();renderStudentRecap()}}
+function renderAll(){renderStats();renderSummary();renderPrograms();renderLogs();renderSpecific();if(unitCode==="PKM_KURIKULUM"){renderDocuments();renderAcademicCalendar();renderTeacherRecap()}if(unitCode==="PKM_KESISWAAN"){renderSummons();renderActivities();renderStudentRecap()}if(unitCode==="PKM_HUMASY"){renderContentCalendar();renderDocumentation();renderSocialMedia();renderHumasNews();renderHumasRecap()}}
 
 function setFields(html){$("entryFields").innerHTML=html}
 function openModal(title,mode,id=""){$("entryTitle").textContent=title;$("entryMode").value=mode;$("entryId").value=id;$("entryMessage").textContent="";const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="";$("entryModal").classList.remove("hidden")}
@@ -653,7 +807,23 @@ function openSpecific(id=""){
    ta("fHomeroom","Catatan Wali Kelas",x.homeroom_note||"")
  );
  else if(unitCode==="PKM_BENDAHARA_SARPRAS")setFields(inp("fCode","Kode Aset","text",x.asset_code)+inp("fName","Nama Aset *","text",x.asset_name)+inp("fCategory","Kategori","text",x.category)+inp("fLocation","Lokasi","text",x.location)+inp("fDate","Tanggal Perolehan","date",x.acquisition_date)+inp("fValue","Nilai Perolehan","number",x.acquisition_value??0)+inp("fQty","Jumlah","number",x.quantity??1)+inp("fUnit","Satuan","text",x.unit||"UNIT")+sel("fCondition","Kondisi",[["BAIK","Baik"],["RUSAK_RINGAN","Rusak Ringan"],["RUSAK_BERAT","Rusak Berat"],["HILANG","Hilang"]],x.condition||"BAIK")+sel("fStatus","Status",[["ACTIVE","ACTIVE"],["MAINTENANCE","MAINTENANCE"],["DISPOSED","DISPOSED"]],x.status||"ACTIVE")+inp("fPIC","Penanggung Jawab","text",x.responsible_person)+ta("fNote","Catatan",x.note));
- else if(unitCode==="PKM_HUMASY")setFields(inp("fDate","Tanggal Publikasi","date",x.publish_date||today())+sel("fChannel","Channel",[["WEBSITE","Website"],["INSTAGRAM","Instagram"],["FACEBOOK","Facebook"],["YOUTUBE","YouTube"],["WHATSAPP","WhatsApp"],["LAINNYA","Lainnya"]],x.channel||"INSTAGRAM")+inp("fTitle","Judul Konten *","text",x.title,true)+inp("fType","Jenis Konten","text",x.content_type)+inp("fPIC","PIC","text",x.person_in_charge)+sel("fStatus","Status",[["IDEA","IDEA"],["DRAFT","DRAFT"],["READY","READY"],["PUBLISHED","PUBLISHED"],["CANCELLED","CANCELLED"]],x.status||"IDEA")+inp("fLink","Link Publikasi","text",x.published_link,true)+ta("fNote","Catatan",x.note));
+ else if(unitCode==="PKM_HUMASY")setFields(
+   inp("fDate","Tanggal Publikasi","date",x.publish_date||today())+
+   inp("fTime","Jam Rencana","time",x.planned_time?String(x.planned_time).slice(0,5):"")+
+   sel("fChannel","Channel",[["WEBSITE","Website"],["INSTAGRAM","Instagram"],["FACEBOOK","Facebook"],["YOUTUBE","YouTube"],["WHATSAPP","WhatsApp"],["LAINNYA","Lainnya"]],x.channel||"INSTAGRAM")+
+   inp("fTitle","Judul Konten *","text",x.title,true)+
+   inp("fCampaign","Campaign/Program","text",x.campaign_name||"")+
+   inp("fTarget","Target Audiens","text",x.target_audience||"")+
+   inp("fType","Jenis Konten","text",x.content_type)+
+   inp("fPIC","PIC","text",x.person_in_charge)+
+   sel("fStatus","Status",[["IDEA","IDEA"],["DRAFT","DRAFT"],["READY","READY"],["PUBLISHED","PUBLISHED"],["CANCELLED","CANCELLED"]],x.status||"IDEA")+
+   inp("fReach","Reach","number",x.reach_count??0)+
+   inp("fEngagement","Engagement","number",x.engagement_count??0)+
+   inp("fLink","Link Publikasi","text",x.published_link,true)+
+   inp("fAssetUrl","Link Asset/Desain","text",x.asset_url,true)+
+   ta("fCaption","Caption",x.caption_text||"")+
+   ta("fNote","Catatan",x.note)
+ );
  else if(unitCode==="KEPALA_TU")setFields(sel("fLetterType","Jenis Surat",[["INCOMING","Surat Masuk"],["OUTGOING","Surat Keluar"]],x.letter_type||"INCOMING")+inp("fNumber","Nomor Surat","text",x.letter_number)+inp("fLetterDate","Tanggal Surat","date",x.letter_date||today())+inp("fAdminDate","Tanggal Administrasi","date",x.administration_date||today())+inp("fSender","Asal/Tujuan *","text",x.sender_recipient,true)+inp("fSubject","Perihal *","text",x.subject,true)+inp("fClass","Klasifikasi","text",x.classification)+sel("fStatus","Status",[["RECORDED","RECORDED"],["PROCESS","PROCESS"],["DONE","DONE"],["ARCHIVED","ARCHIVED"]],x.status||"RECORDED")+ta("fDisposition","Disposisi",x.disposition)+ta("fNote","Catatan",x.note));
  else setFields(inp("fCode","Kode Item","text",x.item_code)+inp("fName","Nama Item *","text",x.item_name)+inp("fCategory","Kategori","text",x.category)+inp("fQty","Jumlah","number",x.quantity??0)+inp("fUnit","Satuan","text",x.unit||"UNIT")+sel("fCondition","Kondisi",[["BAIK","Baik"],["RUSAK_RINGAN","Rusak Ringan"],["RUSAK_BERAT","Rusak Berat"],["HABIS","Habis"]],x.condition||"BAIK")+inp("fLocation","Lokasi","text",x.location)+inp("fMin","Stok Minimum","number",x.minimum_stock??0)+ta("fNote","Catatan",x.note))
 }
@@ -666,7 +836,41 @@ async function saveEntry(e){
  e.preventDefault();const mode=v("entryMode"),id=v("entryId");$("entryMessage").textContent="Menyimpan...";
  try{
   let table,payload;
-  if(mode==="case_followup"){
+  if(mode==="humas_doc"){
+    const existing=humasDocs.find(x=>x.id===id)||null;
+    const file=$("fMediaFile")?.files?.[0];
+    if(!existing && !file)throw new Error("File dokumentasi wajib dipilih.");
+    let filePath=existing?.file_path||null;
+    if(file)filePath=await uploadHumasMedia(file);
+    table="humas_documentations";
+    payload={
+      activity_date:v("fDate")||today(),
+      title:v("fTitle"),
+      activity_name:v("fActivity")||null,
+      location:v("fLocation")||null,
+      description:v("fDesc")||null,
+      photographer:v("fPhotographer")||null,
+      file_path:filePath,
+      original_filename:file?.name||existing?.original_filename||null,
+      mime_type:file?.type||existing?.mime_type||null,
+      file_size:file?.size||existing?.file_size||null,
+      is_featured:v("fFeatured")==="true"
+    };
+  }
+  else if(mode==="humas_social"){
+    table="humas_social_accounts";
+    payload={
+      platform:v("fPlatform"),
+      account_name:v("fAccount"),
+      username_handle:v("fUsername")||null,
+      profile_url:v("fUrl")||null,
+      follower_count:Number(v("fFollowers")||0),
+      last_updated:v("fUpdated")||today(),
+      is_active:true,
+      note:v("fNote")||null
+    };
+  }
+  else if(mode==="case_followup"){
     table="student_guidance_followups";
     payload={case_id:id,followup_date:v("fDate")||today(),action_type:v("fActionType"),description:v("fDesc"),result:v("fResult")||null,next_action:v("fNext")||null,handled_by:v("fHandler")||null};
   }
@@ -763,15 +967,34 @@ async function saveEntry(e){
     resolution_date:v("fStatus")==="CLOSED"?today():null
   }}
   else if(unitCode==="PKM_BENDAHARA_SARPRAS"){table="school_assets";payload={asset_code:v("fCode")||null,asset_name:v("fName"),category:v("fCategory")||null,location:v("fLocation")||null,acquisition_date:v("fDate")||null,acquisition_value:Number(v("fValue")||0),quantity:Number(v("fQty")||0),unit:v("fUnit")||"UNIT",condition:v("fCondition"),status:v("fStatus"),responsible_person:v("fPIC")||null,note:v("fNote")||null}}
-  else if(unitCode==="PKM_HUMASY"){table="humas_publication_plans";payload={publish_date:v("fDate"),channel:v("fChannel"),title:v("fTitle"),content_type:v("fType")||null,status:v("fStatus"),person_in_charge:v("fPIC")||null,published_link:v("fLink")||null,note:v("fNote")||null}}
+  else if(unitCode==="PKM_HUMASY"){table="humas_publication_plans";payload={
+    publish_date:v("fDate"),
+    planned_time:v("fTime")||null,
+    channel:v("fChannel"),
+    title:v("fTitle"),
+    campaign_name:v("fCampaign")||null,
+    target_audience:v("fTarget")||null,
+    content_type:v("fType")||null,
+    status:v("fStatus"),
+    person_in_charge:v("fPIC")||null,
+    published_link:v("fLink")||null,
+    asset_url:v("fAssetUrl")||null,
+    caption_text:v("fCaption")||null,
+    reach_count:Number(v("fReach")||0),
+    engagement_count:Number(v("fEngagement")||0),
+    published_at:v("fStatus")==="PUBLISHED"?new Date().toISOString():null,
+    note:v("fNote")||null
+  }}
   else if(unitCode==="KEPALA_TU"){table="office_letters";payload={letter_type:v("fLetterType"),letter_number:v("fNumber")||null,letter_date:v("fLetterDate"),administration_date:v("fAdminDate"),sender_recipient:v("fSender"),subject:v("fSubject"),classification:v("fClass")||null,disposition:v("fDisposition")||null,status:v("fStatus"),note:v("fNote")||null}}
   else {table="lab_inventory";payload={lab_code:UNITS[unitCode].lab,item_code:v("fCode")||null,item_name:v("fName"),category:v("fCategory")||null,quantity:Number(v("fQty")||0),unit:v("fUnit")||"UNIT",condition:v("fCondition"),location:v("fLocation")||null,minimum_stock:Number(v("fMin")||0),note:v("fNote")||null}}
   if(mode==="asset_maintenance" && !payload.description)throw new Error("Deskripsi pemeliharaan wajib diisi.");
+  if(mode==="humas_doc" && !payload.title)throw new Error("Judul dokumentasi wajib diisi.");
+  if(mode==="humas_social" && !payload.account_name)throw new Error("Nama akun media wajib diisi.");
   if(mode==="case_followup" && !payload.description)throw new Error("Uraian tindak lanjut wajib diisi.");
   if(mode==="summon" && (!payload.student_id||!payload.reason||!payload.meeting_date))throw new Error("Siswa, alasan, dan tanggal pertemuan wajib diisi.");
   if(mode==="activity_group" && !payload.name)throw new Error("Nama organisasi/ekskul wajib diisi.");
   if(mode==="activity_member" && (!payload.student_id||!payload.academic_year_id))throw new Error("Siswa dan tahun pelajaran aktif wajib tersedia.");
-  if(!["asset_maintenance","curr_doc","curr_verify","curr_calendar","case_followup","summon","activity_group","activity_member"].includes(mode) && !payload.title&&!payload.asset_name&&!payload.item_name&&!payload.activity&&!payload.subject&&!payload.teacher_id&&!payload.student_id)throw new Error("Data utama wajib diisi.");
+  if(!["asset_maintenance","curr_doc","curr_verify","curr_calendar","case_followup","summon","activity_group","activity_member","humas_doc","humas_social"].includes(mode) && !payload.title&&!payload.asset_name&&!payload.item_name&&!payload.activity&&!payload.subject&&!payload.teacher_id&&!payload.student_id)throw new Error("Data utama wajib diisi.");
   if(mode==="curr_calendar" && !payload.title)throw new Error("Nama kegiatan wajib diisi.");
   if(id)await restWrite(`${table}?id=eq.${encodeURIComponent(id)}`,"PATCH",payload);else await restWrite(table,"POST",payload);
   closeModal();await loadData()
