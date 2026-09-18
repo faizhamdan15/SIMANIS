@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[],summons=[],activityGroups=[],activityMembers=[],studentAffairsRecap={summary:{},class_recap:[],student_recap:[]},humasDocs=[],humasSocial=[],humasNews=[],humasRecap={summary:{},months:[],channels:[]},letterClasses=[],tuDispositions=[],tuFiles=[],tuRecap={summary:{},months:[],classifications:[]},labBookings=[],labLoans=[],labMovements=[],labSafety=[],labRecap={summary:{},low_stock:[],condition_summary:[],monthly_usage:[]};
+let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[],summons=[],activityGroups=[],activityMembers=[],studentAffairsRecap={summary:{},class_recap:[],student_recap:[]},humasDocs=[],humasSocial=[],humasNews=[],humasRecap={summary:{},months:[],channels:[]},letterClasses=[],tuDispositions=[],tuFiles=[],tuRecap={summary:{},months:[],classifications:[]},labBookings=[],labLoans=[],labMovements=[],labSafety=[],labRecap={summary:{},low_stock:[],condition_summary:[],monthly_usage:[]},bizPractices=[],bizTransactions=[],bizMovements=[],bizRecap={summary:{},low_stock:[],monthly:[],payments:[]};
 const unitCode=new URLSearchParams(location.search).get("unit")||"";
 
 const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"};
@@ -142,11 +142,21 @@ async function loadData(){
    ]);
    labBookings=extra[0]||[];labLoans=extra[1]||[];labMovements=extra[2]||[];labSafety=extra[3]||[];labRecap=extra[4]||{summary:{},low_stock:[],condition_summary:[],monthly_usage:[]};
  }
+ if(unitCode==="KALAB_BISNIS"){
+   const sem=semesters.find(s=>s.is_active)||semesters[0];
+   const extra=await Promise.all([
+     api.db.select("lab_business_practices","select=*&order=practice_date.desc,created_at.desc").catch(err=>{console.warn("Praktik bisnis belum tersedia:",err);return[]}),
+     api.db.select("lab_business_transactions","select=*&order=transaction_date.desc,created_at.desc").catch(err=>{console.warn("Transaksi bisnis belum tersedia:",err);return[]}),
+     api.db.select("lab_stock_movements","select=*&lab_code=eq.BISNIS&order=movement_date.desc,created_at.desc").catch(err=>{console.warn("Mutasi stok bisnis belum tersedia:",err);return[]}),
+     sem?api.db.rpc("lab_business_get_recap",{p_semester_id:sem.id}).catch(err=>{console.warn("Rekap bisnis belum tersedia:",err);return{summary:{},low_stock:[],monthly:[],payments:[]}}):Promise.resolve({summary:{},low_stock:[],monthly:[],payments:[]})
+   ]);
+   bizPractices=extra[0]||[];bizTransactions=extra[1]||[];bizMovements=extra[2]||[];bizRecap=extra[3]||{summary:{},low_stock:[],monthly:[],payments:[]};
+ }
  renderAll();
 }
 function setTab(name){
  document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
- ["Summary","Programs","Logs","Specific","Documents","Calendar","Recap","Summons","Activities","Studentrecap","Contentcalendar","Documentation","Socialmedia","Humasnews","Humasrecap","Letteragenda","Dispositions","Letterarchive","Turecap","Labbookings","Labloans","Labstock","Labsafety","Labrecap"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
+ ["Summary","Programs","Logs","Specific","Documents","Calendar","Recap","Summons","Activities","Studentrecap","Contentcalendar","Documentation","Socialmedia","Humasnews","Humasrecap","Letteragenda","Dispositions","Letterarchive","Turecap","Labbookings","Labloans","Labstock","Labsafety","Labrecap","Bizpractices","Biztransactions","Bizstock","Bizrecap"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
 }
 function renderTabs(){
  const u=UNITS[unitCode];
@@ -165,6 +175,9 @@ function renderTabs(){
  }
  if(unitCode==="KALAB_IPA"){
    base.push(["labbookings","Jadwal Praktikum"],["labloans","Peminjaman"],["labstock","Stok & Kondisi"],["labsafety","Keselamatan"],["labrecap","Rekap Lab"]);
+ }
+ if(unitCode==="KALAB_BISNIS"){
+   base.push(["bizpractices","Praktik Bisnis"],["biztransactions","Transaksi Praktik"],["bizstock","Stok Barang"],["bizrecap","Rekap Bisnis"]);
  }
  $("tabs").innerHTML=base.map(([k,n],i)=>`<button class="tabbtn ${i===0?"active":""}" data-tab="${k}">${esc(n)}</button>`).join("");
  document.querySelectorAll(".tabbtn").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
@@ -246,6 +259,15 @@ function renderSpecific(){
  </div>
  <div id="labInventoryTable"></div>
  </article>`;
+ else if(unitCode==="KALAB_BISNIS")body=`<article class="cardx">
+ <div class="biz-toolbar">
+  <label><span>Cari</span><input id="bizSearch" type="search" placeholder="Kode / produk / alat / kategori..."></label>
+  <label><span>Jenis</span><select id="bizTypeFilter"><option value="">Semua</option><option value="PRODUK">Produk</option><option value="ALAT">Alat</option><option value="BAHAN">Bahan</option></select></label>
+  <label><span>Kondisi</span><select id="bizConditionFilter"><option value="">Semua</option><option>BAIK</option><option>RUSAK_RINGAN</option><option>RUSAK_BERAT</option><option>HILANG</option><option>HABIS</option></select></label>
+  <button class="primary-btn" id="addSpecificBtn" style="width:auto">+ Inventaris/Produk</button>
+ </div>
+ <div id="bizInventoryTable"></div>
+ </article>`;
  else body=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addSpecificBtn">+ Inventaris</button><button class="secondary-btn" id="bookingBtn">Jadwal Penggunaan</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Kode</th><th>Item</th><th>Kategori</th><th>Jumlah</th><th>Kondisi</th><th>Lokasi</th><th>Aksi</th></tr></thead><tbody>${specific.length?specific.map(x=>`<tr><td>${esc(x.item_code||"-")}</td><td>${esc(x.item_name)}</td><td>${esc(x.category||"-")}</td><td>${x.quantity} ${esc(x.unit||"")}</td><td>${badge(x.condition)}</td><td>${esc(x.location||"-")}</td><td><button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td></tr>`).join(""):'<tr><td colspan="7"><div class="empty">Belum ada inventaris laboratorium.</div></td></tr>'}</tbody></table></div></article>`;
  $("panelSpecific").innerHTML=body;
  if($("addSpecificBtn"))$("addSpecificBtn").onclick=()=>openSpecific();
@@ -282,6 +304,12 @@ function renderSpecific(){
    $("labSearch").oninput=renderLabInventoryTable;
    $("labTypeFilter").onchange=renderLabInventoryTable;
    $("labConditionFilter").onchange=renderLabInventoryTable;
+ }
+ if(unitCode==="KALAB_BISNIS"){
+   renderBizInventoryTable();
+   $("bizSearch").oninput=renderBizInventoryTable;
+   $("bizTypeFilter").onchange=renderBizInventoryTable;
+   $("bizConditionFilter").onchange=renderBizInventoryTable;
  }
 }
 
@@ -381,6 +409,158 @@ function printFilteredQrLabels(){printQrLabels(filteredAssets())}
 
 
 
+
+
+function bizTeacherName(id){return teachers.find(t=>t.id===id)?.full_name||"-"}
+function bizClassName(id){return classes.find(c=>c.id===id)?.name||"-"}
+function bizPracticeName(id){return bizPractices.find(p=>p.id===id)?.title||"-"}
+function bizProductName(id){return specific.find(x=>x.id===id)?.item_name||"-"}
+function postedBizTransactions(){return bizTransactions.filter(t=>t.status==="POSTED")}
+function filteredBizInventory(){
+  const q=$("bizSearch")?.value?.trim().toLowerCase()||"";
+  const type=$("bizTypeFilter")?.value||"";
+  const cond=$("bizConditionFilter")?.value||"";
+  return specific.filter(x=>{
+    const hay=`${x.item_code||""} ${x.item_name||""} ${x.category||""} ${x.barcode||""} ${x.brand_model||""} ${x.location||""}`.toLowerCase();
+    return(!q||hay.includes(q))&&(!type||x.item_type===type)&&(!cond||x.condition===cond);
+  });
+}
+function renderBizInventoryTable(){
+  const holder=$("bizInventoryTable");if(!holder)return;
+  const data=filteredBizInventory();
+  holder.innerHTML=`<div class="table-wrap"><table class="tablex"><thead><tr><th>Kode</th><th>Item</th><th>Jenis</th><th>Stok</th><th>Minimum</th><th>Harga Beli</th><th>Harga Jual</th><th>Kondisi</th><th>Aksi</th></tr></thead><tbody>${data.length?data.map(x=>{
+    const low=x.item_type==="PRODUK"&&Number(x.minimum_stock||0)>0&&Number(x.quantity||0)<=Number(x.minimum_stock||0);
+    return`<tr><td><b>${esc(x.item_code||"-")}</b><br>${esc(x.barcode||"")}</td><td><b>${esc(x.item_name)}</b><br><span style="color:#73817a">${esc(x.category||"-")}</span></td><td>${esc(x.item_type||"ALAT")}</td><td><span class="${low?"biz-low":"biz-good"}">${Number(x.quantity||0)} ${esc(x.unit||"")}</span></td><td>${Number(x.minimum_stock||0)} ${esc(x.unit||"")}</td><td>${money(x.purchase_price||0)}</td><td>${money(x.sale_price||0)}</td><td>${badge(x.condition)}</td><td><button class="mini-btn" data-biz-detail="${x.id}">Detail</button> <button class="mini-btn" data-edit-specific="${x.id}">Edit</button>${x.item_type==="PRODUK"?` <button class="mini-btn" data-biz-sale="${x.id}">Jual</button>`:""}</td></tr>`
+  }).join(""):'<tr><td colspan="9"><div class="empty">Inventaris/produk tidak ditemukan.</div></td></tr>'}</tbody></table></div>`;
+  holder.querySelectorAll("[data-biz-detail]").forEach(b=>b.onclick=()=>openBizItemDetail(b.dataset.bizDetail));
+  holder.querySelectorAll("[data-edit-specific]").forEach(b=>b.onclick=()=>openSpecific(b.dataset.editSpecific));
+  holder.querySelectorAll("[data-biz-sale]").forEach(b=>b.onclick=()=>openBizTransaction("",b.dataset.bizSale,"SALE"));
+}
+function openBizItemDetail(id){
+  const x=specific.find(v=>v.id===id);if(!x)return;
+  const movements=bizMovements.filter(m=>m.inventory_id===id).slice(0,12);
+  const tx=bizTransactions.filter(t=>t.inventory_id===id).slice(0,12);
+  openModal(`Detail · ${x.item_code||""}`,"biz_item_detail",id);
+  setFields(`<div class="full lab-detail-grid">
+    <div>
+      <div class="lab-info">
+        <div><span>Nama</span><b>${esc(x.item_name)}</b></div>
+        <div><span>Kode</span><b>${esc(x.item_code||"-")}</b></div>
+        <div><span>Jenis</span><b>${esc(x.item_type||"ALAT")}</b></div>
+        <div><span>Barcode</span><b>${esc(x.barcode||"-")}</b></div>
+        <div><span>Stok</span><b>${Number(x.quantity||0)} ${esc(x.unit||"")}</b></div>
+        <div><span>Minimum</span><b>${Number(x.minimum_stock||0)} ${esc(x.unit||"")}</b></div>
+        <div><span>Harga Beli</span><b>${money(x.purchase_price||0)}</b></div>
+        <div><span>Harga Jual</span><b>${money(x.sale_price||0)}</b></div>
+        <div><span>Lokasi</span><b>${esc(x.location||"-")}</b></div>
+        <div><span>Kondisi</span><b>${esc(x.condition||"-")}</b></div>
+      </div>
+      <div class="actions" style="justify-content:flex-start">
+        ${x.item_type==="PRODUK"?'<button type="button" class="secondary-btn" id="bizDetailBuyBtn">Beli Stok</button><button type="button" class="secondary-btn" id="bizDetailSaleBtn">Catat Penjualan</button>':""}
+        <button type="button" class="secondary-btn" id="bizDetailEditBtn">Edit</button>
+      </div>
+    </div>
+    <div>
+      <h4 style="font-size:10px;margin:0 0 7px">Riwayat Stok</h4>
+      <div class="lab-stock-list">${movements.length?movements.map(m=>`<div class="lab-stock-row"><b>${dateID(m.movement_date)}<br>${esc(m.movement_type)}</b><div><b>${Number(m.quantity)} ${esc(x.unit||"")}</b><p>${esc(m.reference_text||m.note||"-")}</p></div><b>${Number(m.quantity_before)} → ${Number(m.quantity_after)}</b></div>`).join(""):'<div class="empty">Belum ada mutasi stok.</div>'}</div>
+      <h4 style="font-size:10px;margin:10px 0 7px">Riwayat Transaksi</h4>
+      <div class="lab-stock-list">${tx.length?tx.map(t=>`<div class="lab-stock-row"><b>${dateID(t.transaction_date)}<br>${esc(t.transaction_type)}</b><div><b>${money(t.total_amount)}</b><p>${esc(t.description||t.student_team||"-")}</p></div><span>${esc(t.status)}</span></div>`).join(""):'<div class="empty">Belum ada transaksi.</div>'}</div>
+    </div>
+  </div>`);
+  const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="none";
+  if($("bizDetailBuyBtn"))$("bizDetailBuyBtn").onclick=()=>openBizTransaction("",id,"PURCHASE");
+  if($("bizDetailSaleBtn"))$("bizDetailSaleBtn").onclick=()=>openBizTransaction("",id,"SALE");
+  $("bizDetailEditBtn").onclick=()=>openSpecific(id);
+}
+function bizPracticeMetrics(id){
+  const tx=postedBizTransactions().filter(t=>t.practice_id===id);
+  const sales=tx.filter(t=>t.transaction_type==="SALE").reduce((a,t)=>a+Number(t.total_amount||0),0);
+  const other=tx.filter(t=>t.transaction_type==="OTHER_INCOME").reduce((a,t)=>a+Number(t.total_amount||0),0);
+  const purchases=tx.filter(t=>t.transaction_type==="PURCHASE").reduce((a,t)=>a+Number(t.total_amount||0),0);
+  const expenses=tx.filter(t=>t.transaction_type==="EXPENSE").reduce((a,t)=>a+Number(t.total_amount||0),0);
+  return{sales,other,purchases,expenses,net:sales+other-purchases-expenses};
+}
+function renderBizPractices(){
+  $("panelBizpractices").innerHTML=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addBizPracticeBtn">+ Praktik Bisnis</button></div><div class="biz-practice-grid">${bizPractices.length?bizPractices.map(p=>{const m=bizPracticeMetrics(p.id);return`<article class="biz-practice-card"><div style="display:flex;justify-content:space-between;gap:8px"><div><span class="badge">${esc(p.status)}</span><h4>${esc(p.title)}</h4></div><b style="font-size:9px">${dateID(p.practice_date)}</b></div><p>${esc(p.theme||"-")} · ${esc(bizClassName(p.class_id))} · ${esc(bizTeacherName(p.teacher_id))}</p><p>${p.participants??0} peserta · ${p.team_count??0} tim</p><div class="biz-finance"><div><span>Penjualan</span><b>${money(m.sales)}</b></div><div><span>Pembelian</span><b>${money(m.purchases)}</b></div><div><span>Biaya</span><b>${money(m.expenses)}</b></div><div><span>Hasil Bersih</span><b>${money(m.net)}</b></div></div><div class="actions" style="justify-content:flex-start;margin-bottom:0"><button class="mini-btn" data-biz-practice-tx="${p.id}">+ Transaksi</button><button class="mini-btn" data-edit-biz-practice="${p.id}">Edit</button></div></article>`}).join(""):'<div class="empty">Belum ada praktik bisnis.</div>'}</div></article>`;
+  $("addBizPracticeBtn").onclick=()=>openBizPractice();
+  document.querySelectorAll("[data-edit-biz-practice]").forEach(b=>b.onclick=()=>openBizPractice(b.dataset.editBizPractice));
+  document.querySelectorAll("[data-biz-practice-tx]").forEach(b=>b.onclick=()=>openBizTransaction(b.dataset.bizPracticeTx));
+}
+function openBizPractice(id=""){
+  const p=bizPractices.find(x=>x.id===id)||{};
+  openModal(id?"Edit Praktik Bisnis":"Tambah Praktik Bisnis","biz_practice",id);
+  setFields(
+    inp("fDate","Tanggal","date",p.practice_date||today())+
+    inp("fStart","Mulai","time",p.start_time?String(p.start_time).slice(0,5):"08:00")+
+    inp("fEnd","Selesai","time",p.end_time?String(p.end_time).slice(0,5):"09:40")+
+    sel("fClass","Kelas",[[ "", "Tidak dipilih"],...classes.map(c=>[c.id,c.name])],p.class_id||"")+
+    sel("fTeacher","Guru Pendamping",[[ "", "Tidak dipilih"],...teachers.map(t=>[t.id,t.full_name])],p.teacher_id||"")+
+    inp("fTitle","Judul Praktik *","text",p.title||"",true)+
+    inp("fTheme","Tema/Model Usaha","text",p.theme||"")+
+    inp("fParticipants","Jumlah Peserta","number",p.participants??"")+
+    inp("fTeams","Jumlah Tim","number",p.team_count??"")+
+    inp("fCapitalPlan","Rencana Modal","number",p.capital_plan??0)+
+    inp("fTargetRevenue","Target Omzet","number",p.target_revenue??0)+
+    sel("fStatus","Status",[["PLANNED","PLANNED"],["ONGOING","ONGOING"],["DONE","DONE"],["CANCELLED","CANCELLED"]],p.status||"PLANNED")+
+    ta("fStudentActivity","Aktivitas Siswa",p.student_activity_note||"")+
+    ta("fEvaluation","Evaluasi/Hasil",p.evaluation||"")+
+    ta("fNote","Catatan",p.note||"")
+  );
+}
+function renderBizTransactions(){
+  $("panelBiztransactions").innerHTML=`<article class="cardx"><div class="actions"><button class="primary-btn" id="addBizTransactionBtn">+ Transaksi Praktik</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Praktik</th><th>Produk/Deskripsi</th><th>Tim</th><th>Metode</th><th>Nominal</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${bizTransactions.length?bizTransactions.map(t=>`<tr><td>${dateID(t.transaction_date)}</td><td>${badge(t.transaction_type)}</td><td>${esc(bizPracticeName(t.practice_id))}</td><td><b>${t.inventory_id?esc(bizProductName(t.inventory_id)):esc(t.description||"-")}</b>${t.quantity?`<br>${Number(t.quantity)} × ${money(t.unit_price||0)}`:""}</td><td>${esc(t.student_team||"-")}</td><td>${esc(t.payment_method)}</td><td><b>${money(t.total_amount)}</b></td><td>${badge(t.status)}</td><td>${t.status==="POSTED"?`<button class="mini-btn" data-void-biz-tx="${t.id}">VOID</button>`:"-"}</td></tr>`).join(""):'<tr><td colspan="9"><div class="empty">Belum ada transaksi praktik.</div></td></tr>'}</tbody></table></div></article>`;
+  $("addBizTransactionBtn").onclick=()=>openBizTransaction();
+  document.querySelectorAll("[data-void-biz-tx]").forEach(b=>b.onclick=()=>openBizVoidTransaction(b.dataset.voidBizTx));
+}
+function openBizTransaction(practiceId="",inventoryId="",type="SALE"){
+  const products=specific.filter(x=>x.item_type==="PRODUK");
+  const item=specific.find(x=>x.id===inventoryId);
+  openModal("Catat Transaksi Praktik","biz_transaction","");
+  setFields(
+    sel("fPractice","Praktik Bisnis",[[ "", "Tanpa praktik tertentu"],...bizPractices.map(p=>[p.id,`${p.practice_date} · ${p.title}`])],practiceId)+
+    inp("fDate","Tanggal","date",today())+
+    sel("fTxType","Jenis Transaksi",[["SALE","Penjualan"],["PURCHASE","Pembelian Stok"],["EXPENSE","Biaya/Operasional"],["OTHER_INCOME","Pendapatan Lain"],["CAPITAL","Modal Masuk"]],type)+
+    sel("fProduct","Produk",[[ "", "Tidak dipilih"],...products.map(p=>[p.id,`${p.item_code||"-"} · ${p.item_name} · stok ${p.quantity} ${p.unit||""}`])],inventoryId)+
+    inp("fQty","Jumlah Produk","number",inventoryId?"1":"")+
+    inp("fUnitPrice","Harga Satuan","number",type==="PURCHASE"?(item?.purchase_price??0):(item?.sale_price??0))+
+    inp("fAmount","Nominal (untuk biaya/pendapatan/modal)","number","0")+
+    sel("fPayment","Metode",[["CASH","Tunai"],["QRIS","QRIS"],["TRANSFER","Transfer"],["OTHER","Lainnya"]],"CASH")+
+    inp("fTeam","Tim/Kelompok Siswa","text","")+
+    inp("fPIC","PIC","text",profile.full_name||"")+
+    inp("fDesc","Deskripsi","text","")+
+    ta("fNote","Catatan","")
+  );
+}
+function openBizVoidTransaction(id){
+  const t=bizTransactions.find(x=>x.id===id);if(!t)return;
+  openModal(`Batalkan Transaksi · ${money(t.total_amount)}`,"biz_void",id);
+  setFields(`<div class="full" style="background:#fff5f4;border:1px solid #f0d6d2;padding:10px;border-radius:10px;font-size:9px">VOID akan membalik perubahan stok jika transaksi ini Penjualan atau Pembelian.</div>`+ta("fReason","Alasan Pembatalan *",""));
+}
+function renderBizStock(){
+  const low=specific.filter(x=>x.item_type==="PRODUK"&&Number(x.minimum_stock||0)>0&&Number(x.quantity||0)<=Number(x.minimum_stock||0));
+  $("panelBizstock").innerHTML=`<article class="cardx"><div class="dash-title"><h3>Stok Barang Dagang</h3><span>${low.length} perlu restock</span></div><div class="actions"><button class="primary-btn" id="bizRestockBtn">+ Pembelian Stok</button></div><div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Produk</th><th>Jenis</th><th>Jumlah</th><th>Sebelum</th><th>Sesudah</th><th>Keterangan</th></tr></thead><tbody>${bizMovements.length?bizMovements.map(m=>{const item=specific.find(x=>x.id===m.inventory_id);return`<tr><td>${dateID(m.movement_date)}</td><td><b>${esc(item?.item_name||"-")}</b></td><td>${badge(m.movement_type)}</td><td>${Number(m.quantity)} ${esc(item?.unit||"")}</td><td>${Number(m.quantity_before)}</td><td>${Number(m.quantity_after)}</td><td>${esc(m.reference_text||m.note||"-")}</td></tr>`}).join(""):'<tr><td colspan="7"><div class="empty">Belum ada mutasi stok.</div></td></tr>'}</tbody></table></div>${low.length?`<div style="margin-top:12px"><h3>Perlu Restock</h3><div class="table-wrap"><table class="tablex"><thead><tr><th>Produk</th><th>Stok</th><th>Minimum</th><th>Harga Beli</th><th>Aksi</th></tr></thead><tbody>${low.map(x=>`<tr><td><b>${esc(x.item_name)}</b></td><td class="biz-low">${x.quantity} ${esc(x.unit||"")}</td><td>${x.minimum_stock} ${esc(x.unit||"")}</td><td>${money(x.purchase_price||0)}</td><td><button class="mini-btn" data-restock-product="${x.id}">Beli Stok</button></td></tr>`).join("")}</tbody></table></div></div>`:""}</article>`;
+  $("bizRestockBtn").onclick=()=>openBizTransaction("","","PURCHASE");
+  document.querySelectorAll("[data-restock-product]").forEach(b=>b.onclick=()=>openBizTransaction("",b.dataset.restockProduct,"PURCHASE"));
+}
+function renderBizRecap(){
+  const s=bizRecap.summary||{},months=bizRecap.monthly||[],payments=bizRecap.payments||[],low=bizRecap.low_stock||[];
+  $("panelBizrecap").innerHTML=`<article class="cardx">
+    <div class="biz-cards">
+      <div class="biz-card"><span>Produk</span><b>${Number(s.products||0)}</b></div>
+      <div class="biz-card"><span>Stok Minimum</span><b>${Number(s.low_stock||0)}</b></div>
+      <div class="biz-card"><span>Praktik</span><b>${Number(s.practices||0)}</b></div>
+      <div class="biz-card"><span>Penjualan</span><b>${money(s.sales||0)}</b></div>
+      <div class="biz-card"><span>Pengeluaran</span><b>${money(Number(s.purchases||0)+Number(s.expenses||0))}</b></div>
+      <div class="biz-card"><span>Hasil Bersih</span><b>${money(s.net_result||0)}</b></div>
+    </div>
+    <div class="grid2">
+      <div><h3>Keuangan per Bulan</h3><div class="biz-month-list">${months.length?months.map(m=>`<div class="biz-month-row"><b>${esc(m.month)}</b><div><span>Penjualan</span><b>${money(m.sales)}</b></div><div><span>Pembelian</span><b>${money(m.purchases)}</b></div><div><span>Biaya</span><b>${money(m.expenses)}</b></div><div><span>Hasil</span><b>${money(m.net_result)}</b></div></div>`).join(""):'<div class="empty">Belum ada transaksi pada semester ini.</div>'}</div></div>
+      <div><h3>Metode Penerimaan</h3><div class="table-wrap"><table class="tablex" style="min-width:0"><thead><tr><th>Metode</th><th>Transaksi</th><th>Nominal</th></tr></thead><tbody>${payments.length?payments.map(p=>`<tr><td>${esc(p.payment_method)}</td><td>${p.count}</td><td>${money(p.amount)}</td></tr>`).join(""):'<tr><td colspan="3">Belum ada data.</td></tr>'}</tbody></table></div></div>
+    </div>
+    <div style="margin-top:12px"><h3>Aktivitas Bisnis Siswa</h3><div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Kegiatan</th><th>Kelas</th><th>Peserta</th><th>Tim</th><th>Status</th><th>Hasil Bersih</th></tr></thead><tbody>${bizPractices.length?bizPractices.map(p=>{const m=bizPracticeMetrics(p.id);return`<tr><td>${dateID(p.practice_date)}</td><td><b>${esc(p.title)}</b><br>${esc(p.theme||"")}</td><td>${esc(bizClassName(p.class_id))}</td><td>${p.participants??"-"}</td><td>${p.team_count??"-"}</td><td>${badge(p.status)}</td><td><b>${money(m.net)}</b></td></tr>`}).join(""):'<tr><td colspan="7"><div class="empty">Belum ada aktivitas praktik.</div></td></tr>'}</tbody></table></div></div>
+    ${low.length?`<div style="margin-top:12px"><h3>Produk Perlu Restock</h3><div class="table-wrap"><table class="tablex"><thead><tr><th>Produk</th><th>Stok</th><th>Minimum</th></tr></thead><tbody>${low.map(x=>`<tr><td>${esc(x.item_name)}</td><td class="biz-low">${x.quantity} ${esc(x.unit||"")}</td><td>${x.minimum_stock} ${esc(x.unit||"")}</td></tr>`).join("")}</tbody></table></div></div>`:""}
+  </article>`;
+}
 
 function labTeacherName(id){return teachers.find(t=>t.id===id)?.full_name||"-"}
 function labClassName(id){return classes.find(c=>c.id===id)?.name||"-"}
@@ -1180,7 +1360,7 @@ function exportTeacherRecap(){
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`rekap-kurikulum-${activeSemester()?.name||"semester"}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
 }
 
-function renderAll(){renderStats();renderSummary();renderPrograms();renderLogs();renderSpecific();if(unitCode==="PKM_KURIKULUM"){renderDocuments();renderAcademicCalendar();renderTeacherRecap()}if(unitCode==="PKM_KESISWAAN"){renderSummons();renderActivities();renderStudentRecap()}if(unitCode==="PKM_HUMASY"){renderContentCalendar();renderDocumentation();renderSocialMedia();renderHumasNews();renderHumasRecap()}if(unitCode==="KEPALA_TU"){renderLetterAgenda();renderTuDispositions();renderTuArchive();renderTuRecap()}if(unitCode==="KALAB_IPA"){renderLabBookings();renderLabLoans();renderLabStock();renderLabSafety();renderLabRecap()}}
+function renderAll(){renderStats();renderSummary();renderPrograms();renderLogs();renderSpecific();if(unitCode==="PKM_KURIKULUM"){renderDocuments();renderAcademicCalendar();renderTeacherRecap()}if(unitCode==="PKM_KESISWAAN"){renderSummons();renderActivities();renderStudentRecap()}if(unitCode==="PKM_HUMASY"){renderContentCalendar();renderDocumentation();renderSocialMedia();renderHumasNews();renderHumasRecap()}if(unitCode==="KEPALA_TU"){renderLetterAgenda();renderTuDispositions();renderTuArchive();renderTuRecap()}if(unitCode==="KALAB_IPA"){renderLabBookings();renderLabLoans();renderLabStock();renderLabSafety();renderLabRecap()}if(unitCode==="KALAB_BISNIS"){renderBizPractices();renderBizTransactions();renderBizStock();renderBizRecap()}}
 
 function setFields(html){$("entryFields").innerHTML=html}
 function openModal(title,mode,id=""){$("entryTitle").textContent=title;$("entryMode").value=mode;$("entryId").value=id;$("entryMessage").textContent="";const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="";$("entryModal").classList.remove("hidden")}
@@ -1285,6 +1465,25 @@ function openSpecific(id=""){
    inp("fStocktake","Stock Opname Terakhir","date",x.last_stocktake_date||"")+
    ta("fNote","Catatan",x.note)
  );
+ else if(unitCode==="KALAB_BISNIS")setFields(
+   inp("fCode","Kode Item","text",x.item_code)+
+   inp("fBarcode","Barcode/SKU","text",x.barcode||"")+
+   inp("fName","Nama Item *","text",x.item_name)+
+   sel("fItemType","Jenis",[["PRODUK","Produk/Barang Dagang"],["ALAT","Alat Praktik"],["BAHAN","Bahan Praktik"]],x.item_type||"PRODUK")+
+   inp("fCategory","Kategori","text",x.category)+
+   inp("fBrand","Merek/Model","text",x.brand_model||"")+
+   inp("fQty","Stok/Jumlah","number",x.quantity??0)+
+   inp("fUnit","Satuan","text",x.unit||"PCS")+
+   inp("fMin","Stok Minimum","number",x.minimum_stock??0)+
+   inp("fPurchasePrice","Harga Beli","number",x.purchase_price??x.unit_cost??0)+
+   inp("fSalePrice","Harga Jual","number",x.sale_price??0)+
+   sel("fConsumable","Habis Pakai?",[["false","Tidak"],["true","Ya"]],String(!!x.is_consumable))+
+   sel("fCondition","Kondisi",[["BAIK","Baik"],["RUSAK_RINGAN","Rusak Ringan"],["RUSAK_BERAT","Rusak Berat"],["HILANG","Hilang"],["HABIS","Habis"]],x.condition||"BAIK")+
+   inp("fLocation","Lokasi","text",x.location)+
+   inp("fSupplier","Supplier","text",x.supplier||"")+
+   inp("fExpiry","Kedaluwarsa","date",x.expiry_date||"")+
+   ta("fNote","Catatan",x.note)
+ );
  else setFields(inp("fCode","Kode Item","text",x.item_code)+inp("fName","Nama Item *","text",x.item_name)+inp("fCategory","Kategori","text",x.category)+inp("fQty","Jumlah","number",x.quantity??0)+inp("fUnit","Satuan","text",x.unit||"UNIT")+sel("fCondition","Kondisi",[["BAIK","Baik"],["RUSAK_RINGAN","Rusak Ringan"],["RUSAK_BERAT","Rusak Berat"],["HABIS","Habis"]],x.condition||"BAIK")+inp("fLocation","Lokasi","text",x.location)+inp("fMin","Stok Minimum","number",x.minimum_stock??0)+ta("fNote","Catatan",x.note))
 }
 function openBookingLegacy(){
@@ -1296,7 +1495,52 @@ async function saveEntry(e){
  e.preventDefault();const mode=v("entryMode"),id=v("entryId");$("entryMessage").textContent="Menyimpan...";
  try{
   let table,payload;
-  if(mode==="lab_stock"){
+  if(mode==="biz_transaction"){
+    const txType=v("fTxType");
+    await api.db.rpc("lab_business_record_transaction",{
+      p_practice_id:v("fPractice")||null,
+      p_transaction_date:v("fDate")||today(),
+      p_transaction_type:txType,
+      p_inventory_id:v("fProduct")||null,
+      p_quantity:v("fQty")===""?null:Number(v("fQty")),
+      p_unit_price:v("fUnitPrice")===""?null:Number(v("fUnitPrice")),
+      p_total_amount:Number(v("fAmount")||0),
+      p_payment_method:v("fPayment")||"CASH",
+      p_description:v("fDesc")||null,
+      p_student_team:v("fTeam")||null,
+      p_person_in_charge:v("fPIC")||null,
+      p_note:v("fNote")||null
+    });
+    closeModal();await loadData();return;
+  }
+  else if(mode==="biz_void"){
+    await api.db.rpc("lab_business_void_transaction",{
+      p_transaction_id:id,
+      p_reason:v("fReason")
+    });
+    closeModal();await loadData();return;
+  }
+  else if(mode==="biz_practice"){
+    table="lab_business_practices";
+    payload={
+      practice_date:v("fDate")||today(),
+      start_time:v("fStart")||null,
+      end_time:v("fEnd")||null,
+      class_id:v("fClass")||null,
+      teacher_id:v("fTeacher")||null,
+      title:v("fTitle"),
+      theme:v("fTheme")||null,
+      participants:v("fParticipants")===""?null:Number(v("fParticipants")),
+      team_count:v("fTeams")===""?null:Number(v("fTeams")),
+      capital_plan:Number(v("fCapitalPlan")||0),
+      target_revenue:Number(v("fTargetRevenue")||0),
+      status:v("fStatus"),
+      student_activity_note:v("fStudentActivity")||null,
+      evaluation:v("fEvaluation")||null,
+      note:v("fNote")||null
+    };
+  }
+  else if(mode==="lab_stock"){
     await api.db.rpc("lab_ipa_record_stock_movement",{
       p_inventory_id:v("fInventory"),
       p_movement_type:v("fMovement"),
@@ -1589,7 +1833,29 @@ async function saveEntry(e){
     last_stocktake_date:v("fStocktake")||null,
     note:v("fNote")||null
   }}
+  else if(unitCode==="KALAB_BISNIS"){table="lab_inventory";payload={
+    lab_code:"BISNIS",
+    item_code:v("fCode")||null,
+    barcode:v("fBarcode")||null,
+    item_name:v("fName"),
+    item_type:v("fItemType")||"PRODUK",
+    category:v("fCategory")||null,
+    brand_model:v("fBrand")||null,
+    quantity:Number(v("fQty")||0),
+    unit:v("fUnit")||"PCS",
+    minimum_stock:Number(v("fMin")||0),
+    purchase_price:Number(v("fPurchasePrice")||0),
+    sale_price:Number(v("fSalePrice")||0),
+    unit_cost:Number(v("fPurchasePrice")||0),
+    is_consumable:v("fConsumable")==="true",
+    condition:v("fCondition"),
+    location:v("fLocation")||null,
+    supplier:v("fSupplier")||null,
+    expiry_date:v("fExpiry")||null,
+    note:v("fNote")||null
+  }}
   else {table="lab_inventory";payload={lab_code:UNITS[unitCode].lab,item_code:v("fCode")||null,item_name:v("fName"),category:v("fCategory")||null,quantity:Number(v("fQty")||0),unit:v("fUnit")||"UNIT",condition:v("fCondition"),location:v("fLocation")||null,minimum_stock:Number(v("fMin")||0),note:v("fNote")||null}}
+  if(mode==="biz_practice" && !payload.title)throw new Error("Judul praktik bisnis wajib diisi.");
   if(mode==="lab_safety" && !payload.checker)throw new Error("Nama pemeriksa wajib diisi.");
   if(mode==="booking" && (!payload.usage_date||!payload.start_time||!payload.end_time||!payload.activity))throw new Error("Tanggal, waktu, dan topik praktikum wajib diisi.");
   if(mode==="asset_maintenance" && !payload.description)throw new Error("Deskripsi pemeliharaan wajib diisi.");
@@ -1601,7 +1867,7 @@ async function saveEntry(e){
   if(mode==="summon" && (!payload.student_id||!payload.reason||!payload.meeting_date))throw new Error("Siswa, alasan, dan tanggal pertemuan wajib diisi.");
   if(mode==="activity_group" && !payload.name)throw new Error("Nama organisasi/ekskul wajib diisi.");
   if(mode==="activity_member" && (!payload.student_id||!payload.academic_year_id))throw new Error("Siswa dan tahun pelajaran aktif wajib tersedia.");
-  if(!["asset_maintenance","curr_doc","curr_verify","curr_calendar","case_followup","summon","activity_group","activity_member","humas_doc","humas_social","tu_disposition","tu_file","lab_safety","booking"].includes(mode) && !payload.title&&!payload.asset_name&&!payload.item_name&&!payload.activity&&!payload.subject&&!payload.teacher_id&&!payload.student_id)throw new Error("Data utama wajib diisi.");
+  if(!["asset_maintenance","curr_doc","curr_verify","curr_calendar","case_followup","summon","activity_group","activity_member","humas_doc","humas_social","tu_disposition","tu_file","lab_safety","booking","biz_practice"].includes(mode) && !payload.title&&!payload.asset_name&&!payload.item_name&&!payload.activity&&!payload.subject&&!payload.teacher_id&&!payload.student_id)throw new Error("Data utama wajib diisi.");
   if(mode==="curr_calendar" && !payload.title)throw new Error("Nama kegiatan wajib diisi.");
   if(id)await restWrite(`${table}?id=eq.${encodeURIComponent(id)}`,"PATCH",payload);else await restWrite(table,"POST",payload);
   closeModal();await loadData()

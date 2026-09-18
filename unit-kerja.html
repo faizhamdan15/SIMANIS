@@ -101,6 +101,17 @@
 .lab-recap-card span{font-size:7.5px;color:#72817a}.lab-recap-card b{display:block;font-size:16px;color:#0b5f3d;margin-top:4px}
 .lab-safety-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.lab-safety-item{background:#f7faf8;border-radius:10px;padding:9px;font-size:8px}
 .lab-month-bars{display:flex;gap:8px;align-items:end;height:155px;padding-top:10px}.lab-month-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:34px}.lab-month-track{height:115px;width:24px;background:#edf2ef;border-radius:8px 8px 3px 3px;display:flex;align-items:end;overflow:hidden}.lab-month-fill{width:100%;background:#0b7347;border-radius:8px 8px 0 0;min-height:2px}.lab-month-col b{font-size:7px;margin-top:4px}.lab-month-col small{font-size:7px;color:#7d8983}
+
+.biz-toolbar{display:grid;grid-template-columns:1fr .8fr .8fr auto;gap:8px;align-items:end;margin-bottom:10px}
+.biz-cards{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px}
+.biz-card{background:#f7faf8;border:1px solid #e1e9e5;border-radius:11px;padding:10px}
+.biz-card span{font-size:7.5px;color:#72817a}.biz-card b{display:block;font-size:15px;color:#0b5f3d;margin-top:4px}
+.biz-low{color:#a03c34;font-weight:900}.biz-good{color:#08733f;font-weight:900}
+.biz-practice-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.biz-practice-card{border:1px solid #e1e9e5;border-radius:13px;padding:11px;background:#fff}.biz-practice-card h4{font-size:10px;margin:0 0 4px}.biz-practice-card p{font-size:8px;color:#718078;margin:3px 0}
+.biz-finance{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}.biz-finance div{background:#f7faf8;border-radius:8px;padding:7px}.biz-finance span{font-size:7px;color:#74827b}.biz-finance b{display:block;font-size:9px;margin-top:2px}
+.biz-month-list{display:grid;gap:8px}.biz-month-row{display:grid;grid-template-columns:90px repeat(4,1fr);gap:8px;align-items:center;border:1px solid #e2eae6;border-radius:10px;padding:9px}.biz-month-row span{font-size:8px;color:#718078}.biz-month-row b{font-size:9px}
+@media(max-width:900px){.biz-toolbar{grid-template-columns:1fr 1fr}.biz-cards{grid-template-columns:repeat(3,1fr)}.biz-practice-grid{grid-template-columns:1fr}}
+@media(max-width:620px){.biz-cards{grid-template-columns:1fr 1fr}.biz-finance{grid-template-columns:1fr 1fr}.biz-month-row{grid-template-columns:1fr 1fr}}
 @media(max-width:900px){.lab-toolbar{grid-template-columns:1fr 1fr}.lab-detail-grid{grid-template-columns:1fr}.lab-recap-cards{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:620px){.lab-recap-cards{grid-template-columns:1fr 1fr}.lab-stock-row{grid-template-columns:1fr}.lab-safety-grid{grid-template-columns:1fr 1fr}.lab-month-bars{overflow:auto}}
 @media(max-width:900px){.tu-toolbar{grid-template-columns:1fr 1fr}.tu-detail-grid{grid-template-columns:1fr}.tu-recap-cards{grid-template-columns:1fr 1fr 1fr}}
@@ -174,6 +185,12 @@
 <section id="panelLabstock" class="panel hidden"></section>
 <section id="panelLabsafety" class="panel hidden"></section>
 <section id="panelLabrecap" class="panel hidden"></section>
+
+<section id="panelBizpractices" class="panel hidden"></section>
+<section id="panelBiztransactions" class="panel hidden"></section>
+<section id="panelBizstock" class="panel hidden"></section>
+<section id="panelBizrecap" class="panel hidden"></section>
+
 
 
 
