@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-let api,profile,summary={},teacherPersonal={teacher_linked:false,stats:{},contexts:[],today_schedule:[],attendance_tasks:[],grade_tasks:[],positions:[]},myModules=[];
+let api,profile,summary={},teacherPersonal={teacher_linked:false,stats:{},contexts:[],today_schedule:[],attendance_tasks:[],grade_tasks:[],positions:[]},teacherOperational={teacher_linked:false,homeroom:null,notifications:[],quick_actions:[]},myModules=[];
 
 const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"};
 const ICONS={
@@ -161,6 +161,44 @@ function scheduleMomentClass(x,index,data){
  if(upcoming[0]?.schedule_id===x.schedule_id)return"next-class";
  return"";
 }
+
+function renderTeacherQuickActions(){
+ const holder=$("teacherQuickActions");if(!holder)return;
+ const actions=teacherOperational.quick_actions||[];
+ holder.innerHTML=actions.map(a=>`<a class="quick-teacher-card" href="${esc(a.route||"#")}"><span class="qicon">${icon(a.icon||"briefcase")}</span><div><b>${esc(a.label)}</b><p>${esc(a.description||"")}</p></div></a>`).join("");
+}
+function renderTeacherNotifications(){
+ const holder=$("teacherNotifications");if(!holder)return;
+ const notices=teacherOperational.notifications||[];
+ holder.innerHTML=notices.length?notices.map(n=>`<a class="notice-row ${String(n.severity||"").toLowerCase()}" href="${esc(n.route||"#")}"><span class="notice-icon">${icon(n.type==="GRADE"?"file-pen":n.type==="SCHEDULE"?"calendar-days":n.type==="HOMEROOM"?"users":"clipboard-check")}</span><div><h4>${esc(n.title)}</h4><p>${esc(n.message)}</p></div><span class="notice-count">${Number(n.count||0)}</span></a>`).join(""):'<div class="empty-v2">Tidak ada pekerjaan yang perlu perhatian saat ini.</div>';
+}
+function renderHomeroom(){
+ const card=$("homeroomCard"),holder=$("homeroomContent");if(!card||!holder)return;
+ const h=teacherOperational.homeroom;
+ if(!h){card.style.display="none";return}
+ card.style.display="";
+ const td=h.today_attendance||{},mn=h.month_attendance||{};
+ const recorded=Number(td.recorded||0),total=Number(h.student_count||0),unrecorded=Math.max(0,total-recorded);
+ holder.innerHTML=`<div class="homeroom-head"><div><h4>${esc(h.class_name)}</h4><p>${total} siswa aktif · Tingkat ${esc(h.grade_level||"-")}</p></div><span class="badge">WALI KELAS</span></div>
+ <div class="homeroom-today">
+  <div><span>Hadir Hari Ini</span><b>${Number(td.present||0)}</b></div>
+  <div><span>Izin/Sakit</span><b>${Number(td.excused||0)}</b></div>
+  <div><span>Alfa</span><b>${Number(td.absent||0)}</b></div>
+  <div><span>Belum Dicatat</span><b>${unrecorded}</b></div>
+ </div>
+ <div class="homeroom-month">
+  <div><span>Hadir Bulan Ini</span><b>${Number(mn.present||0)}</b></div>
+  <div><span>Izin/Sakit Bulan Ini</span><b>${Number(mn.excused||0)}</b></div>
+  <div><span>Alfa Bulan Ini</span><b>${Number(mn.absent||0)}</b></div>
+ </div>`;
+}
+function renderTeacherOperational(){
+ if(!teacherOperational?.teacher_linked)return;
+ renderTeacherQuickActions();
+ renderTeacherNotifications();
+ renderHomeroom();
+}
+
 function renderTeacherPersonal(){
  const box=$("teacherWorkspace");
  if(!teacherPersonal?.teacher_linked){box.classList.remove("show");return}
@@ -206,7 +244,7 @@ function render(){
  $("welcomeTitle").textContent=`${greeting()}, ${profile.full_name?.split(" ")[0]||"Pengguna"}!`;
  $("roleChip").textContent=roleLabel(profile.role);
  const ay=summary.academic_year?.name||"-",sm=summary.semester?.name||"-";$("periodPill").textContent=`Tahun Pelajaran ${ay} · ${sm}`;
- renderStaticIcons();renderStats();renderQuick();renderChart();renderSchedule();renderAgenda();renderAnnouncements();renderFinance();renderAchievements();renderNews();renderTeacherPersonal();renderPersonalSchedule();renderStaticIcons();
+ renderStaticIcons();renderStats();renderQuick();renderChart();renderSchedule();renderAgenda();renderAnnouncements();renderFinance();renderAchievements();renderNews();renderTeacherPersonal();renderTeacherOperational();renderPersonalSchedule();renderStaticIcons();
 }
 
 (async()=>{
@@ -216,15 +254,20 @@ function render(){
   profile=await loadProfile(user);
   $("sideUserName").textContent=profile.full_name||"Pengguna";$("sideUserRole").textContent=roleLabel(profile.role);$("headerUser").textContent=profile.full_name||"Pengguna";$("currentDate").textContent=localDateID();
   await loadMenu();
-  const [general,personal]=await Promise.all([
+  const [general,personal,operational]=await Promise.all([
     api.db.rpc("dashboard_get_summary",{}),
     api.db.rpc("dashboard_get_teacher_personal",{}).catch(err=>{
       console.warn("Dashboard personal guru belum tersedia:",err);
       return {teacher_linked:false,stats:{},contexts:[],today_schedule:[],attendance_tasks:[],grade_tasks:[],positions:[]};
+    }),
+    api.db.rpc("dashboard_get_teacher_operational",{}).catch(err=>{
+      console.warn("Dashboard operasional guru belum tersedia:",err);
+      return {teacher_linked:false,homeroom:null,notifications:[],quick_actions:[]};
     })
   ]);
   summary=general||{};
   teacherPersonal=personal||{teacher_linked:false,stats:{},contexts:[],today_schedule:[],attendance_tasks:[],grade_tasks:[],positions:[]};
+  teacherOperational=operational||{teacher_linked:false,homeroom:null,notifications:[],quick_actions:[]};
   render();
   $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"};
  }catch(err){console.error(err);alert("Dashboard gagal dimuat: "+err.message)}
