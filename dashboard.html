@@ -41,6 +41,36 @@
   .news-grid-v2{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.news-v2{border:1px solid #e1e9e5;border-radius:12px;overflow:hidden;background:#fff}.news-thumb{height:74px;background:#e8f3ed;display:grid;place-items:center;font-size:9px;font-weight:900;color:#0b7347;background-size:cover;background-position:center}.news-info{padding:9px}.news-info span{font-size:7px;color:#0b7347;font-weight:900}.news-info b{display:block;font-size:9px;margin:4px 0;line-height:1.35}.news-info p{font-size:7.5px;color:#718078;margin:0;line-height:1.4}
   .empty-v2{padding:18px;text-align:center;color:#7a8881;font-size:9px;background:#f9fbfa;border-radius:11px}
   .role-chip{display:inline-flex;background:#fff2c8;color:#735600;border-radius:999px;padding:4px 8px;font-size:7.5px;font-weight:900;margin-top:8px}
+
+  .teacher-workspace{display:none;margin-bottom:14px}
+  .teacher-workspace.show{display:block}
+  .teacher-overview{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:14px}
+  .teacher-stat{border:1px solid #deebe4;background:linear-gradient(180deg,#fff,#f8fbf9);border-radius:14px;padding:12px;min-height:82px}
+  .teacher-stat-top{display:flex;align-items:center;justify-content:space-between;gap:7px}
+  .teacher-stat-top span:first-child{font-size:8px;color:#718078;font-weight:800}
+  .teacher-stat .sim-icon{width:17px;height:17px;color:#0b7347}
+  .teacher-stat b{display:block;font-size:21px;color:#075b3a;margin-top:7px}
+  .teacher-stat small{font-size:7.5px;color:#7a8981}
+  .teacher-task-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:14px;margin-bottom:14px}
+  .teacher-context-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .teacher-context{border:1px solid #e1eae5;border-radius:12px;padding:10px;background:#fbfdfc}
+  .teacher-context-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+  .teacher-context h4{font-size:10px;color:#173f30;margin:0}.teacher-context p{font-size:8px;color:#718078;margin:4px 0}
+  .teacher-context .meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+  .teacher-context .meta span{font-size:7px;background:#edf6f1;color:#0b7347;border-radius:999px;padding:4px 6px;font-weight:800}
+  .task-list{display:grid;gap:8px}.task-row{border:1px solid #e2eae6;border-radius:12px;padding:10px;display:grid;grid-template-columns:35px 1fr auto;gap:9px;align-items:center}
+  .task-icon{width:35px;height:35px;border-radius:10px;background:#eef7f2;color:#0b7347;display:grid;place-items:center}.task-icon svg{width:17px;height:17px}
+  .task-row h4{font-size:9.5px;margin:0;color:#173f30}.task-row p{font-size:8px;color:#718078;margin:3px 0 0}
+  .task-state{font-size:7px;font-weight:900;border-radius:999px;padding:5px 7px;white-space:nowrap}.task-state.done{background:#e2f5e9;color:#08733f}.task-state.pending{background:#fff1c8;color:#765b00}.task-state.danger{background:#f9e1df;color:#a23c35}
+  .jobdesk-grid-dashboard{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.jobdesk-card-dashboard{border:1px solid #dce9e2;background:#f9fcfa;border-radius:13px;padding:11px;text-decoration:none;color:#173f30;display:flex;gap:9px;align-items:flex-start}
+  .jobdesk-card-dashboard:hover{border-color:#9ec9b4;box-shadow:0 7px 18px rgba(7,91,58,.07)}
+  .jobdesk-card-dashboard .job-icon{width:34px;height:34px;border-radius:10px;background:#e8f5ee;color:#0b7347;display:grid;place-items:center;flex:0 0 auto}.jobdesk-card-dashboard svg{width:17px;height:17px}
+  .jobdesk-card-dashboard b{font-size:9.5px;display:block}.jobdesk-card-dashboard p{font-size:7.5px;color:#718078;margin:3px 0 0}
+  .teacher-section-note{font-size:8px;color:#718078;margin:-5px 0 10px}
+  .next-class{border-color:#a7cfbb;background:#f3fbf7}.now-class{border-color:#0b7347;background:#edf9f2;box-shadow:inset 0 0 0 1px #0b7347}
+  @media(max-width:1180px){.teacher-overview{grid-template-columns:repeat(3,1fr)}.teacher-context-grid,.jobdesk-grid-dashboard{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:900px){.teacher-task-grid{grid-template-columns:1fr}}
+  @media(max-width:620px){.teacher-overview{grid-template-columns:1fr 1fr}.teacher-context-grid,.jobdesk-grid-dashboard{grid-template-columns:1fr}.task-row{grid-template-columns:35px 1fr}.task-state{grid-column:2;justify-self:start}}
   @media(max-width:1180px){.dash-stats{grid-template-columns:repeat(3,1fr)}.quick-grid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:900px){.dash-grid{grid-template-columns:1fr}.quick-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:620px){.dash-hero{align-items:flex-start;flex-direction:column}.dash-stats{grid-template-columns:1fr 1fr}.quick-grid,.news-grid-v2,.finance-box{grid-template-columns:1fr 1fr}.period-pill{white-space:normal}}
@@ -73,6 +103,39 @@
         <div id="periodPill" class="period-pill">Tahun Pelajaran - · Semester -</div>
       </section>
 
+      <section id="teacherWorkspace" class="teacher-workspace">
+        <section class="teacher-overview">
+          <article class="teacher-stat"><div class="teacher-stat-top"><span>Jam Mengajar Hari Ini</span><span data-icon="clock"></span></div><b id="teacherTodaySlots">0</b><small>slot pelajaran</small></article>
+          <article class="teacher-stat"><div class="teacher-stat-top"><span>Beban Mingguan</span><span data-icon="calendar-days"></span></div><b id="teacherWeeklySlots">0</b><small>slot per minggu</small></article>
+          <article class="teacher-stat"><div class="teacher-stat-top"><span>Kelas & Mapel</span><span data-icon="book-open"></span></div><b id="teacherContexts">0</b><small>kombinasi mengajar</small></article>
+          <article class="teacher-stat"><div class="teacher-stat-top"><span>Siswa Terjangkau</span><span data-icon="users"></span></div><b id="teacherStudents">0</b><small>siswa aktif</small></article>
+          <article class="teacher-stat"><div class="teacher-stat-top"><span>Absensi Perlu Diisi</span><span data-icon="clipboard-check"></span></div><b id="teacherAttendancePending">0</b><small>kelas hari ini</small></article>
+          <article class="teacher-stat"><div class="teacher-stat-top"><span>Nilai Belum Lengkap</span><span data-icon="file-pen"></span></div><b id="teacherGradePending">0</b><small>asesmen</small></article>
+        </section>
+
+        <section class="teacher-task-grid">
+          <article class="dash-card">
+            <div class="dash-title"><h3>Tugas Mengajar Hari Ini</h3><a href="absensi-siswa.html">Buka Absensi →</a></div>
+            <div id="teacherAttendanceTasks" class="task-list"></div>
+          </article>
+          <article class="dash-card">
+            <div class="dash-title"><h3>Nilai Belum Lengkap</h3><a href="nilai.html">Buka Nilai →</a></div>
+            <div id="teacherGradeTasks" class="task-list"></div>
+          </article>
+        </section>
+
+        <section class="dash-card" style="margin-bottom:14px">
+          <div class="dash-title"><h3>Kelas & Mata Pelajaran Saya</h3><span>Semester aktif</span></div>
+          <div id="teacherContextGrid" class="teacher-context-grid"></div>
+        </section>
+
+        <section id="teacherJobdeskSection" class="dash-card" style="margin-bottom:14px;display:none">
+          <div class="dash-title"><h3>Jobdesk Tambahan Saya</h3><span>Akses berdasarkan jabatan struktural</span></div>
+          <div id="teacherJobdeskGrid" class="jobdesk-grid-dashboard"></div>
+        </section>
+      </section>
+
+      <div id="madrasahSnapshotTitle" class="dash-title" style="margin:2px 0 8px"><h3>Ringkasan Madrasah</h3><span>Informasi umum</span></div>
       <section class="dash-stats">
         <article class="dash-stat"><div class="dash-stat-head"><span>Siswa Aktif</span><span class="dash-stat-icon" data-icon="users"></span></div><div id="statStudents" class="dash-stat-value">-</div><div class="dash-stat-sub">Data siswa aktif</div></article>
         <article class="dash-stat"><div class="dash-stat-head"><span>Guru Aktif</span><span class="dash-stat-icon" data-icon="teacher"></span></div><div id="statTeachers" class="dash-stat-value">-</div><div class="dash-stat-sub">Tenaga pengajar</div></article>

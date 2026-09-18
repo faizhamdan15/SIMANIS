@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id);
-let api,profile,summary={},myModules=[];
+let api,profile,summary={},teacherPersonal={teacher_linked:false,stats:{},contexts:[],today_schedule:[],attendance_tasks:[],grade_tasks:[],positions:[]},myModules=[];
 
-const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"};
+const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"};
 const ICONS={
   DASHBOARD:"layout-dashboard",
   ADMINISTRASI_KEPALA:"folder-kanban",
@@ -19,7 +19,14 @@ const ICONS={
   AGENDA:"calendar-range",
   KEUANGAN:"wallet",
   PORTAL_WALI:"users-round",
-  PENGATURAN:"settings"
+  PENGATURAN:"settings",
+  PKM_KURIKULUM:"book-open",
+  PKM_KESISWAAN:"users-round",
+  PKM_BENDAHARA_SARPRAS:"wallet",
+  PKM_HUMASY:"megaphone",
+  KEPALA_TU:"folder-kanban",
+  KALAB_IPA:"flask",
+  KALAB_BISNIS:"briefcase"
 };
 
 const ICON_PATHS={
@@ -47,7 +54,10 @@ const ICON_PATHS={
   "map-pin":`<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2"/>`,
   "pin":`<path d="m12 17 1 4"/><path d="M5 3h14l-3 7 3 3H5l3-3-3-7Z"/>`,
   "bell":`<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>`,
-  "star":`<path d="m12 2 3 6 6.5.9-4.7 4.6 1.1 6.5-5.9-3.1L6.1 20l1.1-6.5L2.5 8.9 9 8l3-6Z"/>`
+  "star":`<path d="m12 2 3 6 6.5.9-4.7 4.6 1.1 6.5-5.9-3.1L6.1 20l1.1-6.5L2.5 8.9 9 8l3-6Z"/>`,
+  "flask":`<path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/><path d="M8 15h8"/>`,
+  "briefcase":`<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"/>`,
+  "check-circle":`<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>`
 };
 function icon(name,cls="sim-icon"){
   const p=ICON_PATHS[name]||ICON_PATHS["layout-dashboard"];
@@ -134,11 +144,69 @@ function renderNews(){
  const data=summary.news||[];
  $("newsGrid").innerHTML=data.length?data.map(x=>{const url=coverUrl(x.cover_path);return`<article class="news-v2"><div class="news-thumb" ${url?`style="background-image:url('${url.replaceAll("'","%27")}')"`:""}>${url?"":esc(x.category||"BERITA")}</div><div class="news-info"><span>${esc(x.category||"BERITA")}</span><b>${esc(x.title)}</b><p>${esc(x.excerpt||"")}</p></div></article>`}).join(""):'<div class="empty-v2">Belum ada berita terbit.</div>';
 }
+
+function shortNumber(n){return Number(n||0).toLocaleString("id-ID")}
+function nowJakartaMinutes(){
+ const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Jakarta",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(new Date());
+ const h=Number(parts.find(x=>x.type==="hour")?.value||0),m=Number(parts.find(x=>x.type==="minute")?.value||0);
+ return h*60+m;
+}
+function timeMinutes(v){
+ if(!v)return null;const [h,m]=String(v).slice(0,5).split(":").map(Number);return h*60+m;
+}
+function scheduleMomentClass(x,index,data){
+ const now=nowJakartaMinutes(),start=timeMinutes(x.start_time),end=timeMinutes(x.end_time);
+ if(start!==null&&end!==null&&now>=start&&now<=end)return"now-class";
+ const upcoming=data.filter(y=>timeMinutes(y.start_time)!==null&&timeMinutes(y.start_time)>now).sort((a,b)=>timeMinutes(a.start_time)-timeMinutes(b.start_time));
+ if(upcoming[0]?.schedule_id===x.schedule_id)return"next-class";
+ return"";
+}
+function renderTeacherPersonal(){
+ const box=$("teacherWorkspace");
+ if(!teacherPersonal?.teacher_linked){box.classList.remove("show");return}
+ box.classList.add("show");
+ $("welcomeText").textContent="Jadwal mengajar, tugas kelas, nilai, agenda, dan jobdesk Anda hari ini.";
+ const s=teacherPersonal.stats||{};
+ $("teacherTodaySlots").textContent=shortNumber(s.today_slots);
+ $("teacherWeeklySlots").textContent=shortNumber(s.weekly_slots);
+ $("teacherContexts").textContent=shortNumber(s.teaching_contexts);
+ $("teacherStudents").textContent=shortNumber(s.student_reach);
+ $("teacherAttendancePending").textContent=shortNumber(s.attendance_pending);
+ $("teacherGradePending").textContent=teacherPersonal.grading_available?shortNumber(s.grade_pending):"—";
+
+ const attendance=teacherPersonal.attendance_tasks||[];
+ $("teacherAttendanceTasks").innerHTML=attendance.length?attendance.map(t=>{
+   const complete=!!t.is_complete;
+   return `<div class="task-row"><div class="task-icon">${icon(complete?"check-circle":"clipboard-check")}</div><div><h4>${esc(t.class_name)}</h4><p>${Number(t.recorded_students||0)} / ${Number(t.expected_students||0)} siswa sudah tercatat${complete?"":" · "+Number(t.missing_students||0)+" belum tercatat"}</p></div><span class="task-state ${complete?"done":"pending"}">${complete?"SELESAI":"PERLU DIISI"}</span></div>`
+ }).join(""):'<div class="empty-v2">Tidak ada kelas yang perlu diabsen hari ini.</div>';
+
+ const grades=teacherPersonal.grade_tasks||[];
+ if(!teacherPersonal.grading_available){
+   $("teacherGradeTasks").innerHTML='<div class="empty-v2">Modul Nilai belum menyediakan data kelengkapan untuk dashboard.</div>';
+ }else{
+   $("teacherGradeTasks").innerHTML=grades.length?grades.slice(0,6).map(g=>`<div class="task-row"><div class="task-icon">${icon("file-pen")}</div><div><h4>${esc(g.title)} · ${esc(g.class_name)}</h4><p>${esc(g.subject_name)} · ${Number(g.entered_scores||0)} / ${Number(g.expected_students||0)} nilai terisi</p></div><span class="task-state danger">${Number(g.missing_scores||0)} KOSONG</span></div>`).join(""):'<div class="empty-v2">Semua nilai asesmen yang terdeteksi sudah lengkap.</div>';
+ }
+
+ const contexts=teacherPersonal.contexts||[];
+ $("teacherContextGrid").innerHTML=contexts.length?contexts.map(c=>`<article class="teacher-context"><div class="teacher-context-head"><div><h4>${esc(c.class_name)}</h4><p>${esc(c.subject_name)}</p></div><span class="badge">${esc(c.subject_code||"MAPEL")}</span></div><div class="meta"><span>${Number(c.student_count||0)} siswa</span><span>${Number(c.weekly_slots||0)} slot/minggu</span></div></article>`).join(""):'<div class="empty-v2">Belum ada jadwal mengajar pada semester aktif.</div>';
+
+ const positions=teacherPersonal.positions||[];
+ $("teacherJobdeskSection").style.display=positions.length?"":"none";
+ $("teacherJobdeskGrid").innerHTML=positions.map(p=>`<a class="jobdesk-card-dashboard" href="${ROUTES[p.module_code]||`unit-kerja.html?unit=${encodeURIComponent(p.module_code||"")}`}"><span class="job-icon">${icon(ICONS[p.module_code]||"briefcase")}</span><div><b>${esc(p.position_name)}</b><p>Buka workspace dan tugas unit kerja.</p></div></a>`).join("");
+}
+function renderPersonalSchedule(){
+ if(!teacherPersonal?.teacher_linked)return;
+ const data=teacherPersonal.today_schedule||[];
+ $("scheduleTitle").textContent="Jadwal Mengajar Saya";
+ if(teacherPersonal.today_name==="JUMAT"){$("todaySchedule").innerHTML='<div class="empty-v2">Jumat tidak memiliki jadwal pembelajaran reguler.</div>';return}
+ $("todaySchedule").innerHTML=data.length?data.map((x,i)=>`<div class="item ${scheduleMomentClass(x,i,data)}"><div class="item-icon">${icon("clock")}</div><div class="item-time">${esc(x.slot_code||"")}<br>${timeShort(x.start_time)}–${timeShort(x.end_time)}</div><div class="item-body"><b>${esc(x.subject_name)}</b><p>${esc(x.class_name)} · Absensi ${Number(x.attendance_recorded||0)}/${Number(x.expected_students||0)}</p></div><span class="task-state ${x.attendance_complete?"done":"pending"}">${x.attendance_complete?"ABSEN OK":"CEK ABSEN"}</span></div>`).join(""):'<div class="empty-v2">Tidak ada jadwal mengajar hari ini.</div>';
+}
+
 function render(){
  $("welcomeTitle").textContent=`${greeting()}, ${profile.full_name?.split(" ")[0]||"Pengguna"}!`;
  $("roleChip").textContent=roleLabel(profile.role);
  const ay=summary.academic_year?.name||"-",sm=summary.semester?.name||"-";$("periodPill").textContent=`Tahun Pelajaran ${ay} · ${sm}`;
- renderStaticIcons();renderStats();renderQuick();renderChart();renderSchedule();renderAgenda();renderAnnouncements();renderFinance();renderAchievements();renderNews();
+ renderStaticIcons();renderStats();renderQuick();renderChart();renderSchedule();renderAgenda();renderAnnouncements();renderFinance();renderAchievements();renderNews();renderTeacherPersonal();renderPersonalSchedule();renderStaticIcons();
 }
 
 (async()=>{
@@ -148,7 +216,15 @@ function render(){
   profile=await loadProfile(user);
   $("sideUserName").textContent=profile.full_name||"Pengguna";$("sideUserRole").textContent=roleLabel(profile.role);$("headerUser").textContent=profile.full_name||"Pengguna";$("currentDate").textContent=localDateID();
   await loadMenu();
-  summary=await api.db.rpc("dashboard_get_summary",{})||{};
+  const [general,personal]=await Promise.all([
+    api.db.rpc("dashboard_get_summary",{}),
+    api.db.rpc("dashboard_get_teacher_personal",{}).catch(err=>{
+      console.warn("Dashboard personal guru belum tersedia:",err);
+      return {teacher_linked:false,stats:{},contexts:[],today_schedule:[],attendance_tasks:[],grade_tasks:[],positions:[]};
+    })
+  ]);
+  summary=general||{};
+  teacherPersonal=personal||{teacher_linked:false,stats:{},contexts:[],today_schedule:[],attendance_tasks:[],grade_tasks:[],positions:[]};
   render();
   $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"};
  }catch(err){console.error(err);alert("Dashboard gagal dimuat: "+err.message)}
