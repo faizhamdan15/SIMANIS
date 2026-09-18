@@ -118,7 +118,10 @@ async function loadData(){
      api.db.select("office_letter_classifications","select=*&is_active=eq.true&order=sort_order.asc"),
      api.db.select("office_letter_dispositions","select=*,office_letters(agenda_code,letter_number,subject,letter_type,sender_recipient)&order=disposition_date.desc,created_at.desc"),
      api.db.select("office_letter_files","select=*,office_letters(agenda_code,letter_number,subject,letter_type)&order=created_at.desc"),
-     api.db.rpc("office_get_monthly_recap",{p_year:year})
+     api.db.rpc("office_get_monthly_recap",{p_year:year}).catch(err=>{
+       console.warn("Rekap TU belum tersedia:",err);
+       return {summary:{incoming:0,outgoing:0,active:0,done:0,disposition_open:0},months:[],classifications:[]};
+     })
    ]);
    letterClasses=extra[0]||[];tuDispositions=extra[1]||[];tuFiles=extra[2]||[];tuRecap=extra[3]||{summary:{},months:[],classifications:[]};
  }
