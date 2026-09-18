@@ -8,12 +8,17 @@
 .unit-hero{background:linear-gradient(135deg,#075b3a,#0b7347);color:#fff;border-radius:20px;padding:22px;margin-bottom:15px;box-shadow:0 14px 30px rgba(5,91,58,.13)}
 .unit-hero-top{display:flex;gap:14px;align-items:center}.unit-icon{width:52px;height:52px;border-radius:15px;background:rgba(255,255,255,.14);display:grid;place-items:center}.unit-icon svg{width:26px;height:26px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .unit-hero h2{margin:0 0 4px;font-size:22px}.unit-hero p{margin:0;color:#dcece5;font-size:10px;line-height:1.55}.unit-badge{display:inline-flex;margin-top:10px;background:#fff2c9;color:#735600;padding:5px 8px;border-radius:999px;font-size:8px;font-weight:900}
-.unit-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.unit-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px;box-shadow:0 6px 18px rgba(5,79,50,.05)}
-.unit-card h3{font-size:13px;margin:0 0 5px;color:#0a4b33}.unit-card>p{font-size:9px;color:#6d7c75;margin:0 0 12px;line-height:1.55}
-.focus-list{display:grid;gap:8px}.focus-item{border:1px solid #e1e9e5;background:#fbfdfc;border-radius:11px;padding:10px;font-size:9px;color:#496056;display:flex;gap:8px;align-items:flex-start}.dot{width:8px;height:8px;background:#0b7347;border-radius:50%;margin-top:3px;flex:0 0 auto}
-.quick-grid-unit{display:grid;grid-template-columns:1fr 1fr;gap:8px}.quick-unit{border:1px solid #dfe8e3;border-radius:11px;padding:10px;text-decoration:none;color:#153e2e;background:#fbfdfc}.quick-unit b{font-size:9.5px}.quick-unit p{font-size:8px;color:#718078;margin:3px 0 0}
-.access-note{background:#f4faf7;border-left:4px solid #0b7347;border-radius:10px;padding:11px;font-size:9px;line-height:1.6;color:#4e6258}
-@media(max-width:850px){.unit-grid{grid-template-columns:1fr}}@media(max-width:520px){.quick-grid-unit{grid-template-columns:1fr}}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tabbtn{border:1px solid #d8e3dd;background:#fff;color:#52655c;border-radius:11px;padding:10px 13px;font-weight:800;font-size:9px;cursor:pointer}.tabbtn.active{background:#0b7347;color:#fff;border-color:#0b7347}
+.panel.hidden{display:none}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.cardx{background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px;box-shadow:0 6px 18px rgba(5,79,50,.05);margin-bottom:14px}.cardx h3{font-size:13px;margin:0 0 5px;color:#0a4b33}.cardx>p{font-size:9px;color:#6d7c75;margin:0 0 12px;line-height:1.55}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}.statx{background:#fff;border:1px solid #e1e9e5;border-radius:14px;padding:12px}.statx span{font-size:8px;color:#73827b}.statx b{display:block;font-size:19px;color:#0b5f3d;margin-top:5px}
+.table-wrap{overflow:auto;border:1px solid #e0e8e4;border-radius:13px}.tablex{width:100%;border-collapse:collapse;min-width:840px}.tablex th{background:#f6f9f7;text-align:left;padding:9px;font-size:8px;color:#63736b;border-bottom:1px solid #e0e8e4}.tablex td{padding:9px;font-size:9px;border-bottom:1px solid #edf1ef;vertical-align:top}.tablex tr:last-child td{border-bottom:0}
+.actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;margin:10px 0}.actions button{width:auto}.badge{display:inline-flex;padding:4px 7px;border-radius:999px;font-size:7.5px;font-weight:900;background:#eaf5ef;color:#0b7347}.badge.warn{background:#fff0bd;color:#785b00}.badge.bad{background:#ffe7e2;color:#a13b33}.badge.gray{background:#eceff2;color:#666}
+.empty{padding:18px;text-align:center;color:#7a8881;font-size:9px;background:#f9fbfa;border-radius:11px}
+.modalx{max-width:720px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form-grid .full{grid-column:1/-1}label span{display:block;font-size:9px;font-weight:800;margin-bottom:5px;color:#465b52}input,select,textarea{width:100%;border:1px solid #d5e1db;border-radius:10px;padding:10px;background:#fff;font:inherit;font-size:10px}textarea{resize:vertical}
+.progress{height:8px;background:#edf2ef;border-radius:999px;overflow:hidden;margin-top:5px}.progress span{display:block;height:100%;background:#0b7347}
+.focus{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.focus-item{border:1px solid #e1e9e5;background:#fbfdfc;border-radius:11px;padding:10px;font-size:9px;color:#496056}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.focus{grid-template-columns:1fr}}
+@media(max-width:560px){.form-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -27,17 +32,46 @@
 <section class="content">
 <header class="topbar"><div><h1>SIMANIS</h1><p id="topSubtitle">Unit Kerja</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
 <main class="main">
-<section class="unit-hero">
- <div class="unit-hero-top"><div id="unitIcon" class="unit-icon"></div><div><h2 id="unitTitle">Unit Kerja</h2><p id="unitDesc">Ruang kerja jabatan struktural MA Nurul Islam.</p></div></div>
- <span class="unit-badge">AKSES KHUSUS JABATAN</span>
+<section class="unit-hero"><div class="unit-hero-top"><div id="unitIcon" class="unit-icon"></div><div><h2 id="unitTitle">Unit Kerja</h2><p id="unitDesc">Ruang kerja jabatan struktural MA Nurul Islam.</p></div></div><span class="unit-badge">WORKSPACE JABATAN</span></section>
+
+<section class="stats">
+ <article class="statx"><span>Program Kerja</span><b id="statPrograms">0</b></article>
+ <article class="statx"><span>Program Selesai</span><b id="statDone">0</b></article>
+ <article class="statx"><span>Aktivitas Tercatat</span><b id="statLogs">0</b></article>
+ <article class="statx"><span id="statSpecificLabel">Data Unit</span><b id="statSpecific">0</b></article>
 </section>
-<div class="unit-grid">
- <article class="unit-card"><h3>Fokus Kerja</h3><p>Ringkasan area kerja utama unit ini.</p><div id="focusList" class="focus-list"></div></article>
- <article class="unit-card"><h3>Modul SIMANIS Terkait</h3><p>Shortcut hanya ditampilkan bila akun Anda memang mempunyai hak akses pada modul tersebut.</p><div id="relatedModules" class="quick-grid-unit"></div></article>
-</div>
-<article class="unit-card" style="margin-top:14px"><h3>Ruang Unit Kerja</h3><div class="access-note">Menu ini bersifat khusus jabatan. Saat pemegang jabatan diganti melalui <b>Pengaturan → Jabatan Struktural</b>, akses menu otomatis berpindah ke akun pemegang baru tanpa mengubah role utama pengguna.</div></article>
+
+<div id="tabs" class="tabs"></div>
+<section id="panelSummary" class="panel"></section>
+
+<section id="panelPrograms" class="panel hidden">
+ <article class="cardx">
+  <div class="actions"><button id="addProgramBtn" class="primary-btn">+ Program Kerja</button></div>
+  <div class="table-wrap"><table class="tablex"><thead><tr><th>Program</th><th>Periode</th><th>PIC</th><th>Progress</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="programBody"></tbody></table></div>
+ </article>
+</section>
+
+<section id="panelLogs" class="panel hidden">
+ <article class="cardx">
+  <div class="actions"><button id="addLogBtn" class="primary-btn">+ Catat Aktivitas</button></div>
+  <div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Aktivitas</th><th>Hasil</th><th>Tindak Lanjut</th><th>PIC</th><th>Aksi</th></tr></thead><tbody id="logBody"></tbody></table></div>
+ </article>
+</section>
+
+<section id="panelSpecific" class="panel hidden"></section>
 </main>
 </section>
 </div>
+
+<div id="entryModal" class="modal-backdrop hidden">
+ <div class="modal modalx">
+  <div class="modal-head"><h3 id="entryTitle">Tambah Data</h3><button id="entryClose" class="modal-close">✕</button></div>
+  <form id="entryForm">
+   <div class="modal-body"><input id="entryMode" type="hidden"/><input id="entryId" type="hidden"/><div id="entryFields" class="form-grid"></div><div id="entryMessage" style="font-size:9px;color:#a13b33;margin-top:8px"></div></div>
+   <div class="modal-actions"><button type="button" id="entryCancel" class="secondary-btn">Batal</button><button type="submit" class="primary-btn" style="width:auto">Simpan</button></div>
+  </form>
+ </div>
+</div>
+
 <script src="config.js"></script><script src="sdk-loader.js"></script><script src="unit-kerja.js"></script>
 </body></html>
