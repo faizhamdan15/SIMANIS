@@ -22,6 +22,7 @@
     "Jadwal Pelajaran": "jadwal.html",
     "Absensi Guru": "absensi-guru.html",
     "Absensi Siswa": "absensi-siswa.html",
+    "Wali Kelas": "wali-kelas.html",
     "Nilai": "nilai.html",
     "Prestasi": "prestasi.html",
     "Berita Madrasah": "berita.html",
@@ -52,6 +53,7 @@
     "jadwal.html":"JADWAL",
     "absensi-guru.html":"ABSENSI_GURU",
     "absensi-siswa.html":"ABSENSI_SISWA",
+    "wali-kelas.html":"DATA_SISWA",
     "nilai.html":"NILAI",
     "prestasi.html":"PRESTASI",
     "berita.html":"BERITA",
@@ -114,6 +116,8 @@
   let currentModulePermission = null;
   let currentModuleCode = null;
   let permissionObserver = null;
+  let homeroomContext = null;
+  let homeroomMenuObserver = null;
 
   function currentFile() {
     return location.pathname.split("/").pop() || "index.html";
@@ -231,6 +235,51 @@
     if (!permissionObserver && document.documentElement) {
       permissionObserver = new MutationObserver(() => applyPermissionUi());
       permissionObserver.observe(document.documentElement, {
+        childList:true,
+        subtree:true
+      });
+    }
+  }
+
+
+  function ensureHomeroomMenu() {
+    if (!homeroomContext?.has_homeroom) return;
+    const nav = document.getElementById("sidebarMenu");
+    if (!nav) return;
+
+    let item = nav.querySelector('[data-simanis-homeroom="true"]');
+    if (!item) {
+      item = document.createElement("a");
+      item.href = "wali-kelas.html";
+      item.dataset.simanisHomeroom = "true";
+      item.className = "nav-item";
+      item.innerHTML = '<span class="nav-dot"></span><span>Wali Kelas</span>';
+
+      const anchors = [...nav.querySelectorAll(".nav-item")];
+      const dataSiswa = anchors.find(a =>
+        (a.textContent || "").replace(/\s+/g," ").trim() === "Data Siswa"
+      );
+      if (dataSiswa) dataSiswa.insertAdjacentElement("afterend",item);
+      else nav.appendChild(item);
+    }
+
+    item.classList.toggle("active",currentFile()==="wali-kelas.html");
+  }
+
+  function startHomeroomMenuObserver() {
+    if (!homeroomContext?.has_homeroom) return;
+
+    const run = () => ensureHomeroomMenu();
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded",run,{once:true});
+    } else {
+      run();
+    }
+
+    if (!homeroomMenuObserver && document.documentElement) {
+      homeroomMenuObserver = new MutationObserver(() => ensureHomeroomMenu());
+      homeroomMenuObserver.observe(document.documentElement,{
         childList:true,
         subtree:true
       });
@@ -387,6 +436,16 @@
     } catch (err) {
       console.warn("Access context V2 belum tersedia:",err);
       return true;
+    }
+
+    try {
+      homeroomContext = await rawRpc("get_my_homeroom_context",{});
+      window.SIMANIS_HOMEROOM_CONTEXT = homeroomContext;
+      if (homeroomContext?.has_homeroom) startHomeroomMenuObserver();
+    } catch (err) {
+      // Paket Wali Kelas bersifat additive. Sebelum SQL dipasang,
+      // menu tidak ditampilkan dan modul lain tetap berjalan normal.
+      console.warn("Konteks Wali Kelas belum tersedia:",err);
     }
 
     if (!currentModuleCode) return true;

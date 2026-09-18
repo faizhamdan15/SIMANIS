@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wali Kelas — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .wk-hero{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;background:linear-gradient(135deg,#075b3a,#12804e);color:#fff;border-radius:20px;padding:18px;margin-bottom:15px;box-shadow:0 12px 28px rgba(7,91,58,.14)}
+    .wk-hero h2{margin:0;font-size:21px}.wk-hero p{margin:5px 0 0;font-size:9px;opacity:.88}.wk-hero .class-chip{display:inline-flex;margin-top:9px;padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.14);font-size:8px;font-weight:800}
+    .wk-hero-icon{width:56px;height:56px;border-radius:17px;background:rgba(255,255,255,.12);display:grid;place-items:center}.wk-hero-icon svg{width:28px;height:28px}
+    .wk-filter{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:9px;margin-bottom:14px}.wk-filter input,.wk-filter select{width:100%;border:1px solid #d8e3dd;border-radius:11px;padding:10px 11px;background:#fff}
+    .wk-actions{display:flex;gap:7px;flex-wrap:wrap}.wk-actions button{white-space:nowrap}
+    .stat-svg{width:36px;height:36px;border-radius:10px;background:#eaf6ef;color:#0b7347;display:grid;place-items:center}.stat-svg svg{width:18px;height:18px}
+    .wk-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:14px;margin-bottom:14px}.wk-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}.wk-title{display:flex;justify-content:space-between;gap:9px;align-items:center;margin-bottom:11px}.wk-title h3{font-size:13px;color:#173f30;margin:0}.wk-title span{font-size:8px;color:#728078}
+    .teacher-list{display:grid;gap:8px}.teacher-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid #e2ebe6;border-radius:12px;padding:10px}.teacher-row b{font-size:9.5px;color:#173f30}.teacher-row p{font-size:8px;color:#718078;margin:3px 0 0}.teacher-row .count{font-size:8px;font-weight:800;background:#eaf6ef;color:#0b7347;padding:5px 7px;border-radius:999px}
+    .summary-table-wrap,.history-table-wrap{overflow:auto}.wk-table{width:100%;border-collapse:collapse;min-width:780px}.wk-table th,.wk-table td{padding:9px;border-bottom:1px solid #edf2ef;text-align:left;font-size:9px}.wk-table th{font-size:8px;text-transform:uppercase;color:#728078;background:#fbfdfc}.wk-table td.num{text-align:center;font-weight:800}.wk-table .student{font-weight:800;color:#173f30}.wk-table .sub{font-size:7.5px;color:#718078;margin-top:2px}
+    .status-chip{display:inline-flex;border-radius:999px;padding:4px 6px;font-size:7px;font-weight:800}.s-HADIR{background:#dff4e7;color:#08743f}.s-TERLAMBAT{background:#fff0c9;color:#8a5a00}.s-IZIN,.s-SAKIT{background:#e9efff;color:#365aaf}.s-ALFA{background:#ffe2de;color:#a52d22}
+    .history-list{display:grid;gap:8px}.history-row{border:1px solid #e2ebe6;border-radius:12px;padding:10px;display:grid;grid-template-columns:100px 1fr auto;gap:10px;align-items:center}.history-date{font-size:9px;font-weight:800;color:#075b3a}.history-row h4{font-size:9.5px;margin:0;color:#173f30}.history-row p{font-size:8px;color:#718078;margin:3px 0 0}.history-counts{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.history-counts span{font-size:7px;border-radius:999px;padding:4px 5px;background:#f0f4f2;color:#50645b;font-weight:800}
+    .wk-note{border:1px solid #eadca8;background:#fffaf0;color:#665b35;border-radius:12px;padding:10px 12px;font-size:8.5px;line-height:1.55;margin-bottom:14px}
+    .empty-wk{text-align:center;padding:24px;color:#73817a;font-size:9px}
+    @media(max-width:1050px){.wk-grid{grid-template-columns:1fr}.wk-filter{grid-template-columns:1fr 1fr}}
+    @media(max-width:650px){.wk-filter{grid-template-columns:1fr}.wk-hero{grid-template-columns:1fr}.wk-hero-icon{display:none}.history-row{grid-template-columns:1fr}.history-counts{justify-content:flex-start}}
+    @media print{.sidebar,.topbar,.wk-filter,.wk-actions,.wk-note{display:none!important}.app{display:block}.content{margin:0}.main{padding:0}.wk-hero{color:#000;background:#fff;border:1px solid #ddd;box-shadow:none}.wk-grid{grid-template-columns:1fr}.wk-card{break-inside:avoid}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Wali Kelas...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Wali Kelas</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+
+    <main class="main">
+      <section class="wk-hero">
+        <div><h2>Workspace Wali Kelas</h2><p id="heroText">Rekap kehadiran siswa dari seluruh guru yang mengajar di kelas wali.</p><span id="classChip" class="class-chip">Memuat kelas...</span></div>
+        <div class="wk-hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 12h6M9 16h6"/><path d="M18 4h3v5"/></svg></div>
+      </section>
+
+      <section class="stats">
+        <article class="stat"><div class="stat-head"><span>Siswa</span><span class="stat-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg></span></div><div id="statStudents" class="stat-value">-</div><div class="stat-sub">Siswa aktif kelas wali</div></article>
+        <article class="stat"><div class="stat-head"><span>Guru Mapel</span><span class="stat-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span></div><div id="statTeachers" class="stat-value">-</div><div class="stat-sub">Guru terjadwal di kelas</div></article>
+        <article class="stat"><div class="stat-head"><span>Kiriman Absensi</span><span class="stat-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span></div><div id="statSubmissions" class="stat-value">-</div><div class="stat-sub">Dalam rentang laporan</div></article>
+        <article class="stat"><div class="stat-head"><span>Alfa</span><span class="stat-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 17h.01"/></svg></span></div><div id="statAbsent" class="stat-value">-</div><div class="stat-sub">Catatan alfa dari guru</div></article>
+      </section>
+
+      <div class="wk-note">Rekap per guru mulai tercatat setelah fitur Wali Kelas ini dipasang. Absensi lama tetap tersimpan pada sistem utama, tetapi histori sebelum pemasangan tidak dapat dipisahkan berdasarkan guru penginput.</div>
+
+      <section class="wk-filter">
+        <input id="startDate" type="date" />
+        <input id="endDate" type="date" />
+        <select id="teacherFilter"><option value="">Semua Guru</option></select>
+        <div class="wk-actions">
+          <button id="loadBtn" class="secondary-btn">Tampilkan</button>
+          <button id="downloadDetailBtn" class="primary-btn">Download Detail</button>
+          <button id="downloadSummaryBtn" class="secondary-btn">Download Ringkasan</button>
+          <button id="printBtn" class="secondary-btn">Cetak / PDF</button>
+        </div>
+      </section>
+
+      <section class="wk-grid">
+        <article class="wk-card">
+          <div class="wk-title"><h3>Guru yang Mengajar di Kelas</h3><span id="teacherInfo">-</span></div>
+          <div id="teacherList" class="teacher-list"></div>
+        </article>
+        <article class="wk-card">
+          <div class="wk-title"><h3>Riwayat Input Absensi Guru</h3><span id="historyInfo">-</span></div>
+          <div id="historyList" class="history-list"></div>
+        </article>
+      </section>
+
+      <section class="wk-card">
+        <div class="wk-title"><h3>Ringkasan Kehadiran per Siswa</h3><span id="summaryInfo">-</span></div>
+        <div class="summary-table-wrap">
+          <table class="wk-table">
+            <thead><tr><th>No</th><th>Siswa</th><th>Hadir</th><th>Terlambat</th><th>Izin</th><th>Sakit</th><th>Alfa</th><th>Total Catatan</th></tr></thead>
+            <tbody id="summaryBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script src="wali-kelas.js"></script>
+</body>
+</html>

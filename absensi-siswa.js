@@ -216,10 +216,25 @@ async function saveAttendance(){
   const btn=$("saveBtn");btn.disabled=true;btn.textContent="Menyimpan...";
   try{
     const count=await api.db.rpc("save_class_student_attendance",{p_class_id:selectedClass.class_id,p_date:$("attendanceDate").value,p_items:items});
+    let archived=true;
+    if(isTeacherMode){
+      try{
+        await api.db.rpc("archive_teacher_class_attendance",{
+          p_class_id:selectedClass.class_id,
+          p_date:$("attendanceDate").value,
+          p_items:items
+        });
+      }catch(archiveErr){
+        archived=false;
+        console.warn("Arsip absensi untuk wali kelas gagal:",archiveErr);
+      }
+    }
     await loadAttendance();
     await refreshTodayProgress();
     renderTodayClasses();
-    alert(`${count} data absensi berhasil disimpan.`);
+    alert(archived
+      ?`${count} data absensi berhasil disimpan.`
+      :`${count} data absensi berhasil disimpan.\n\nCatatan: arsip rekap Wali Kelas belum berhasil dicatat. Pastikan SQL Wali Kelas V1 sudah dijalankan.`);
   }catch(err){alert("Gagal menyimpan absensi: "+(err.message||err))}
   finally{btn.textContent="Simpan Absensi";updateSaveInfo()}
 }
