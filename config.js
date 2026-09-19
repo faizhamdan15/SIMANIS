@@ -3,11 +3,12 @@ window.SIMANIS_CONFIG = {
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_wq4BZQjDm33hVB6E6QISuA_cQP7xmEH"
 };
 
-/* Global mobile navigation for internal SIMANIS pages. */
+/* Global add-ons SIMANIS. */
 (function(){
   const files = [
     "global-mobile-nav.js",
-    "dashboard-guru-personal-v5.js"
+    "dashboard-guru-personal-v5.js",
+    "pretty-news-links.js"
   ];
 
   files.forEach(src => {

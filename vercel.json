@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/berita/:slug",
+      "destination": "/api/berita/:slug"
+    }
+  ]
+}
