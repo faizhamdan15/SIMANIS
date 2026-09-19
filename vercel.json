@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/berita/:slug",
-      "destination": "/api/berita/:slug"
+      "destination": "/api/berita?slug=:slug"
     }
   ]
 }
