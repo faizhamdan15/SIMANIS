@@ -1,327 +1,220 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kartu Guru | Absensi MA Nurul Islam</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kartu Guru — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
   <style>
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f3f6f4;color:#1f2937}
-    .topbar{background:linear-gradient(135deg,#064e3b,#047857);color:#fff;padding:20px;position:sticky;top:0;z-index:20;box-shadow:0 8px 25px rgba(0,0,0,.12)}
-    .topbar-inner{max-width:1100px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:14px}
-    .topbar h1{margin:0;font-size:23px}.topbar p{margin:5px 0 0;opacity:.82;font-size:13px}
-    .back{color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.35);border-radius:12px;padding:10px 14px;white-space:nowrap}
-    main{max-width:1100px;margin:auto;padding:24px 16px 50px}
-    .panel{background:#fff;border-radius:20px;box-shadow:0 12px 40px rgba(6,78,59,.08);padding:20px}
-    .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:18px}
-    .search{min-width:240px;flex:1;height:46px;border:1px solid #d1d5db;border-radius:12px;padding:0 14px;font-size:15px;outline:none}
-    .search:focus{border-color:#059669;box-shadow:0 0 0 3px rgba(5,150,105,.1)}
-    .summary{font-size:13px;color:#6b7280}.list{display:grid;gap:12px}
-    .teacher{border:1px solid #e5e7eb;border-radius:16px;padding:15px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center}
-    .teacher h3{margin:0;font-size:17px;color:#064e3b}.teacher p{margin:5px 0 0;color:#6b7280;font-size:13px}
-    .badge{display:inline-block;margin-top:8px;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:bold}
-    .badge.on{background:#dcfce7;color:#166534}.badge.off{background:#f3f4f6;color:#4b5563}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-    button{border:0;border-radius:11px;padding:10px 12px;font-weight:bold;cursor:pointer}
-    button:disabled{opacity:.5;cursor:not-allowed}.primary{background:#047857;color:#fff}.secondary{background:#ecfdf5;color:#065f46}.danger{background:#fee2e2;color:#991b1b}
-    .empty,.loading{text-align:center;color:#6b7280;padding:35px 12px}
-    .message{display:none;margin-bottom:14px;padding:12px;border-radius:12px;font-size:13px}
-    .message.show{display:block}.message.ok{background:#dcfce7;color:#166534}.message.error{background:#fee2e2;color:#991b1b}
-    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;padding:20px;overflow:auto}
-    .modal.show{display:flex;align-items:center;justify-content:center}
-    .modal-box{width:min(520px,100%);background:#fff;border-radius:22px;padding:20px;position:relative}
-    .close{position:absolute;right:12px;top:12px;background:#f3f4f6;width:36px;height:36px;border-radius:50%;padding:0}
-    .id-card{width:100%;aspect-ratio:1.586/1;background:linear-gradient(135deg,#064e3b,#047857);border-radius:20px;padding:24px;color:#fff;overflow:hidden;position:relative;box-shadow:0 16px 40px rgba(0,0,0,.2)}
-    .id-card::after{content:"";position:absolute;width:180px;height:180px;border:28px solid rgba(255,255,255,.06);border-radius:50%;right:-70px;bottom:-80px}
-    .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative;z-index:2}
-    .card-brand{font-weight:bold;font-size:17px}.card-sub{font-size:10px;opacity:.8;margin-top:3px}
-    .card-body{margin-top:26px;display:grid;grid-template-columns:1fr 120px;gap:15px;align-items:center;position:relative;z-index:2}
-    .card-name{font-size:22px;font-weight:bold;line-height:1.2}.card-meta{margin-top:8px;font-size:12px;line-height:1.6;opacity:.9}
-    .qr-wrap{background:#fff;border-radius:14px;padding:8px;width:116px;height:116px;display:flex;align-items:center;justify-content:center}
-    .card-foot{position:absolute;left:24px;bottom:20px;font-size:9px;opacity:.75;z-index:2}
-    .modal-actions{display:flex;gap:10px;margin-top:16px}.modal-actions button{flex:1}
-    @media(max-width:650px){.teacher{grid-template-columns:1fr}.actions{justify-content:flex-start}.id-card{padding:18px}.card-body{grid-template-columns:1fr 92px}.qr-wrap{width:90px;height:90px;padding:6px}.card-name{font-size:18px}.card-foot{left:18px;bottom:14px}}
-    @media print{
-      body *{visibility:hidden!important}
-      #cardModal,#cardModal *{visibility:visible!important}
-      #cardModal{display:block!important;position:static;padding:0;background:#fff}
-      .modal-box{box-shadow:none;padding:0;width:86mm}
-      .close,.modal-actions{display:none!important}
-      .id-card{width:86mm;height:54mm;border-radius:4mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    }
+    .kg-wrap{max-width:1050px;margin:auto}
+    .kg-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-bottom:18px}
+    .kg-head h2{margin:0;color:var(--green-950)}.kg-head p{margin:6px 0 0;color:var(--muted);font-size:11px}
+    .kg-back{display:inline-flex;text-decoration:none;border:1px solid var(--line);padding:10px 13px;border-radius:11px;color:var(--green-900);font-size:11px;font-weight:800;background:#fff}
+    .kg-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px}
+    .kg-search{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;margin-bottom:14px}
+    .kg-list{display:grid;gap:10px}.kg-item{border:1px solid #e4ebe7;border-radius:14px;padding:13px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+    .kg-name{font-weight:800;color:var(--green-950);font-size:13px}.kg-meta{font-size:10px;color:var(--muted);margin-top:4px}.kg-badge{display:inline-flex;margin-top:7px;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800}.kg-on{background:#dff4e7;color:#08743f}.kg-off{background:#f1f3f2;color:#65736b}
+    .kg-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.kg-actions button{border:1px solid #d7e2dc;background:#fff;border-radius:9px;padding:8px 9px;font-size:9px;font-weight:800;color:var(--green-900);cursor:pointer}.kg-actions .primary{background:var(--green-800);color:#fff;border-color:var(--green-800)}.kg-actions .danger{color:#a52d22}
+    .kg-card-modal{position:fixed;inset:0;background:#0007;display:grid;place-items:center;padding:20px;z-index:9999}.kg-card-modal.hidden{display:none}.kg-modal-box{background:#fff;border-radius:20px;padding:18px;width:min(500px,100%)}
+    .teacher-card{width:100%;aspect-ratio:1.586/1;border-radius:18px;padding:22px;background:linear-gradient(135deg,#075b3a,#0b7347);color:#fff;display:grid;grid-template-columns:1fr 120px;gap:18px;align-items:center}.teacher-card h3{font-size:22px;margin:0}.teacher-card p{font-size:11px;opacity:.8}.qr-box{background:#fff;padding:8px;border-radius:12px;width:116px;height:116px;display:grid;place-items:center}
+    .kg-modal-actions{display:flex;gap:8px;margin-top:12px}.kg-modal-actions button{flex:1;border:0;border-radius:10px;padding:11px;font-weight:800;cursor:pointer}.kg-modal-actions .primary{background:var(--green-800);color:#fff}
+    @media(max-width:700px){.kg-item{grid-template-columns:1fr}.kg-actions{justify-content:flex-start}.teacher-card{grid-template-columns:1fr 95px;padding:16px}.qr-box{width:92px;height:92px;padding:5px}}
+    @media print{body *{visibility:hidden!important}.teacher-card,.teacher-card *{visibility:visible!important}.teacher-card{position:absolute;left:0;top:0;width:86mm;height:54mm;border-radius:3mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   </style>
 </head>
 <body>
-
-<header class="topbar">
-  <div class="topbar-inner">
-    <div>
-      <h1>Kartu Guru</h1>
-      <p>MA Nurul Islam — Manajemen QR Absensi Guru</p>
-    </div>
-    <a class="back" href="admin.html">← Dashboard Admin</a>
-  </div>
-</header>
-
-<main>
-  <div id="message" class="message"></div>
-
-  <section class="panel">
-    <div class="toolbar">
-      <input id="searchInput" class="search" type="search" placeholder="Cari nama, NIP, atau mapel..." autocomplete="off">
-      <div id="summary" class="summary">Memuat data...</div>
-    </div>
-
-    <div id="teacherList" class="list">
-      <div class="loading">Memuat data guru...</div>
-    </div>
+<div id="loading" class="loading-overlay">Memuat Kartu Guru...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Kartu Guru</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+    <main class="main">
+      <div class="kg-wrap">
+        <section class="kg-head">
+          <div><h2>Kartu Guru</h2><p>Terbitkan, cetak, pakai kartu lama, atau blokir kartu QR untuk absensi SIMANIS.</p></div>
+          <a class="kg-back" href="absensi-guru.html">← Absensi Guru</a>
+        </section>
+        <section class="kg-panel">
+          <input id="searchInput" class="kg-search" type="search" placeholder="Cari nama atau kode guru...">
+          <div id="teacherList" class="kg-list"></div>
+        </section>
+      </div>
+    </main>
   </section>
-</main>
+</div>
 
-<div id="cardModal" class="modal">
-  <div class="modal-box">
-    <button class="close" onclick="closeCard()">×</button>
-
-    <div class="id-card">
-      <div class="card-head">
-        <div>
-          <div class="card-brand">KARTU GURU</div>
-          <div class="card-sub">MA NURUL ISLAM</div>
-        </div>
-        <div style="font-size:11px;font-weight:bold">SIMANIS</div>
+<div id="cardModal" class="kg-card-modal hidden">
+  <div class="kg-modal-box">
+    <div class="teacher-card">
+      <div>
+        <p style="margin:0 0 8px;font-weight:800;letter-spacing:.7px">KARTU GURU • MA NURUL ISLAM</p>
+        <h3 id="cardName">-</h3>
+        <p id="cardMeta">-</p>
+        <p style="margin-top:22px">SIMANIS • Kartu Absensi</p>
       </div>
-
-      <div class="card-body">
-        <div>
-          <div id="cardName" class="card-name">Nama Guru</div>
-          <div id="cardMeta" class="card-meta"></div>
-        </div>
-        <div id="cardQr" class="qr-wrap"></div>
-      </div>
-
-      <div class="card-foot">
-        Scan QR pada Kiosk Absensi Guru • Kartu tidak dapat dipindahtangankan
-      </div>
+      <div id="qrBox" class="qr-box"></div>
     </div>
-
-    <div class="modal-actions">
-      <button class="secondary" onclick="closeCard()">Tutup</button>
+    <div class="kg-modal-actions">
+      <button onclick="closeCard()">Tutup</button>
       <button class="primary" onclick="window.print()">Cetak Kartu</button>
     </div>
   </div>
 </div>
 
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
 <script>
-const SUPABASE_URL = "https://aprqpppobvxqdahhuubk.supabase.co";
-const SUPABASE_KEY = "sb_publishable_Dy0Opz4r-uCdR9-vV1MJig_jQOripwW";
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+const ADMIN_ROLES=["SUPER_ADMIN","TU","WAKA_KURIKULUM"];
+let api,profile,teachers=[],cards=new Map();
 
-let session = null;
-let teachers = [];
+function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function formatRole(r){return (r||"-").replaceAll("_"," ")}
+function todayYMD(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
+function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
+function routeFor(code){return {DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html"}[code]||"#"}
 
-function esc(value){
-  return String(value ?? "")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+async function loadProfile(user){
+  const r=await api.db.select("profiles",`select=id,full_name,role,is_active,teacher_id&id=eq.${encodeURIComponent(user.id)}&limit=1`);
+  if(!r?.[0])throw new Error("Profil pengguna tidak ditemukan.");
+  if(!r[0].is_active)throw new Error("Akun tidak aktif.");
+  if(!ADMIN_ROLES.includes(r[0].role))throw new Error("Anda tidak memiliki akses Kartu Guru.");
+  return r[0];
 }
 
-function showMessage(text, type="ok"){
-  const el = document.getElementById("message");
-  el.textContent = text;
-  el.className = `message show ${type}`;
-  setTimeout(()=>{ el.className = "message"; }, 5000);
+async function loadMenu(){
+  const m=await api.db.rpc("get_my_modules",{});
+  $("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${x.code==="ABSENSI_GURU"?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("");
 }
 
-async function requireAdmin(){
-  const {data:{session:current}} = await db.auth.getSession();
+async function loadData(){
+  const attendance=await api.db.rpc("get_teacher_attendance_by_date",{p_date:todayYMD()})||[];
+  const seen=new Map();
+  attendance.forEach(r=>{
+    if(r.teacher_id&&!seen.has(r.teacher_id)){
+      seen.set(r.teacher_id,{
+        teacher_id:r.teacher_id,
+        teacher_name:r.teacher_name||"Guru",
+        teacher_code:r.teacher_code||"",
+        schedule_detail:r.schedule_detail||""
+      });
+    }
+  });
+  teachers=[...seen.values()].sort((a,b)=>a.teacher_name.localeCompare(b.teacher_name,"id"));
 
-  if (!current){
-    window.location.href = "index.html";
-    return false;
-  }
-
-  const {data:profile,error} = await db
-    .from("profiles")
-    .select("id,full_name,role,active")
-    .eq("id",current.user.id)
-    .single();
-
-  if (error || !profile || profile.role !== "ADMIN" || !profile.active){
-    await db.auth.signOut();
-    window.location.href = "index.html";
-    return false;
-  }
-
-  session = current;
-  return true;
+  const cardRows=await api.db.rpc("list_teacher_cards",{})||[];
+  cards=new Map(cardRows.map(c=>[c.teacher_id,c]));
+  render();
 }
 
-async function api(path, options={}){
-  const headers = {
-    ...(options.headers || {}),
-    Authorization:`Bearer ${session.access_token}`
-  };
+function render(){
+  const q=$("searchInput").value.trim().toLowerCase();
+  const list=teachers.filter(t=>`${t.teacher_name} ${t.teacher_code}`.toLowerCase().includes(q));
 
-  if (options.body){
-    headers["Content-Type"] = "application/json";
-  }
-
-  const response = await fetch(path,{...options,headers});
-  let data = {};
-
-  try{ data = await response.json(); }catch(_){}
-
-  if (!response.ok){
-    throw new Error(data.error || "Permintaan gagal.");
-  }
-
-  return data;
-}
-
-async function loadTeachers(){
-  document.getElementById("teacherList").innerHTML =
-    '<div class="loading">Memuat data guru...</div>';
-
-  try{
-    const data = await api("/api/card-admin",{method:"GET"});
-    teachers = data.teachers || [];
-    renderTeachers();
-  }catch(error){
-    document.getElementById("teacherList").innerHTML =
-      '<div class="empty">Data guru gagal dimuat.</div>';
-    showMessage(error.message,"error");
-  }
-}
-
-function renderTeachers(){
-  const q = document.getElementById("searchInput").value.trim().toLowerCase();
-
-  const filtered = teachers.filter(t =>
-    `${t.full_name} ${t.nip} ${t.subject_name}`.toLowerCase().includes(q)
-  );
-
-  const activeCards = teachers.filter(t => t.qr_enabled && t.qr_token).length;
-
-  document.getElementById("summary").textContent =
-    `${teachers.length} guru • ${activeCards} kartu aktif`;
-
-  const list = document.getElementById("teacherList");
-
-  if (!filtered.length){
-    list.innerHTML = '<div class="empty">Guru tidak ditemukan.</div>';
+  if(!list.length){
+    $("teacherList").innerHTML='<div class="empty-state">Tidak ada guru yang cocok.</div>';
     return;
   }
 
-  list.innerHTML = filtered.map(t => {
-    const cardActive = t.qr_enabled && t.qr_token;
-
-    return `
-      <article class="teacher">
-        <div>
-          <h3>${esc(t.full_name)}</h3>
-          <p>${esc(t.subject_name || "Guru")}${t.nip ? ` • ${esc(t.nip)}` : ""}</p>
-          <span class="badge ${cardActive ? "on" : "off"}">
-            ${cardActive ? "KARTU AKTIF" : "BELUM ADA KARTU"}
-          </span>
-        </div>
-
-        <div class="actions">
-          ${
-            cardActive
-            ? `
-              <button class="secondary" onclick="openCard('${esc(t.id)}')">Lihat / Cetak</button>
-              <button class="primary" onclick="changeCard('REISSUE','${esc(t.id)}')">Ganti Kartu</button>
-              <button class="danger" onclick="changeCard('REVOKE','${esc(t.id)}')">Nonaktifkan</button>
-            `
-            : `<button class="primary" onclick="changeCard('ISSUE','${esc(t.id)}')">Terbitkan Kartu</button>`
-          }
-        </div>
-      </article>
-    `;
+  $("teacherList").innerHTML=list.map(t=>{
+    const c=cards.get(t.teacher_id);
+    const active=!!c?.is_active;
+    return `<article class="kg-item">
+      <div>
+        <div class="kg-name">${esc(t.teacher_name)}</div>
+        <div class="kg-meta">Kode ${esc(t.teacher_code||"-")}</div>
+        <span class="kg-badge ${active?"kg-on":"kg-off"}">${active?"KARTU AKTIF":"BELUM AKTIF"}</span>
+      </div>
+      <div class="kg-actions">
+        ${active?`
+          <button onclick="showCard('${t.teacher_id}')">Lihat / Cetak</button>
+          <button class="primary" onclick="issueNew('${t.teacher_id}')">Ganti QR</button>
+          <button class="danger" onclick="revokeCard('${t.teacher_id}')">Blokir</button>
+        `:`
+          <button class="primary" onclick="issueNew('${t.teacher_id}')">Terbitkan Kartu</button>
+          <button onclick="importOld('${t.teacher_id}')">Pakai Kartu Lama</button>
+        `}
+      </div>
+    </article>`;
   }).join("");
 }
 
-async function changeCard(action, teacherId){
-  const teacher = teachers.find(t => t.id === teacherId);
-  if (!teacher) return;
-
-  if (
-    action === "REISSUE" &&
-    !confirm(`Terbitkan kartu baru untuk ${teacher.full_name}? Kartu lama akan langsung tidak berlaku.`)
-  ) return;
-
-  if (
-    action === "REVOKE" &&
-    !confirm(`Nonaktifkan kartu ${teacher.full_name}? QR lama tidak dapat digunakan lagi.`)
-  ) return;
-
+async function issueNew(id){
+  if(cards.get(id)?.is_active&&!confirm("Ganti QR kartu guru ini? QR lama langsung tidak berlaku."))return;
   try{
-    const data = await api("/api/card-admin",{
-      method:"POST",
-      body:JSON.stringify({
-        action,
-        teacher_id:teacherId
-      })
-    });
+    const r=await api.db.rpc("issue_teacher_card",{p_teacher_id:id,p_token:null});
+    await loadData();
+    showCard(id);
+  }catch(e){alert("Gagal menerbitkan kartu: "+e.message)}
+}
 
-    showMessage(data.message || "Kartu guru diperbarui.");
-    await loadTeachers();
+async function importOld(id){
+  const token=prompt("Scan atau tempel token QR kartu lama di sini:");
+  if(!token?.trim())return;
+  try{
+    await api.db.rpc("issue_teacher_card",{p_teacher_id:id,p_token:token.trim()});
+    await loadData();
+    showCard(id);
+  }catch(e){alert("Gagal memakai kartu lama: "+e.message)}
+}
 
-    if (action === "ISSUE" || action === "REISSUE"){
-      openCard(teacherId);
-    }
-  }catch(error){
-    showMessage(error.message,"error");
+async function revokeCard(id){
+  if(!confirm("Blokir kartu guru ini? Kartu tidak bisa dipakai di kiosk."))return;
+  try{
+    await api.db.rpc("revoke_teacher_card",{p_teacher_id:id});
+    await loadData();
+  }catch(e){alert("Gagal memblokir kartu: "+e.message)}
+}
+
+function showCard(id){
+  const t=teachers.find(x=>x.teacher_id===id);
+  const c=cards.get(id);
+  if(!t||!c?.is_active)return;
+
+  $("cardName").textContent=t.teacher_name;
+  $("cardMeta").textContent=`Kode ${t.teacher_code||"-"}`;
+  $("qrBox").innerHTML="";
+  new QRCode($("qrBox"),{text:c.card_token,width:100,height:100,correctLevel:QRCode.CorrectLevel.H});
+  $("cardModal").classList.remove("hidden");
+}
+function closeCard(){$("cardModal").classList.add("hidden")}
+
+$("searchInput").oninput=render;
+$("cardModal").onclick=e=>{if(e.target===$("cardModal"))closeCard()};
+
+(async function boot(){
+  try{
+    api=await window.simanisReady;
+    const session=await api.auth.getSession();
+    if(!session){location.replace("index.html");return}
+    const user=await api.auth.getUser();
+    profile=await loadProfile(user);
+
+    $("sideUserName").textContent=profile.full_name||user.email||"Pengguna";
+    $("sideUserRole").textContent=formatRole(profile.role);
+    $("headerUser").textContent=profile.full_name||user.email||"Pengguna";
+    $("currentDate").textContent=localDateID();
+
+    await loadMenu();
+    await loadData();
+
+    $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")};
+  }catch(err){
+    console.error(err);
+    alert("Kartu Guru gagal dimuat: "+(err.message||err));
+    location.replace("absensi-guru.html");
+  }finally{
+    $("loading").classList.add("hidden");
   }
-}
-
-function openCard(teacherId){
-  const teacher = teachers.find(t => t.id === teacherId);
-
-  if (!teacher || !teacher.qr_enabled || !teacher.qr_token){
-    showMessage("Kartu guru belum aktif.","error");
-    return;
-  }
-
-  document.getElementById("cardName").textContent = teacher.full_name;
-  document.getElementById("cardMeta").innerHTML =
-    `${esc(teacher.subject_name || "Guru")}<br>` +
-    `${teacher.nip ? "NIP/Nomor: " + esc(teacher.nip) : "MA Nurul Islam"}`;
-
-  const qr = document.getElementById("cardQr");
-  qr.innerHTML = "";
-
-  new QRCode(qr,{
-    text:teacher.qr_token,
-    width:100,
-    height:100,
-    correctLevel:QRCode.CorrectLevel.H
-  });
-
-  document.getElementById("cardModal").classList.add("show");
-}
-
-function closeCard(){
-  document.getElementById("cardModal").classList.remove("show");
-}
-
-document.getElementById("searchInput")
-  .addEventListener("input",renderTeachers);
-
-async function init(){
-  const allowed = await requireAdmin();
-  if (!allowed) return;
-  await loadTeachers();
-}
-
-init();
+})();
 </script>
 </body>
 </html>

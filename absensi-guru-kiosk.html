@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kiosk Absensi Guru — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--green:#075b3a;--green2:#0b7347;--gold:#c99a2e}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,Arial,sans-serif;background:linear-gradient(145deg,#06452f,#0a6942);color:#fff;display:grid;place-items:center;padding:20px}
+    .shell{width:min(820px,100%)}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:20px}.brand h1{margin:0;font-size:24px}.brand p{margin:5px 0 0;font-size:12px;opacity:.75}
+    .back{color:#fff;text-decoration:none;border:1px solid #ffffff55;border-radius:11px;padding:9px 12px;font-size:11px;font-weight:800}
+    .clock{text-align:center;margin:25px 0}.clock strong{font-size:52px;letter-spacing:1px}.clock span{display:block;margin-top:8px;opacity:.75;font-size:13px}
+    .panel{background:#fff;color:#17372c;border-radius:26px;padding:25px;box-shadow:0 25px 65px #0005;text-align:center}.scanner{width:88px;height:88px;border-radius:25px;background:#eaf7f1;color:var(--green);display:grid;place-items:center;margin:auto;font-size:34px;font-weight:800}
+    .panel h2{margin:18px 0 6px;color:var(--green);font-size:24px}.panel p{margin:0;color:#718078;font-size:13px;line-height:1.6}
+    #tokenInput{width:100%;height:56px;margin-top:20px;border:2px solid #d7e2dc;border-radius:14px;padding:0 14px;font-size:16px;outline:none;text-align:center}#tokenInput:focus{border-color:#0b7347;box-shadow:0 0 0 4px #0b73471a}
+    .hint{font-size:10px!important;margin-top:10px!important}.result{display:none;margin-top:18px;padding:18px;border-radius:18px}.result.show{display:block}.success{background:#e5f6eb;color:#166534}.info{background:#eef5ff;color:#31558f}.warning{background:#fff4d7;color:#8a5a00}.error{background:#ffe8e5;color:#a52d22}
+    .result-label{font-size:10px;font-weight:800;letter-spacing:1px}.result-name{font-size:22px;font-weight:800;margin-top:6px}.result-msg{font-size:13px;margin-top:6px}.result-detail{font-size:10px;margin-top:5px;opacity:.8}
+    .footer{text-align:center;margin-top:14px;font-size:10px;opacity:.72}
+    @media(max-width:560px){.clock strong{font-size:42px}.panel{padding:20px}.top{align-items:flex-start}.brand h1{font-size:20px}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <div class="top">
+    <div class="brand"><h1>SIMANIS • ABSENSI GURU</h1><p>Kiosk Scanner Kartu Guru</p></div>
+    <a class="back" href="absensi-guru.html">← Kembali</a>
+  </div>
+
+  <div class="clock">
+    <strong id="clock">00:00:00</strong>
+    <span id="date">-</span>
+  </div>
+
+  <main class="panel">
+    <div class="scanner">QR</div>
+    <h2>Silakan Scan Kartu Guru</h2>
+    <p>Scanner USB/2D bekerja seperti keyboard. Setelah QR terbaca dan Enter terkirim, SIMANIS memproses absensi otomatis.</p>
+
+    <input id="tokenInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Scan kartu di sini">
+    <p class="hint">Kiosk harus login menggunakan akun pengelola Absensi Guru SIMANIS.</p>
+
+    <div id="result" class="result">
+      <div id="resultLabel" class="result-label"></div>
+      <div id="resultName" class="result-name"></div>
+      <div id="resultMsg" class="result-msg"></div>
+      <div id="resultDetail" class="result-detail"></div>
+    </div>
+  </main>
+
+  <div id="kioskUser" class="footer">Menyiapkan kiosk...</div>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const ADMIN_ROLES=["SUPER_ADMIN","TU","WAKA_KURIKULUM"];
+let api,profile,processing=false,resetTimer=null;
+
+function todayYMD(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
+function fmtTime(ts){if(!ts)return "-";return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(ts))}
+function updateClock(){const now=new Date();$("clock").textContent=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).format(now);$("date").textContent=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(now)}
+setInterval(updateClock,1000);updateClock();
+
+function show(style,label,name,msg,detail=""){
+  const box=$("result");box.className=`result show ${style}`;
+  $("resultLabel").textContent=label;$("resultName").textContent=name||"";$("resultMsg").textContent=msg||"";$("resultDetail").textContent=detail||"";
+  clearTimeout(resetTimer);resetTimer=setTimeout(()=>{box.className="result"},6500);
+}
+function refocus(){setTimeout(()=>$("tokenInput").focus(),100)}
+
+async function loadProfile(user){
+  const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
+  if(!r?.[0]||!r[0].is_active)throw new Error("Akun tidak aktif.");
+  if(!ADMIN_ROLES.includes(r[0].role))throw new Error("Akun tidak memiliki akses kiosk.");
+  return r[0];
+}
+
+async function processScan(){
+  if(processing)return;
+  const token=$("tokenInput").value.trim();
+  $("tokenInput").value="";
+  if(!token){refocus();return}
+  processing=true;
+
+  try{
+    const resolved=await api.db.rpc("resolve_teacher_card",{p_token:token})||[];
+    const teacherId=resolved?.[0]?.teacher_id;
+
+    if(!teacherId){
+      show("error","KARTU TIDAK VALID","", "Kartu tidak terdaftar, diblokir, atau QR tidak dikenali.");
+      return;
+    }
+
+    let rows=await api.db.rpc("get_teacher_attendance_by_date",{p_date:todayYMD()})||[];
+    let row=rows.find(r=>r.teacher_id===teacherId);
+
+    if(!row){
+      show("error","DATA GURU TIDAK DITEMUKAN","", "Guru kartu ini tidak ditemukan pada modul Absensi Guru.");
+      return;
+    }
+
+    if(!row.has_schedule){
+      show("info","TIDAK ADA JADWAL",row.teacher_name,"Guru tidak memiliki kewajiban hadir hari ini.","Tidak dihitung sebagai alfa.");
+      return;
+    }
+
+    if(!row.check_in){
+      await api.db.rpc("teacher_check_in",{p_teacher_id:teacherId,p_method:"QR_KIOSK",p_note:null});
+      rows=await api.db.rpc("get_teacher_attendance_by_date",{p_date:todayYMD()})||[];
+      row=rows.find(r=>r.teacher_id===teacherId);
+
+      const late=row?.attendance_status==="TERLAMBAT";
+      show(
+        late?"warning":"success",
+        late?"ABSEN MASUK • TERLAMBAT":"ABSEN MASUK BERHASIL",
+        row?.teacher_name||"",
+        late?`Terlambat ${row?.late_minutes||0} menit.`:"Kehadiran berhasil dicatat di SIMANIS.",
+        `Jam masuk ${fmtTime(row?.check_in)}`
+      );
+      return;
+    }
+
+    if(!row.check_out){
+      await api.db.rpc("teacher_check_out",{p_teacher_id:teacherId,p_method:"QR_KIOSK",p_note:null});
+      rows=await api.db.rpc("get_teacher_attendance_by_date",{p_date:todayYMD()})||[];
+      row=rows.find(r=>r.teacher_id===teacherId);
+
+      show("success","ABSEN PULANG BERHASIL",row?.teacher_name||"","Absensi hari ini telah lengkap.",`Jam pulang ${fmtTime(row?.check_out)}`);
+      return;
+    }
+
+    show("info","ABSENSI SUDAH LENGKAP",row.teacher_name,"Absen masuk dan pulang hari ini sudah tercatat.",`Masuk ${fmtTime(row.check_in)} • Pulang ${fmtTime(row.check_out)}`);
+
+  }catch(err){
+    console.error(err);
+    show("error","SCAN GAGAL","",err.message||"Kartu gagal diproses.");
+  }finally{
+    processing=false;
+    refocus();
+  }
+}
+
+$("tokenInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();processScan()}});
+document.addEventListener("click",e=>{if(e.target.tagName!=="A")refocus()});
+
+(async function boot(){
+  try{
+    api=await window.simanisReady;
+    const session=await api.auth.getSession();
+    if(!session){location.replace("index.html");return}
+    const user=await api.auth.getUser();
+    profile=await loadProfile(user);
+    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name}`;
+    refocus();
+  }catch(err){
+    alert("Kiosk tidak dapat dibuka: "+(err.message||err));
+    location.replace("absensi-guru.html");
+  }
+})();
+</script>
+</body>
+</html>

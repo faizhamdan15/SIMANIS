@@ -9,7 +9,8 @@ window.SIMANIS_CONFIG = {
     "global-mobile-nav.js",
     "dashboard-guru-personal-v5.js",
     "pretty-news-links.js",
-    "public-finish.js"
+    "public-finish.js",
+    "absensi-guru-card-addon.js"
   ];
 
   files.forEach(src => {
