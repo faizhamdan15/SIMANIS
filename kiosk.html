@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Kiosk Absensi Guru | MA Nurul Islam</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    *{
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
+      font-family:Arial,Helvetica,sans-serif;
+    }
+
+    body{
+      min-height:100vh;
+      background:
+        linear-gradient(
+          160deg,
+          #064e3b,
+          #047857
+        );
+      color:white;
+    }
+
+    .page{
+      min-height:100vh;
+      max-width:850px;
+      margin:auto;
+      padding:35px 18px 30px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+    }
+
+    .brand{
+      text-align:center;
+    }
+
+    .brand h1{
+      font-size:34px;
+      letter-spacing:.5px;
+    }
+
+    .brand p{
+      margin-top:8px;
+      font-size:22px;
+      opacity:.85;
+    }
+
+    .clock{
+      margin-top:30px;
+      text-align:center;
+    }
+
+    #clock{
+      font-size:64px;
+      font-weight:bold;
+      line-height:1;
+      letter-spacing:2px;
+    }
+
+    #date{
+      margin-top:12px;
+      font-size:20px;
+      opacity:.85;
+    }
+
+    .card{
+      width:100%;
+      background:white;
+      color:#1f2937;
+      border-radius:30px;
+      padding:36px 32px;
+      margin-top:35px;
+      box-shadow:
+        0 20px 60px rgba(0,0,0,.18);
+      text-align:center;
+    }
+
+    .scan-icon{
+      width:130px;
+      height:130px;
+      border-radius:34px;
+      background:#ecfdf5;
+      margin:auto;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:60px;
+    }
+
+    .scan-title{
+      margin-top:28px;
+      color:#065f46;
+      font-size:30px;
+      font-weight:bold;
+    }
+
+    .scan-description{
+      margin-top:12px;
+      color:#6b7280;
+      font-size:17px;
+      line-height:1.6;
+    }
+
+    #tokenInput{
+      width:100%;
+      height:65px;
+      border:2px solid #d1d5db;
+      border-radius:17px;
+      padding:0 18px;
+      margin-top:27px;
+      font-size:17px;
+      outline:none;
+    }
+
+    #tokenInput:focus{
+      border-color:#10b981;
+      box-shadow:
+        0 0 0 4px rgba(16,185,129,.12);
+    }
+
+    #scanButton{
+      width:100%;
+      height:62px;
+      border:none;
+      border-radius:17px;
+      background:#059669;
+      color:white;
+      font-size:18px;
+      font-weight:bold;
+      margin-top:14px;
+      cursor:pointer;
+    }
+
+    #scanButton:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+
+    .hint{
+      margin-top:20px;
+      color:#9ca3af;
+      font-size:13px;
+      line-height:1.5;
+    }
+
+    .result{
+      display:none;
+      margin-top:28px;
+      border-radius:24px;
+      padding:26px 22px;
+      text-align:center;
+    }
+
+    .result-icon{
+      font-size:55px;
+      line-height:1;
+    }
+
+    .result-label{
+      margin-top:12px;
+      font-size:13px;
+      font-weight:bold;
+      letter-spacing:1.2px;
+    }
+
+    .result-name{
+      font-size:28px;
+      font-weight:bold;
+      margin-top:9px;
+    }
+
+    .result-message{
+      font-size:16px;
+      line-height:1.6;
+      margin-top:10px;
+    }
+
+    .result-detail{
+      margin-top:11px;
+      font-size:13px;
+      opacity:.8;
+    }
+
+    .result.success{
+      display:block;
+      background:#dcfce7;
+      color:#166534;
+    }
+
+    .result.late{
+      display:block;
+      background:#fef3c7;
+      color:#92400e;
+    }
+
+    .result.holiday{
+      display:block;
+      background:#e0f2fe;
+      color:#075985;
+    }
+
+    .result.info{
+      display:block;
+      background:#f3f4f6;
+      color:#374151;
+    }
+
+    .result.warning{
+      display:block;
+      background:#fef3c7;
+      color:#92400e;
+    }
+
+    .result.error{
+      display:block;
+      background:#fee2e2;
+      color:#991b1b;
+    }
+
+    .kiosk-user{
+      margin-top:28px;
+      font-size:13px;
+      opacity:.8;
+      text-align:center;
+    }
+
+    #logoutButton{
+      margin-top:14px;
+      background:transparent;
+      color:white;
+      border:1px solid rgba(255,255,255,.35);
+      border-radius:13px;
+      padding:11px 18px;
+      cursor:pointer;
+      font-size:14px;
+    }
+
+    #loadingOverlay{
+      position:fixed;
+      inset:0;
+      background:#064e3b;
+      z-index:9999;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:white;
+      font-weight:bold;
+      font-size:17px;
+    }
+
+    @media(max-width:600px){
+
+      .page{
+        padding-top:28px;
+      }
+
+      .brand h1{
+        font-size:27px;
+      }
+
+      .brand p{
+        font-size:18px;
+      }
+
+      #clock{
+        font-size:53px;
+      }
+
+      #date{
+        font-size:17px;
+      }
+
+      .card{
+        padding:27px 22px;
+        border-radius:26px;
+      }
+
+      .scan-icon{
+        width:110px;
+        height:110px;
+        font-size:49px;
+      }
+
+      .scan-title{
+        font-size:25px;
+      }
+
+      .result-name{
+        font-size:25px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="loadingOverlay">
+  Menyiapkan kiosk absensi...
+</div>
+
+
+<main class="page">
+
+  <div class="brand">
+    <h1>ABSENSI GURU</h1>
+    <p>MA Nurul Islam</p>
+  </div>
+
+
+  <div class="clock">
+    <div id="clock">00:00:00</div>
+    <div id="date">Memuat tanggal...</div>
+  </div>
+
+
+  <section class="card">
+
+    <div class="scan-icon">
+      ▣
+    </div>
+
+    <div class="scan-title">
+      Silakan Scan Kartu Guru
+    </div>
+
+    <div class="scan-description">
+      Dekatkan QR Code kartu guru pada scanner.
+    </div>
+
+
+    <input
+      id="tokenInput"
+      type="text"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      placeholder="Simulasi: masukkan token QR"
+    >
+
+
+    <button
+      id="scanButton"
+      onclick="processScan()"
+    >
+      Proses Scan
+    </button>
+
+
+    <div class="hint">
+      Scanner USB HID akan bekerja seperti keyboard.
+      Setelah QR terbaca dan scanner mengirim Enter,
+      absensi akan diproses otomatis.
+    </div>
+
+
+    <div id="resultBox" class="result">
+
+      <div
+        id="resultIcon"
+        class="result-icon"
+      ></div>
+
+      <div
+        id="resultLabel"
+        class="result-label"
+      ></div>
+
+      <div
+        id="resultName"
+        class="result-name"
+      ></div>
+
+      <div
+        id="resultMessage"
+        class="result-message"
+      ></div>
+
+      <div
+        id="resultDetail"
+        class="result-detail"
+      ></div>
+
+    </div>
+
+  </section>
+
+
+  <div
+    id="kioskUser"
+    class="kiosk-user"
+  >
+    Kiosk aktif
+  </div>
+
+
+  <button
+    id="logoutButton"
+    onclick="logout()"
+  >
+    Keluar dari Kiosk
+  </button>
+
+</main>
+
+
+<script>
+
+const SUPABASE_URL =
+  "https://aprqpppobvxqdahhuubk.supabase.co";
+
+const SUPABASE_KEY =
+  "sb_publishable_Dy0Opz4r-uCdR9-vV1MJig_jQOripwW";
+
+const db =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+
+let currentSession = null;
+
+let kioskAdmin = null;
+
+let resetTimer = null;
+
+
+// =====================================
+// CLOCK WIB
+// =====================================
+
+function updateClock(){
+
+  const now =
+    new Date();
+
+
+  document
+    .getElementById("clock")
+    .textContent =
+    new Intl.DateTimeFormat(
+      "id-ID",
+      {
+        timeZone:"Asia/Jakarta",
+        hour:"2-digit",
+        minute:"2-digit",
+        second:"2-digit",
+        hourCycle:"h23"
+      }
+    )
+    .format(now);
+
+
+  document
+    .getElementById("date")
+    .textContent =
+    new Intl.DateTimeFormat(
+      "id-ID",
+      {
+        timeZone:"Asia/Jakarta",
+        weekday:"long",
+        day:"numeric",
+        month:"long",
+        year:"numeric"
+      }
+    )
+    .format(now);
+
+}
+
+
+setInterval(
+  updateClock,
+  1000
+);
+
+updateClock();
+
+
+// =====================================
+// CEK ADMIN
+// =====================================
+
+async function checkKiosk(){
+
+  const {
+    data:{
+      session
+    }
+  } =
+  await db.auth.getSession();
+
+
+  if(!session){
+
+    window.location.href =
+      "index.html";
+
+    return false;
+  }
+
+
+  currentSession =
+    session;
+
+
+  const {
+    data:profile,
+    error
+  } =
+  await db
+    .from("profiles")
+    .select(
+      "id,full_name,role,active"
+    )
+    .eq(
+      "id",
+      session.user.id
+    )
+    .single();
+
+
+  if(
+    error ||
+    !profile ||
+    profile.role !== "ADMIN" ||
+    !profile.active
+  ){
+
+    await db.auth.signOut();
+
+    window.location.href =
+      "index.html";
+
+    return false;
+  }
+
+
+  kioskAdmin =
+    profile;
+
+
+  document
+    .getElementById(
+      "kioskUser"
+    )
+    .innerHTML =
+    `Kiosk aktif sebagai: <strong>${escapeHTML(profile.full_name)}</strong>`;
+
+
+  return true;
+
+}
+
+
+// =====================================
+// ENTER DARI SCANNER
+// =====================================
+
+document
+  .getElementById(
+    "tokenInput"
+  )
+  .addEventListener(
+    "keydown",
+    event => {
+
+      if(
+        event.key === "Enter"
+      ){
+
+        event.preventDefault();
+
+        processScan();
+
+      }
+
+    }
+  );
+
+
+// =====================================
+// PROSES SCAN
+// =====================================
+
+async function processScan(){
+
+  const input =
+    document.getElementById(
+      "tokenInput"
+    );
+
+
+  const button =
+    document.getElementById(
+      "scanButton"
+    );
+
+
+  const token =
+    input.value.trim();
+
+
+  if(!token){
+
+    showResult({
+      style:"error",
+      icon:"❌",
+      label:"QR TIDAK TERBACA",
+      name:"",
+      message:
+        "Silakan scan kartu guru atau masukkan token QR.",
+      detail:""
+    });
+
+    refocus();
+
+    return;
+  }
+
+
+  if(!currentSession){
+
+    showResult({
+      style:"error",
+      icon:"❌",
+      label:"SESI BERAKHIR",
+      name:"",
+      message:
+        "Silakan login ulang sebagai Admin.",
+      detail:""
+    });
+
+    return;
+  }
+
+
+  button.disabled =
+    true;
+
+
+  button.textContent =
+    "Memproses...";
+
+
+  clearTimeout(
+    resetTimer
+  );
+
+
+  try{
+
+    const response =
+      await fetch(
+        "/api/kiosk-scan",
+        {
+          method:"POST",
+
+          headers:{
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `Bearer ${currentSession.access_token}`
+          },
+
+          body:
+            JSON.stringify({
+              qr_token:token
+            })
+        }
+      );
+
+
+    let data = {};
+
+
+    try{
+
+      data =
+        await response.json();
+
+    }
+    catch{
+
+      data = {
+        success:false,
+        error:
+          "Respons server tidak dapat dibaca."
+      };
+
+    }
+
+
+    input.value =
+      "";
+
+
+    // =================================
+    // BERHASIL
+    // =================================
+
+    if(
+      response.ok &&
+      data.success
+    ){
+
+      if(
+        data.action ===
+        "CHECK_IN"
+      ){
+
+        const status =
+          data.attendance?.status;
+
+
+        if(
+          status ===
+          "TERLAMBAT"
+        ){
+
+          showResult({
+            style:"late",
+            icon:"⏰",
+            label:"ABSEN MASUK",
+            name:
+              data.teacher?.full_name ||
+              "",
+            message:
+              data.attendance?.description ||
+              "Terlambat",
+            detail:
+              `Jam ${data.attendance?.time || "-"} • Batas ${data.attendance?.deadline || "-"}${data.teacher?.subject_name ? " • " + data.teacher.subject_name : ""}`
+          });
+
+        }
+        else{
+
+          showResult({
+            style:"success",
+            icon:"✅",
+            label:"ABSEN MASUK BERHASIL",
+            name:
+              data.teacher?.full_name ||
+              "",
+            message:
+              data.attendance?.description ||
+              "Hadir tepat waktu",
+            detail:
+              `Jam ${data.attendance?.time || "-"} • Batas ${data.attendance?.deadline || "-"}${data.teacher?.subject_name ? " • " + data.teacher.subject_name : ""}`
+          });
+
+        }
+
+      }
+
+
+      else if(
+        data.action ===
+        "CHECK_OUT"
+      ){
+
+        showResult({
+          style:"success",
+          icon:"🏠",
+          label:"ABSEN PULANG BERHASIL",
+          name:
+            data.teacher?.full_name ||
+            "",
+          message:
+            "Terima kasih. Absensi hari ini telah lengkap.",
+          detail:
+            `Jam pulang ${data.attendance?.time || "-"}${data.teacher?.subject_name ? " • " + data.teacher.subject_name : ""}`
+        });
+
+      }
+
+
+      else{
+
+        showResult({
+          style:"success",
+          icon:"✅",
+          label:"BERHASIL",
+          name:
+            data.teacher?.full_name ||
+            "",
+          message:
+            data.message ||
+            "Absensi berhasil.",
+          detail:""
+        });
+
+      }
+
+    }
+
+
+    // =================================
+    // HARI LIBUR
+    // =================================
+
+    else if(
+      data.type ===
+      "HOLIDAY"
+    ){
+
+      showResult({
+        style:"holiday",
+        icon:"🏖️",
+        label:"HARI LIBUR",
+        name:
+          data.teacher?.full_name ||
+          "",
+        message:
+          data.holiday?.name ||
+          data.error ||
+          "Hari ini merupakan hari libur madrasah.",
+        detail:
+          "Absensi tidak diperlukan."
+      });
+
+    }
+
+
+    // =================================
+    // TIDAK ADA JADWAL
+    // =================================
+
+    else if(
+      data.type ===
+      "NO_SCHEDULE"
+    ){
+
+      showResult({
+        style:"info",
+        icon:"📅",
+        label:"TIDAK ADA JADWAL",
+        name:
+          data.teacher?.full_name ||
+          "",
+        message:
+          "Guru tidak memiliki kewajiban hadir hari ini.",
+        detail:
+          "Tidak dihitung sebagai Alpha."
+      });
+
+    }
+
+
+    // =================================
+    // BELUM BOLEH PULANG
+    // =================================
+
+    else if(
+      data.type ===
+      "TOO_EARLY_CHECKOUT"
+    ){
+
+      showResult({
+        style:"warning",
+        icon:"🕒",
+        label:"BELUM WAKTUNYA PULANG",
+        name:
+          data.teacher?.full_name ||
+          "",
+        message:
+          data.error ||
+          "Belum waktunya absen pulang.",
+        detail:
+          data.checkout_start
+          ?
+          `Absen pulang mulai pukul ${data.checkout_start}.`
+          :
+          ""
+      });
+
+    }
+
+
+    // =================================
+    // DOUBLE SCAN
+    // =================================
+
+    else if(
+      data.type ===
+      "DUPLICATE_SCAN"
+    ){
+
+      showResult({
+        style:"info",
+        icon:"ℹ️",
+        label:"ABSEN SUDAH TERCATAT",
+        name:
+          data.teacher?.full_name ||
+          "",
+        message:
+          data.error ||
+          "Tidak perlu scan ulang.",
+        detail:""
+      });
+
+    }
+
+
+    // =================================
+    // SUDAH LENGKAP
+    // =================================
+
+    else if(
+      data.type ===
+      "ATTENDANCE_COMPLETE"
+    ){
+
+      showResult({
+        style:"success",
+        icon:"✅",
+        label:"ABSENSI SUDAH LENGKAP",
+        name:
+          data.teacher?.full_name ||
+          "",
+        message:
+          "Absen masuk dan pulang hari ini sudah tercatat.",
+        detail:""
+      });
+
+    }
+
+
+    // =================================
+    // ERROR
+    // =================================
+
+    else{
+
+      showResult({
+        style:"error",
+        icon:"❌",
+        label:"SCAN GAGAL",
+        name:
+          data.teacher?.full_name ||
+          "",
+        message:
+          data.error ||
+          "QR tidak dapat diproses.",
+        detail:""
+      });
+
+    }
+
+  }
+  catch(error){
+
+    console.error(
+      error
+    );
+
+
+    showResult({
+      style:"error",
+      icon:"❌",
+      label:"GANGGUAN KONEKSI",
+      name:"",
+      message:
+        "Tidak dapat terhubung ke server absensi.",
+      detail:
+        "Periksa koneksi internet lalu coba kembali."
+    });
+
+  }
+  finally{
+
+    button.disabled =
+      false;
+
+
+    button.textContent =
+      "Proses Scan";
+
+
+    refocus();
+
+
+    resetTimer =
+      setTimeout(
+        resetResult,
+        7000
+      );
+
+  }
+
+}
+
+
+// =====================================
+// TAMPILKAN HASIL
+// =====================================
+
+function showResult({
+  style,
+  icon,
+  label,
+  name,
+  message,
+  detail
+}){
+
+  const box =
+    document.getElementById(
+      "resultBox"
+    );
+
+
+  box.className =
+    `result ${style}`;
+
+
+  document
+    .getElementById(
+      "resultIcon"
+    )
+    .textContent =
+    icon || "";
+
+
+  document
+    .getElementById(
+      "resultLabel"
+    )
+    .textContent =
+    label || "";
+
+
+  document
+    .getElementById(
+      "resultName"
+    )
+    .textContent =
+    name || "";
+
+
+  document
+    .getElementById(
+      "resultMessage"
+    )
+    .textContent =
+    message || "";
+
+
+  document
+    .getElementById(
+      "resultDetail"
+    )
+    .textContent =
+    detail || "";
+
+}
+
+
+// =====================================
+// RESET HASIL
+// =====================================
+
+function resetResult(){
+
+  const box =
+    document.getElementById(
+      "resultBox"
+    );
+
+
+  box.className =
+    "result";
+
+
+  document
+    .getElementById(
+      "resultIcon"
+    )
+    .textContent =
+    "";
+
+
+  document
+    .getElementById(
+      "resultLabel"
+    )
+    .textContent =
+    "";
+
+
+  document
+    .getElementById(
+      "resultName"
+    )
+    .textContent =
+    "";
+
+
+  document
+    .getElementById(
+      "resultMessage"
+    )
+    .textContent =
+    "";
+
+
+  document
+    .getElementById(
+      "resultDetail"
+    )
+    .textContent =
+    "";
+
+}
+
+
+// =====================================
+// FOCUS SCANNER
+// =====================================
+
+function refocus(){
+
+  setTimeout(
+    () => {
+
+      const input =
+        document.getElementById(
+          "tokenInput"
+        );
+
+
+      input.focus();
+
+    },
+    150
+  );
+
+}
+
+
+// Jika user mengetuk area kosong,
+// fokus kembali ke input scanner.
+
+document.addEventListener(
+  "click",
+  event => {
+
+    if(
+      event.target.tagName !==
+      "BUTTON"
+    ){
+
+      refocus();
+
+    }
+
+  }
+);
+
+
+// =====================================
+// LOGOUT
+// =====================================
+
+async function logout(){
+
+  const confirmed =
+    confirm(
+      "Keluar dari mode kiosk?"
+    );
+
+
+  if(!confirmed){
+    return;
+  }
+
+
+  await db.auth.signOut();
+
+
+  window.location.href =
+    "index.html";
+
+}
+
+
+// =====================================
+// KEAMANAN HTML
+// =====================================
+
+function escapeHTML(value){
+
+  return String(
+    value ?? ""
+  )
+  .replaceAll("&","&amp;")
+  .replaceAll("<","&lt;")
+  .replaceAll(">","&gt;")
+  .replaceAll('"',"&quot;")
+  .replaceAll("'","&#039;");
+
+}
+
+
+// =====================================
+// START
+// =====================================
+
+async function init(){
+
+  const allowed =
+    await checkKiosk();
+
+
+  if(!allowed){
+    return;
+  }
+
+
+  document
+    .getElementById(
+      "loadingOverlay"
+    )
+    .style.display =
+    "none";
+
+
+  refocus();
+
+}
+
+
+init();
+
+</script>
+
+</body>
+</html>
