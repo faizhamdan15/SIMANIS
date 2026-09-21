@@ -8,7 +8,8 @@ window.SIMANIS_CONFIG = {
   const files = [
     "global-mobile-nav.js",
     "dashboard-guru-personal-v5.js",
-    "pretty-news-links.js"
+    "pretty-news-links.js",
+    "public-finish.js"
   ];
 
   files.forEach(src => {

@@ -1,0 +1,28 @@
+SIMANIS PUBLIC PORTAL — MOBILE & SEO AUDIT V1
+
+PERBAIKAN MOBILE
+- Input/select dipaksa 16px pada layar kecil untuk mencegah auto-zoom iPhone.
+- Target tombol/aksi minimal 44px pada mobile.
+- Navigasi mobile diberi max-height dan scroll agar tidak terpotong.
+- Safe-area top untuk perangkat ber-notch.
+- Overflow horizontal dicegah.
+- Focus-visible diperjelas untuk keyboard/accessibility.
+- prefers-reduced-motion dihormati.
+- Gambar non-hero memakai lazy loading + async decoding.
+- Hero diberi fetchpriority=high.
+- Loading state semua halaman dibuat konsisten dengan spinner ringan.
+
+SEO
+- Canonical URL untuk halaman publik.
+- Meta robots index/follow + max-image-preview.
+- Open Graph dan Twitter metadata generik.
+- EducationalOrganization JSON-LD pada Beranda/Profil.
+- Sitemap dinamis memasukkan halaman berita dari RPC publik.
+- robots.txt menunjuk sitemap dan mencegah crawl halaman internal utama.
+- Login diberi X-Robots-Tag noindex.
+- 404 diberi noindex.
+- Header keamanan ringan: nosniff + strict-origin-when-cross-origin.
+
+CATATAN
+Open Graph artikel berita tetap menggunakan SSR api/berita.js yang sudah dibuat sebelumnya.
+public-finish.js hanya aktif pada halaman portal publik dan otomatis keluar pada halaman internal SIMANIS.

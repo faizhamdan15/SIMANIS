@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /login.html
+Disallow: /dashboard.html
+Disallow: /siswa.html
+Disallow: /guru.html
+Disallow: /kelas.html
+Disallow: /mapel.html
+Disallow: /jadwal.html
+Disallow: /nilai.html
+Disallow: /prestasi.html
+Disallow: /absensi-guru.html
+Disallow: /absensi-siswa.html
+Disallow: /administrasi.html
+
+Sitemap: https://www.manuriska.sch.id/sitemap.xml
