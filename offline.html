@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow">
+<meta name="theme-color" content="#075B3A">
+<title>Sedang Offline — MA Nurul Islam</title>
+<link rel="manifest" href="/site.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f9f7;color:#173c31;font-family:Inter,system-ui,-apple-system,sans-serif}
+main{min-height:100vh;display:grid;place-items:center;padding:24px}.card{width:min(650px,100%);background:#fff;border:1px solid #dce7e1;border-radius:20px;padding:34px;text-align:center;box-shadow:0 18px 50px rgba(8,55,39,.08)}
+img{width:68px;height:68px;object-fit:contain;margin:0 auto 18px}.signal{width:48px;height:48px;border-radius:50%;background:#e8f2ed;color:#075b3a;display:grid;place-items:center;margin:0 auto 16px}
+.signal svg{width:24px;height:24px}small{display:block;color:#c99a2e;font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
+h1{font-family:Georgia,serif;font-size:28px;color:#063b2a;margin:7px 0 8px}p{font-size:11px;line-height:1.75;color:#6b7d74;max-width:500px;margin:0 auto}
+.actions{display:flex;justify-content:center;gap:9px;margin-top:22px;flex-wrap:wrap}.btn{min-height:44px;padding:0 15px;border-radius:10px;border:0;font-size:10px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}.primary{background:#075b3a;color:#fff}.secondary{background:#fff;color:#075b3a;border:1px solid #b9cec4}
+@media(max-width:520px){.card{padding:28px 20px}.actions{display:grid}.btn{width:100%;justify-content:center}}
+</style>
+</head>
+<body>
+<main>
+  <section class="card">
+    <img src="/logo.png" alt="Logo MA Nurul Islam">
+    <div class="signal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M4 8.5a12 12 0 0 1 16 0M7 12a7.5 7.5 0 0 1 10 0M10 15.5a3 3 0 0 1 4 0M4 4l16 16"/>
+      </svg>
+    </div>
+    <small>Portal MA Nurul Islam</small>
+    <h1>Koneksi internet tidak tersedia</h1>
+    <p>Beberapa halaman publik yang pernah dibuka masih dapat tersedia secara offline. Sambungkan kembali internet untuk memuat berita, pengumuman, dan agenda terbaru.</p>
+    <div class="actions">
+      <button class="btn primary" type="button" onclick="location.reload()">Coba Lagi</button>
+      <a class="btn secondary" href="/">Kembali ke Beranda</a>
+    </div>
+  </section>
+</main>
+</body>
+</html>

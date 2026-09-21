@@ -5,7 +5,7 @@
   const PUBLIC_PATHS = new Set([
     "/", "/index.html", "/profil.html", "/berita-publik.html",
     "/prestasi-publik.html", "/pengumuman-publik.html",
-    "/agenda-publik.html", "/404.html"
+    "/agenda-publik.html", "/404.html", "/offline.html"
   ]);
 
   const path = location.pathname || "/";
@@ -52,6 +52,12 @@
       description: "Halaman yang Anda cari tidak tersedia.",
       canonical: "/404.html",
       noindex: true
+    },
+    "/offline.html": {
+      title: "Sedang Offline — MA Nurul Islam",
+      description: "Portal MA Nurul Islam sedang dibuka tanpa koneksi internet.",
+      canonical: "/offline.html",
+      noindex: true
     }
   };
 
@@ -80,7 +86,6 @@
   }
 
   document.title = meta.title;
-
   ensureMeta('meta[name="description"]', {name:"description", content:meta.description});
   ensureMeta('meta[name="theme-color"]', {name:"theme-color", content:"#075B3A"});
   ensureMeta('meta[name="color-scheme"]', {name:"color-scheme", content:"light"});
@@ -117,11 +122,10 @@
 
   ensureLink('link[data-public-finish-css]', {
     rel:"stylesheet",
-    href:"/public-finish.css?v=1",
+    href:"/public-finish.css?v=2",
     "data-public-finish-css":"1"
   });
 
-  // EducationalOrganization structured data on core identity pages.
   if (path === "/" || path === "/index.html" || path === "/profil.html") {
     if (!head.querySelector('script[data-simanis-org-schema]')) {
       const schema = document.createElement("script");
@@ -205,11 +209,92 @@
     observer.observe(document.body,{childList:true,subtree:true});
   }
 
+  async function registerServiceWorker() {
+    if (!("serviceWorker" in navigator) || location.protocol !== "https:") return;
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js",{scope:"/"});
+      reg.update().catch(()=>{});
+    } catch (err) {
+      console.warn("SIMANIS service worker:",err);
+    }
+  }
+
+  let deferredInstallPrompt = null;
+
+  function createInstallButton() {
+    if (document.querySelector(".simanis-install-app")) return;
+    const footer = document.querySelector(".footer-bottom") || document.querySelector("footer");
+    if (!footer) return;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "simanis-install-app";
+    btn.hidden = true;
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path d="M12 3v12M7 10l5 5 5-5"/>
+        <path d="M5 19h14"/>
+      </svg>
+      Instal Portal
+    `;
+    footer.appendChild(btn);
+
+    window.addEventListener("beforeinstallprompt",event=>{
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      btn.hidden = false;
+    });
+
+    btn.addEventListener("click",async()=>{
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      try { await deferredInstallPrompt.userChoice; } catch {}
+      deferredInstallPrompt = null;
+      btn.hidden = true;
+    });
+
+    window.addEventListener("appinstalled",()=>{
+      deferredInstallPrompt = null;
+      btn.hidden = true;
+    });
+  }
+
+  function offlineIndicator() {
+    if (document.querySelector(".simanis-network-state")) return;
+    const el = document.createElement("div");
+    el.className = "simanis-network-state";
+    el.setAttribute("role","status");
+    el.setAttribute("aria-live","polite");
+    document.body.appendChild(el);
+
+    let timer;
+    const update = () => {
+      clearTimeout(timer);
+      if (navigator.onLine) {
+        el.textContent = "Koneksi kembali tersedia";
+        el.classList.remove("offline");
+        el.classList.add("online");
+        timer = setTimeout(()=>el.classList.remove("online"),2200);
+      } else {
+        el.textContent = "Anda sedang offline";
+        el.classList.remove("online");
+        el.classList.add("offline");
+      }
+    };
+
+    window.addEventListener("online",update);
+    window.addEventListener("offline",update);
+    if (!navigator.onLine) update();
+  }
+
   function init() {
     accessibility();
     enhanceImages();
     markLoadingStates();
     observeDynamicContent();
+    createInstallButton();
+    offlineIndicator();
+    registerServiceWorker();
   }
 
   if (document.readyState === "loading") {

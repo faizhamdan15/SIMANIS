@@ -1,13 +1,24 @@
 {
+  "id": "/",
   "name": "MA Nurul Islam — SIMANIS",
   "short_name": "SIMANIS",
   "description": "Portal publik dan Sistem Informasi MA Nurul Islam Karangcempaka.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
   "background_color": "#F4F7F5",
   "theme_color": "#075B3A",
   "lang": "id-ID",
+  "categories": [
+    "education",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -20,6 +31,44 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Berita",
+      "short_name": "Berita",
+      "url": "/berita-publik.html",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Pengumuman",
+      "short_name": "Pengumuman",
+      "url": "/pengumuman-publik.html",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Agenda",
+      "short_name": "Agenda",
+      "url": "/agenda-publik.html",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
