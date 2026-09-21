@@ -1,4 +1,4 @@
-const VERSION="simanis-public-v2";
+const VERSION="simanis-public-v2.1";
 const SHELL_CACHE=`${VERSION}-shell`;
 const RUNTIME_CACHE=`${VERSION}-runtime`;
 
@@ -44,8 +44,8 @@ function isPublicNavigation(url){
   if(url.pathname.startsWith("/berita/"))return true;
   return [
     "/", "/index.html", "/profil.html", "/berita-publik.html",
-    "/prestasi-publik.html", "/pengumuman-publik.html", "/agenda-publik.html",
-    "/404.html", "/offline.html"
+    "/prestasi-publik.html", "/pengumuman-publik.html",
+    "/agenda-publik.html", "/404.html", "/offline.html"
   ].includes(url.pathname);
 }
 
@@ -60,18 +60,42 @@ async function putSafe(cacheName,request,response){
   return response;
 }
 
+async function warmShell(){
+  const cache=await caches.open(SHELL_CACHE);
+
+  // Deliberately cache resources one-by-one.
+  // If one optional asset is missing, the whole SW install must not fail.
+  await Promise.allSettled(
+    SHELL.map(async url=>{
+      try{
+        const request=new Request(url,{cache:"reload"});
+        const response=await fetch(request);
+        if(response.ok){
+          await cache.put(request,response.clone());
+        }else{
+          console.warn("SIMANIS SW shell skip:",url,response.status);
+        }
+      }catch(err){
+        console.warn("SIMANIS SW shell fetch failed:",url,err);
+      }
+    })
+  );
+}
+
 self.addEventListener("install",event=>{
   event.waitUntil(
-    caches.open(SHELL_CACHE)
-      .then(cache=>cache.addAll(SHELL))
-      .then(()=>self.skipWaiting())
+    warmShell().then(()=>self.skipWaiting())
   );
 });
 
 self.addEventListener("activate",event=>{
   event.waitUntil((async()=>{
     const keys=await caches.keys();
-    await Promise.all(keys.filter(k=>k.startsWith("simanis-public-")&&!k.startsWith(VERSION)).map(k=>caches.delete(k)));
+    await Promise.all(
+      keys
+        .filter(k=>k.startsWith("simanis-public-") && !k.startsWith(VERSION))
+        .map(k=>caches.delete(k))
+    );
     await self.clients.claim();
   })());
 });
@@ -82,17 +106,19 @@ self.addEventListener("fetch",event=>{
 
   const url=new URL(request.url);
 
-  // Never intercept private/internal routes or API calls.
+  // Private/internal pages and API responses are never handled by this public SW.
   if(url.origin===self.location.origin && shouldNeverCache(url))return;
 
   if(request.mode==="navigate" && isPublicNavigation(url)){
     event.respondWith((async()=>{
       try{
         const fresh=await fetch(request);
+
         if(url.pathname.startsWith("/berita/")){
-          // Article SSR is network-first. Cache a successful article only as a fallback.
+          // SSR article: network-first, cache only as fallback.
           await putSafe(RUNTIME_CACHE,request,fresh);
         }
+
         return fresh;
       }catch{
         const cached=await caches.match(request);
@@ -102,17 +128,22 @@ self.addEventListener("fetch",event=>{
     return;
   }
 
-  // Same-origin static assets: cache-first with background refresh.
-  if(url.origin===self.location.origin && /\.(?:css|js|png|jpg|jpeg|webp|svg|ico|woff2?)$/i.test(url.pathname)){
+  // Same-origin public static assets: cache-first, refresh in background.
+  if(
+    url.origin===self.location.origin &&
+    /\.(?:css|js|png|jpg|jpeg|webp|svg|ico|woff2?)$/i.test(url.pathname)
+  ){
     event.respondWith((async()=>{
       const cached=await caches.match(request);
       const update=fetch(request)
         .then(resp=>putSafe(RUNTIME_CACHE,request,resp))
         .catch(()=>null);
+
       if(cached){
         event.waitUntil(update);
         return cached;
       }
+
       return (await update) || Response.error();
     })());
   }
