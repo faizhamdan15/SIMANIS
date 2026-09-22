@@ -53,6 +53,7 @@
   <div id="kioskUser" class="footer">Menyiapkan kiosk...</div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
 <script>
@@ -79,6 +80,43 @@ function refocus(){setTimeout(()=>$("tokenInput").focus(),100)}
  * Format kartu SIMANIS baru:
  * SIMANIS-GURU- + 64 karakter hexadecimal.
  */
+async function decodeQrDataUrl(dataUrl){
+  if(!/^data:image\/(?:png|jpeg|jpg|webp);base64,/i.test(String(dataUrl||""))){
+    return null;
+  }
+
+  if(typeof window.jsQR!=="function"){
+    throw new Error("Decoder QR belum termuat. Muat ulang halaman kiosk.");
+  }
+
+  const img=new Image();
+
+  const loaded=new Promise((resolve,reject)=>{
+    img.onload=()=>resolve();
+    img.onerror=()=>reject(new Error("Gambar QR dari scanner tidak dapat dibaca."));
+  });
+
+  img.src=dataUrl;
+  await loaded;
+
+  const canvas=document.createElement("canvas");
+  canvas.width=img.naturalWidth||img.width;
+  canvas.height=img.naturalHeight||img.height;
+
+  const ctx=canvas.getContext("2d",{willReadFrequently:true});
+  ctx.drawImage(img,0,0,canvas.width,canvas.height);
+
+  const image=ctx.getImageData(0,0,canvas.width,canvas.height);
+  const qr=window.jsQR(
+    image.data,
+    image.width,
+    image.height,
+    {inversionAttempts:"attemptBoth"}
+  );
+
+  return qr?.data||null;
+}
+
 function normalizeScannedToken(raw){
   let value=String(raw??"")
     .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g,"")
@@ -148,9 +186,7 @@ async function processScan(explicitRawToken=null){
 
   $("tokenInput").value="";
 
-  const token=normalizeScannedToken(rawToken);
-
-  if(!token){
+  if(!rawToken.trim()){
     refocus();
     return;
   }
@@ -158,6 +194,38 @@ async function processScan(explicitRawToken=null){
   processing=true;
 
   try{
+    let decodedRaw=rawToken;
+
+    if(/^data:image\//i.test(rawToken.trim())){
+      show(
+        "info",
+        "MEMBACA GAMBAR QR",
+        "",
+        "Scanner mengirim gambar QR. SIMANIS sedang mengambil isi QR..."
+      );
+
+      const decoded=await decodeQrDataUrl(rawToken.trim());
+
+      if(!decoded){
+        show(
+          "error",
+          "QR TIDAK TERBACA",
+          "",
+          "Gambar berhasil diterima, tetapi isi QR tidak dapat didekode."
+        );
+        return;
+      }
+
+      decodedRaw=decoded;
+    }
+
+    const token=normalizeScannedToken(decodedRaw);
+
+    if(!token){
+      show("error","KARTU TIDAK VALID","","Isi QR kosong atau tidak dikenali.");
+      return;
+    }
+
     const resolved=await api.db.rpc("resolve_teacher_card",{p_token:token})||[];
     const teacherId=resolved?.[0]?.teacher_id;
 
@@ -170,8 +238,8 @@ async function processScan(explicitRawToken=null){
         "",
         "Kartu tidak terdaftar, diblokir, atau QR tidak dikenali.",
         recognized
-          ? `QR SIMANIS terbaca lengkap · raw ${rawToken.length} karakter · token ${token.length} karakter.`
-          : `Hasil scanner belum lengkap · raw ${rawToken.length} karakter · hasil ${token.length} karakter.`
+          ? `QR SIMANIS terbaca lengkap · input ${rawToken.length} karakter · token ${token.length} karakter.`
+          : `Hasil scanner belum sesuai format · input ${rawToken.length} karakter · hasil ${token.length} karakter.`
       );
 
       return;
@@ -292,7 +360,7 @@ document.addEventListener("click",e=>{
     if(!session){location.replace("index.html");return}
     const user=await api.auth.getUser();
     profile=await loadProfile(user);
-    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Scanner Fix V5`;
+    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Scanner Fix V6 · DataURL Decoder`;
     refocus();
   }catch(err){
     alert("Kiosk tidak dapat dibuka: "+(err.message||err));
