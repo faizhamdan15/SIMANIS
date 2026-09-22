@@ -71,6 +71,36 @@ function show(style,label,name,msg,detail=""){
 }
 function refocus(){setTimeout(()=>$("tokenInput").focus(),100)}
 
+/*
+ * Normalisasi hasil scanner USB/2D.
+ * Beberapa scanner mengikuti Caps Lock, menambah prefix/suffix,
+ * CR/LF/TAB, atau karakter tak terlihat.
+ *
+ * Format kartu SIMANIS baru:
+ * SIMANIS-GURU- + 64 karakter hexadecimal.
+ */
+function normalizeScannedToken(raw){
+  let value=String(raw??"")
+    .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g,"")
+    .trim();
+
+  try{
+    if(/%[0-9A-Fa-f]{2}/.test(value)){
+      value=decodeURIComponent(value);
+    }
+  }catch(_){}
+
+  value=value.replace(/\s+/g,"");
+
+  const simanis=value.match(/SIMANIS-GURU-([0-9A-F]{64})/i);
+
+  if(simanis){
+    return `SIMANIS-GURU-${simanis[1].toLowerCase()}`;
+  }
+
+  return value;
+}
+
 async function loadProfile(user){
   const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
   if(!r?.[0]||!r[0].is_active)throw new Error("Akun tidak aktif.");
@@ -86,9 +116,17 @@ async function loadProfile(user){
 
 async function processScan(){
   if(processing)return;
-  const token=$("tokenInput").value.trim();
+
+  const rawToken=$("tokenInput").value;
   $("tokenInput").value="";
-  if(!token){refocus();return}
+
+  const token=normalizeScannedToken(rawToken);
+
+  if(!token){
+    refocus();
+    return;
+  }
+
   processing=true;
 
   try{
@@ -96,7 +134,18 @@ async function processScan(){
     const teacherId=resolved?.[0]?.teacher_id;
 
     if(!teacherId){
-      show("error","KARTU TIDAK VALID","", "Kartu tidak terdaftar, diblokir, atau QR tidak dikenali.");
+      const recognized=/^SIMANIS-GURU-[0-9a-f]{64}$/.test(token);
+
+      show(
+        "error",
+        "KARTU TIDAK VALID",
+        "",
+        "Kartu tidak terdaftar, diblokir, atau QR tidak dikenali.",
+        recognized
+          ? "Format QR SIMANIS terbaca benar, tetapi token tidak ditemukan."
+          : `Hasil scanner tidak sesuai format kartu SIMANIS · ${token.length} karakter terbaca.`
+      );
+
       return;
     }
 
@@ -159,7 +208,7 @@ document.addEventListener("click",e=>{if(e.target.tagName!=="A")refocus()});
     if(!session){location.replace("index.html");return}
     const user=await api.auth.getUser();
     profile=await loadProfile(user);
-    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name}`;
+    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Scanner Fix V3`;
     refocus();
   }catch(err){
     alert("Kiosk tidak dapat dibuka: "+(err.message||err));
