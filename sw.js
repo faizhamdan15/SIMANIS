@@ -1,4 +1,4 @@
-const VERSION="simanis-public-v2.1";
+const VERSION="simanis-public-v2.2";
 const SHELL_CACHE=`${VERSION}-shell`;
 const RUNTIME_CACHE=`${VERSION}-runtime`;
 
@@ -14,7 +14,6 @@ const SHELL=[
   "/publik.css",
   "/public-finish.css?v=2",
   "/public-finish.js",
-  "/config.js",
   "/logo.png",
   "/hero-madrasah.webp",
   "/site.webmanifest",
@@ -36,47 +35,72 @@ const NEVER_CACHE_PREFIXES=[
   "/nilai",
   "/prestasi.html",
   "/absensi-",
-  "/administrasi"
+  "/kartu-guru",
+  "/administrasi",
+
+  // Penting: config & addon private harus selalu fresh.
+  "/config.js",
+  "/absensi-guru-card-addon.js"
 ];
 
 function isPublicNavigation(url){
   if(url.origin!==self.location.origin)return false;
   if(url.pathname.startsWith("/berita/"))return true;
+
   return [
-    "/", "/index.html", "/profil.html", "/berita-publik.html",
-    "/prestasi-publik.html", "/pengumuman-publik.html",
-    "/agenda-publik.html", "/404.html", "/offline.html"
+    "/",
+    "/index.html",
+    "/profil.html",
+    "/berita-publik.html",
+    "/prestasi-publik.html",
+    "/pengumuman-publik.html",
+    "/agenda-publik.html",
+    "/404.html",
+    "/offline.html"
   ].includes(url.pathname);
 }
 
 function shouldNeverCache(url){
-  return NEVER_CACHE_PREFIXES.some(p=>url.pathname.startsWith(p));
+  return NEVER_CACHE_PREFIXES.some(
+    p=>url.pathname.startsWith(p)
+  );
 }
 
 async function putSafe(cacheName,request,response){
-  if(!response || !response.ok || response.type==="opaque")return response;
+  if(!response || !response.ok || response.type==="opaque"){
+    return response;
+  }
+
   const cache=await caches.open(cacheName);
   await cache.put(request,response.clone());
+
   return response;
 }
 
 async function warmShell(){
   const cache=await caches.open(SHELL_CACHE);
 
-  // Deliberately cache resources one-by-one.
-  // If one optional asset is missing, the whole SW install must not fail.
   await Promise.allSettled(
     SHELL.map(async url=>{
       try{
         const request=new Request(url,{cache:"reload"});
         const response=await fetch(request);
+
         if(response.ok){
           await cache.put(request,response.clone());
         }else{
-          console.warn("SIMANIS SW shell skip:",url,response.status);
+          console.warn(
+            "SIMANIS SW shell skip:",
+            url,
+            response.status
+          );
         }
       }catch(err){
-        console.warn("SIMANIS SW shell fetch failed:",url,err);
+        console.warn(
+          "SIMANIS SW shell fetch failed:",
+          url,
+          err
+        );
       }
     })
   );
@@ -91,60 +115,98 @@ self.addEventListener("install",event=>{
 self.addEventListener("activate",event=>{
   event.waitUntil((async()=>{
     const keys=await caches.keys();
+
     await Promise.all(
       keys
-        .filter(k=>k.startsWith("simanis-public-") && !k.startsWith(VERSION))
+        .filter(
+          k=>
+            k.startsWith("simanis-public-") &&
+            !k.startsWith(VERSION)
+        )
         .map(k=>caches.delete(k))
     );
+
     await self.clients.claim();
   })());
 });
 
 self.addEventListener("fetch",event=>{
   const request=event.request;
-  if(request.method!=="GET")return;
+
+  if(request.method!=="GET"){
+    return;
+  }
 
   const url=new URL(request.url);
 
-  // Private/internal pages and API responses are never handled by this public SW.
-  if(url.origin===self.location.origin && shouldNeverCache(url))return;
+  // Semua private page + config/addon jangan disentuh cache SW.
+  if(
+    url.origin===self.location.origin &&
+    shouldNeverCache(url)
+  ){
+    return;
+  }
 
-  if(request.mode==="navigate" && isPublicNavigation(url)){
+  if(
+    request.mode==="navigate" &&
+    isPublicNavigation(url)
+  ){
     event.respondWith((async()=>{
       try{
         const fresh=await fetch(request);
 
         if(url.pathname.startsWith("/berita/")){
-          // SSR article: network-first, cache only as fallback.
-          await putSafe(RUNTIME_CACHE,request,fresh);
+          await putSafe(
+            RUNTIME_CACHE,
+            request,
+            fresh
+          );
         }
 
         return fresh;
       }catch{
         const cached=await caches.match(request);
-        return cached || caches.match("/offline.html");
+
+        return (
+          cached ||
+          caches.match("/offline.html")
+        );
       }
     })());
+
     return;
   }
 
-  // Same-origin public static assets: cache-first, refresh in background.
   if(
     url.origin===self.location.origin &&
-    /\.(?:css|js|png|jpg|jpeg|webp|svg|ico|woff2?)$/i.test(url.pathname)
+    /\.(?:css|js|png|jpg|jpeg|webp|svg|ico|woff2?)$/i
+      .test(url.pathname)
   ){
     event.respondWith((async()=>{
-      const cached=await caches.match(request);
-      const update=fetch(request)
-        .then(resp=>putSafe(RUNTIME_CACHE,request,resp))
-        .catch(()=>null);
+      const cached=
+        await caches.match(request);
+
+      const update=
+        fetch(request)
+          .then(
+            resp=>
+              putSafe(
+                RUNTIME_CACHE,
+                request,
+                resp
+              )
+          )
+          .catch(()=>null);
 
       if(cached){
         event.waitUntil(update);
         return cached;
       }
 
-      return (await update) || Response.error();
+      return (
+        (await update) ||
+        Response.error()
+      );
     })());
   }
 });
