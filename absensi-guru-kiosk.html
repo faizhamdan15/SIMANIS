@@ -93,22 +93,37 @@ function normalizeScannedToken(raw){
 
   value=value.replace(/\s+/g,"");
 
-  // Paling kuat: ambil payload 64 digit hex dari mana pun.
-  // Prefix/suffix scanner jadi tidak berpengaruh.
-  const payload=value.match(/[0-9A-Fa-f]{64}/);
+  /*
+   * Sebagian scanner HID mengikuti mode Shift/Caps Lock komputer.
+   * Jika digit 0-9 berubah menjadi )!@#$%^&*(, kembalikan ke digit.
+   */
+  const shiftedDigits={
+    ")":"0","!":"1","@":"2","#":"3","$":"4",
+    "%":"5","^":"6","&":"7","*":"8","(":"9"
+  };
+
+  const unshifted=value
+    .split("")
+    .map(ch=>shiftedDigits[ch]??ch)
+    .join("")
+    .replaceAll("_","-");
+
+  // Token V5 = 32 hex. Token lama = 64 hex. Keduanya tetap diterima.
+  const payload=unshifted.match(/[0-9A-Fa-f]{64}|[0-9A-Fa-f]{32}/);
 
   if(payload){
     return `SIMANIS-GURU-${payload[0].toLowerCase()}`;
   }
 
-  // Fallback untuk format prefix normal.
-  const simanis=value.match(/SIMANIS[-_: ]*GURU[-_: ]*([0-9A-Fa-f]+)/i);
+  const simanis=unshifted.match(
+    /SIMANIS[-_: ]*GURU[-_: ]*([0-9A-Fa-f]{32,64})/i
+  );
 
   if(simanis){
     return `SIMANIS-GURU-${simanis[1].toLowerCase()}`;
   }
 
-  return value;
+  return unshifted;
 }
 
 async function loadProfile(user){
@@ -147,7 +162,7 @@ async function processScan(explicitRawToken=null){
     const teacherId=resolved?.[0]?.teacher_id;
 
     if(!teacherId){
-      const recognized=/^SIMANIS-GURU-[0-9a-f]{64}$/.test(token);
+      const recognized=/^SIMANIS-GURU-(?:[0-9a-f]{32}|[0-9a-f]{64})$/.test(token);
 
       show(
         "error",
@@ -277,7 +292,7 @@ document.addEventListener("click",e=>{
     if(!session){location.replace("index.html");return}
     const user=await api.auth.getUser();
     profile=await loadProfile(user);
-    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Scanner Fix V4`;
+    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Scanner Fix V5`;
     refocus();
   }catch(err){
     alert("Kiosk tidak dapat dibuka: "+(err.message||err));

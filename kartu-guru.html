@@ -20,7 +20,7 @@
     .kg-name{font-weight:800;color:var(--green-950);font-size:13px}.kg-meta{font-size:10px;color:var(--muted);margin-top:4px}.kg-badge{display:inline-flex;margin-top:7px;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800}.kg-on{background:#dff4e7;color:#08743f}.kg-off{background:#f1f3f2;color:#65736b}
     .kg-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.kg-actions button{border:1px solid #d7e2dc;background:#fff;border-radius:9px;padding:8px 9px;font-size:9px;font-weight:800;color:var(--green-900);cursor:pointer}.kg-actions .primary{background:var(--green-800);color:#fff;border-color:var(--green-800)}.kg-actions .danger{color:#a52d22}
     .kg-card-modal{position:fixed;inset:0;background:#0007;display:grid;place-items:center;padding:20px;z-index:9999}.kg-card-modal.hidden{display:none}.kg-modal-box{background:#fff;border-radius:20px;padding:18px;width:min(500px,100%)}
-    .teacher-card{width:100%;aspect-ratio:1.586/1;border-radius:18px;padding:22px;background:linear-gradient(135deg,#075b3a,#0b7347);color:#fff;display:grid;grid-template-columns:1fr 120px;gap:18px;align-items:center}.teacher-card h3{font-size:22px;margin:0}.teacher-card p{font-size:11px;opacity:.8}.qr-box{background:#fff;padding:8px;border-radius:12px;width:116px;height:116px;display:grid;place-items:center}
+    .teacher-card{width:100%;aspect-ratio:1.586/1;border-radius:18px;padding:22px;background:linear-gradient(135deg,#075b3a,#0b7347);color:#fff;display:grid;grid-template-columns:1fr 120px;gap:18px;align-items:center}.teacher-card h3{font-size:22px;margin:0}.teacher-card p{font-size:11px;opacity:.8}.qr-box{background:#fff;padding:8px;border-radius:12px;width:116px;height:116px;display:grid;place-items:center}.qr-box canvas,.qr-box img{width:100%!important;height:100%!important;image-rendering:auto}
     .kg-modal-actions{display:flex;gap:8px;margin-top:12px}.kg-modal-actions button{flex:1;border:0;border-radius:10px;padding:11px;font-weight:800;cursor:pointer}.kg-modal-actions .primary{background:var(--green-800);color:#fff}
     @media(max-width:700px){.kg-item{grid-template-columns:1fr}.kg-actions{justify-content:flex-start}.teacher-card{grid-template-columns:1fr 95px;padding:16px}.qr-box{width:92px;height:92px;padding:5px}}
     @media print{body *{visibility:hidden!important}.teacher-card,.teacher-card *{visibility:visible!important}.teacher-card{position:absolute;left:0;top:0;width:86mm;height:54mm;border-radius:3mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
@@ -198,7 +198,7 @@ function showCard(id){
   $("cardName").textContent=t.teacher_name;
   $("cardMeta").textContent=`Kode ${t.teacher_code||"-"}`;
   $("qrBox").innerHTML="";
-  new QRCode($("qrBox"),{text:c.card_token,width:100,height:100,correctLevel:QRCode.CorrectLevel.H});
+  new QRCode($("qrBox"),{text:c.card_token,width:320,height:320,correctLevel:QRCode.CorrectLevel.M});
   $("cardModal").classList.remove("hidden");
 }
 function closeCard(){$("cardModal").classList.add("hidden")}
