@@ -73,8 +73,7 @@
 <script src="sdk-loader.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-const ADMIN_ROLES=["SUPER_ADMIN","TU","WAKA_KURIKULUM"];
-let api,profile,teachers=[],cards=new Map();
+let api,profile,permission=null,canManageAll=false,teachers=[],cards=new Map();
 
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
 function formatRole(r){return (r||"-").replaceAll("_"," ")}
@@ -86,7 +85,12 @@ async function loadProfile(user){
   const r=await api.db.select("profiles",`select=id,full_name,role,is_active,teacher_id&id=eq.${encodeURIComponent(user.id)}&limit=1`);
   if(!r?.[0])throw new Error("Profil pengguna tidak ditemukan.");
   if(!r[0].is_active)throw new Error("Akun tidak aktif.");
-  if(!ADMIN_ROLES.includes(r[0].role))throw new Error("Anda tidak memiliki akses Kartu Guru.");
+
+  const perm=await api.db.rpc("get_my_module_permission",{p_module_code:"ABSENSI_GURU"});
+  if(!perm?.can_view)throw new Error("Akun Anda belum memiliki akses modul Absensi Guru.");
+
+  permission=perm;
+  canManageAll=!!perm.can_update || r[0].role==="SUPER_ADMIN";
   return r[0];
 }
 
@@ -98,6 +102,7 @@ async function loadMenu(){
 async function loadData(){
   const attendance=await api.db.rpc("get_teacher_attendance_by_date",{p_date:todayYMD()})||[];
   const seen=new Map();
+
   attendance.forEach(r=>{
     if(r.teacher_id&&!seen.has(r.teacher_id)){
       seen.set(r.teacher_id,{
@@ -108,7 +113,18 @@ async function loadData(){
       });
     }
   });
-  teachers=[...seen.values()].sort((a,b)=>a.teacher_name.localeCompare(b.teacher_name,"id"));
+
+  teachers=[...seen.values()];
+
+  if(!canManageAll && profile?.teacher_id){
+    teachers=teachers.filter(t=>t.teacher_id===profile.teacher_id);
+  }
+
+  teachers.sort((a,b)=>a.teacher_name.localeCompare(b.teacher_name,"id"));
+
+  if(!canManageAll && !profile?.teacher_id){
+    teachers=[];
+  }
 
   const cardRows=await api.db.rpc("list_teacher_cards",{})||[];
   cards=new Map(cardRows.map(c=>[c.teacher_id,c]));

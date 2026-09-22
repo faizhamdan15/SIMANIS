@@ -57,8 +57,7 @@
 <script src="sdk-loader.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-const ADMIN_ROLES=["SUPER_ADMIN","TU","WAKA_KURIKULUM"];
-let api,profile,processing=false,resetTimer=null;
+let api,profile,permission=null,processing=false,resetTimer=null;
 
 function todayYMD(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
 function fmtTime(ts){if(!ts)return "-";return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(ts))}
@@ -75,7 +74,13 @@ function refocus(){setTimeout(()=>$("tokenInput").focus(),100)}
 async function loadProfile(user){
   const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
   if(!r?.[0]||!r[0].is_active)throw new Error("Akun tidak aktif.");
-  if(!ADMIN_ROLES.includes(r[0].role))throw new Error("Akun tidak memiliki akses kiosk.");
+
+  const perm=await api.db.rpc("get_my_module_permission",{p_module_code:"ABSENSI_GURU"});
+  if(!(perm?.can_update || r[0].role==="SUPER_ADMIN")){
+    throw new Error("Kiosk hanya dapat digunakan oleh akun yang memiliki hak Kelola/Update Absensi Guru.");
+  }
+
+  permission=perm;
   return r[0];
 }
 
