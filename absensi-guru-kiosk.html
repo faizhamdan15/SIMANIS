@@ -57,7 +57,7 @@
 <script src="sdk-loader.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-let api,profile,permission=null,processing=false,resetTimer=null;
+let api,profile,permission=null,processing=false,resetTimer=null,scannerBuffer="",scannerLastKeyAt=0;
 
 function todayYMD(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
 function fmtTime(ts){if(!ts)return "-";return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(ts))}
@@ -82,6 +82,7 @@ function refocus(){setTimeout(()=>$("tokenInput").focus(),100)}
 function normalizeScannedToken(raw){
   let value=String(raw??"")
     .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g,"")
+    .replace(/[\u2010-\u2015\u2212]/g,"-")
     .trim();
 
   try{
@@ -92,7 +93,16 @@ function normalizeScannedToken(raw){
 
   value=value.replace(/\s+/g,"");
 
-  const simanis=value.match(/SIMANIS-GURU-([0-9A-F]{64})/i);
+  // Paling kuat: ambil payload 64 digit hex dari mana pun.
+  // Prefix/suffix scanner jadi tidak berpengaruh.
+  const payload=value.match(/[0-9A-Fa-f]{64}/);
+
+  if(payload){
+    return `SIMANIS-GURU-${payload[0].toLowerCase()}`;
+  }
+
+  // Fallback untuk format prefix normal.
+  const simanis=value.match(/SIMANIS[-_: ]*GURU[-_: ]*([0-9A-Fa-f]+)/i);
 
   if(simanis){
     return `SIMANIS-GURU-${simanis[1].toLowerCase()}`;
@@ -114,10 +124,13 @@ async function loadProfile(user){
   return r[0];
 }
 
-async function processScan(){
+async function processScan(explicitRawToken=null){
   if(processing)return;
 
-  const rawToken=$("tokenInput").value;
+  const rawToken=explicitRawToken!==null
+    ? String(explicitRawToken)
+    : $("tokenInput").value;
+
   $("tokenInput").value="";
 
   const token=normalizeScannedToken(rawToken);
@@ -142,8 +155,8 @@ async function processScan(){
         "",
         "Kartu tidak terdaftar, diblokir, atau QR tidak dikenali.",
         recognized
-          ? "Format QR SIMANIS terbaca benar, tetapi token tidak ditemukan."
-          : `Hasil scanner tidak sesuai format kartu SIMANIS · ${token.length} karakter terbaca.`
+          ? `QR SIMANIS terbaca lengkap · raw ${rawToken.length} karakter · token ${token.length} karakter.`
+          : `Hasil scanner belum lengkap · raw ${rawToken.length} karakter · hasil ${token.length} karakter.`
       );
 
       return;
@@ -198,8 +211,64 @@ async function processScan(){
   }
 }
 
-$("tokenInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();processScan()}});
-document.addEventListener("click",e=>{if(e.target.tagName!=="A")refocus()});
+/*
+ * Tangkap scanner sebagai HID keyboard secara global.
+ * Ini tetap bekerja walaupun fokus input sempat hilang.
+ */
+document.addEventListener("keydown",e=>{
+  if(e.ctrlKey||e.altKey||e.metaKey)return;
+
+  const now=performance.now();
+
+  // Jeda panjang = mulai scan/ketikan baru.
+  if(now-scannerLastKeyAt>250){
+    scannerBuffer="";
+  }
+
+  scannerLastKeyAt=now;
+
+  if(e.key==="Enter" || e.key==="Tab"){
+    if(scannerBuffer.length>=12){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      const captured=scannerBuffer;
+      scannerBuffer="";
+      $("tokenInput").value="";
+
+      processScan(captured);
+    }
+    return;
+  }
+
+  if(e.key.length===1){
+    scannerBuffer+=e.key;
+
+    // Tetap tampilkan karakter di field sebagai indikator visual,
+    // tetapi backend memakai scannerBuffer yang lebih andal.
+    if(document.activeElement!==$("tokenInput")){
+      $("tokenInput").value=scannerBuffer;
+    }
+  }
+},true);
+
+// Fallback manual paste + Enter tetap berfungsi.
+$("tokenInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){
+    e.preventDefault();
+
+    const manual=$("tokenInput").value;
+
+    if(manual.trim()){
+      scannerBuffer="";
+      processScan(manual);
+    }
+  }
+});
+
+document.addEventListener("click",e=>{
+  if(e.target.tagName!=="A")refocus();
+});
 
 (async function boot(){
   try{
@@ -208,7 +277,7 @@ document.addEventListener("click",e=>{if(e.target.tagName!=="A")refocus()});
     if(!session){location.replace("index.html");return}
     const user=await api.auth.getUser();
     profile=await loadProfile(user);
-    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Scanner Fix V3`;
+    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Scanner Fix V4`;
     refocus();
   }catch(err){
     alert("Kiosk tidak dapat dibuka: "+(err.message||err));
