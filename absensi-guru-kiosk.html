@@ -18,7 +18,7 @@
     #tokenInput{width:100%;height:56px;margin-top:20px;border:2px solid #d7e2dc;border-radius:14px;padding:0 14px;font-size:16px;outline:none;text-align:center}#tokenInput:focus{border-color:#0b7347;box-shadow:0 0 0 4px #0b73471a}
     .hint{font-size:10px!important;margin-top:10px!important}.result{display:none;margin-top:18px;padding:18px;border-radius:18px}.result.show{display:block}.success{background:#e5f6eb;color:#166534}.info{background:#eef5ff;color:#31558f}.warning{background:#fff4d7;color:#8a5a00}.error{background:#ffe8e5;color:#a52d22}
     .result-label{font-size:10px;font-weight:800;letter-spacing:1px}.result-name{font-size:22px;font-weight:800;margin-top:6px}.result-msg{font-size:13px;margin-top:6px}.result-detail{font-size:10px;margin-top:5px;opacity:.8}
-    .footer{text-align:center;margin-top:14px;font-size:10px;opacity:.72}
+    .status-strip{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}.status-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:#ffffff18;border:1px solid #ffffff2b;font-size:10px;font-weight:700}.status-dot{width:7px;height:7px;border-radius:50%;background:#8df0b6}.footer{text-align:center;margin-top:14px;font-size:10px;opacity:.72}
     @media(max-width:560px){.clock strong{font-size:42px}.panel{padding:20px}.top{align-items:flex-start}.brand h1{font-size:20px}}
   </style>
 </head>
@@ -50,6 +50,11 @@
     </div>
   </main>
 
+  <div class="status-strip">
+    <span class="status-pill"><span id="netDot" class="status-dot"></span><span id="netText">Online</span></span>
+    <span class="status-pill">Anti scan ganda aktif</span>
+    <span class="status-pill">Jeda pulang 2 menit</span>
+  </div>
   <div id="kioskUser" class="footer">Menyiapkan kiosk...</div>
 </div>
 
@@ -59,6 +64,11 @@
 <script>
 const $=id=>document.getElementById(id);
 let api,profile,permission=null,processing=false,resetTimer=null,scannerBuffer="",scannerLastKeyAt=0;
+const SAME_CARD_COOLDOWN_MS=8000;
+const MIN_CHECKOUT_AFTER_CHECKIN_MS=120000;
+let lastAcceptedToken="";
+let lastAcceptedAt=0;
+let wakeLock=null;
 
 function todayYMD(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
 function fmtTime(ts){if(!ts)return "-";return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(ts))}
@@ -67,10 +77,71 @@ setInterval(updateClock,1000);updateClock();
 
 function show(style,label,name,msg,detail=""){
   const box=$("result");box.className=`result show ${style}`;
-  $("resultLabel").textContent=label;$("resultName").textContent=name||"";$("resultMsg").textContent=msg||"";$("resultDetail").textContent=detail||"";
-  clearTimeout(resetTimer);resetTimer=setTimeout(()=>{box.className="result"},6500);
+  $("resultLabel").textContent=label;
+  $("resultName").textContent=name||"";
+  $("resultMsg").textContent=msg||"";
+  $("resultDetail").textContent=detail||"";
+
+  if(style==="error")tone("error");
+  else if(style==="warning")tone("warning");
+  else if(style==="success")tone("success");
+
+  clearTimeout(resetTimer);
+  resetTimer=setTimeout(()=>{box.className="result"},6500);
 }
 function refocus(){setTimeout(()=>$("tokenInput").focus(),100)}
+
+function msSince(ts){
+  const t=new Date(ts).getTime();
+  return Number.isFinite(t)?Date.now()-t:Infinity;
+}
+
+function secondsLeft(ms){
+  return Math.max(1,Math.ceil(ms/1000));
+}
+
+function tone(kind="success"){
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx)return;
+    const ctx=new AudioCtx();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.type="sine";
+    osc.frequency.value=kind==="error"?220:(kind==="warning"?440:720);
+    gain.gain.setValueAtTime(0.0001,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08,ctx.currentTime+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.16);
+
+    osc.start();
+    osc.stop(ctx.currentTime+0.18);
+    osc.onended=()=>ctx.close();
+  }catch(_){}
+}
+
+function updateNetworkStatus(){
+  const online=navigator.onLine;
+  $("netText").textContent=online?"Online":"Offline";
+  $("netDot").style.background=online?"#8df0b6":"#ff9d8f";
+}
+window.addEventListener("online",updateNetworkStatus);
+window.addEventListener("offline",updateNetworkStatus);
+updateNetworkStatus();
+
+async function requestWakeLock(){
+  try{
+    if("wakeLock" in navigator){
+      wakeLock=await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release",()=>{wakeLock=null});
+    }
+  }catch(_){}
+}
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible"&&!wakeLock)requestWakeLock();
+});
 
 /*
  * Normalisasi hasil scanner USB/2D.
@@ -226,6 +297,20 @@ async function processScan(explicitRawToken=null){
       return;
     }
 
+    const now=Date.now();
+
+    if(token===lastAcceptedToken && now-lastAcceptedAt<SAME_CARD_COOLDOWN_MS){
+      const remain=secondsLeft(SAME_CARD_COOLDOWN_MS-(now-lastAcceptedAt));
+      show(
+        "info",
+        "SCAN GANDA DIABAIKAN",
+        "",
+        `Kartu yang sama baru saja diproses. Coba lagi dalam ${remain} detik.`,
+        "Perlindungan ini mencegah absen masuk langsung berubah menjadi absen pulang."
+      );
+      return;
+    }
+
     const resolved=await api.db.rpc("resolve_teacher_card",{p_token:token})||[];
     const teacherId=resolved?.[0]?.teacher_id;
 
@@ -253,6 +338,9 @@ async function processScan(explicitRawToken=null){
       return;
     }
 
+    lastAcceptedToken=token;
+    lastAcceptedAt=Date.now();
+
     if(!row.has_schedule){
       show("info","TIDAK ADA JADWAL",row.teacher_name,"Guru tidak memiliki kewajiban hadir hari ini.","Tidak dihitung sebagai alfa.");
       return;
@@ -275,11 +363,31 @@ async function processScan(explicitRawToken=null){
     }
 
     if(!row.check_out){
+      const sinceCheckIn=msSince(row.check_in);
+
+      if(sinceCheckIn<MIN_CHECKOUT_AFTER_CHECKIN_MS){
+        const remain=secondsLeft(MIN_CHECKOUT_AFTER_CHECKIN_MS-sinceCheckIn);
+        show(
+          "warning",
+          "BELUM BISA ABSEN PULANG",
+          row.teacher_name||"",
+          `Absen masuk baru saja tercatat. Tunggu sekitar ${remain} detik.`,
+          `Jam masuk ${fmtTime(row.check_in)} · Proteksi scan ganda 2 menit`
+        );
+        return;
+      }
+
       await api.db.rpc("teacher_check_out",{p_teacher_id:teacherId,p_method:"QR_KIOSK",p_note:null});
       rows=await api.db.rpc("get_teacher_attendance_by_date",{p_date:todayYMD()})||[];
       row=rows.find(r=>r.teacher_id===teacherId);
 
-      show("success","ABSEN PULANG BERHASIL",row?.teacher_name||"","Absensi hari ini telah lengkap.",`Jam pulang ${fmtTime(row?.check_out)}`);
+      show(
+        "success",
+        "ABSEN PULANG BERHASIL",
+        row?.teacher_name||"",
+        "Absensi hari ini telah lengkap.",
+        `Jam pulang ${fmtTime(row?.check_out)}`
+      );
       return;
     }
 
@@ -360,7 +468,8 @@ document.addEventListener("click",e=>{
     if(!session){location.replace("index.html");return}
     const user=await api.auth.getUser();
     profile=await loadProfile(user);
-    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Scanner Fix V6 · DataURL Decoder`;
+    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Kiosk Stable V7`;
+    requestWakeLock();
     refocus();
   }catch(err){
     alert("Kiosk tidak dapat dibuka: "+(err.message||err));
