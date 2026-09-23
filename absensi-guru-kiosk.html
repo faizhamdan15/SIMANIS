@@ -68,6 +68,7 @@ const SAME_CARD_COOLDOWN_MS=8000;
 const MIN_CHECKOUT_AFTER_CHECKIN_MS=120000;
 let lastAcceptedToken="";
 let lastAcceptedAt=0;
+let lastAcceptedTeacher=null;
 let wakeLock=null;
 
 function todayYMD(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
@@ -142,6 +143,21 @@ async function requestWakeLock(){
 document.addEventListener("visibilitychange",()=>{
   if(document.visibilityState==="visible"&&!wakeLock)requestWakeLock();
 });
+
+async function safeLogScan({
+  eventType,outcome,teacherId=null,teacherName=null,teacherCode=null,
+  inputKind="TEXT",inputLength=0,normalizedLength=0,message="",detail={}
+}){
+  try{
+    await api.db.rpc("record_teacher_scan_log",{
+      p_event_type:eventType,p_outcome:outcome,p_teacher_id:teacherId,
+      p_teacher_name:teacherName,p_teacher_code:teacherCode,
+      p_input_kind:inputKind,p_input_length:Number(inputLength)||0,
+      p_normalized_length:Number(normalizedLength)||0,
+      p_message:message||null,p_detail:detail||{}
+    });
+  }catch(err){console.warn("Audit scan gagal disimpan:",err)}
+}
 
 /*
  * Normalisasi hasil scanner USB/2D.
@@ -262,6 +278,7 @@ async function processScan(explicitRawToken=null){
     return;
   }
 
+  const inputKind=/^data:image\//i.test(rawToken.trim())?"IMAGE_DATAURL":"TEXT";
   processing=true;
 
   try{
@@ -278,12 +295,12 @@ async function processScan(explicitRawToken=null){
       const decoded=await decodeQrDataUrl(rawToken.trim());
 
       if(!decoded){
-        show(
-          "error",
-          "QR TIDAK TERBACA",
-          "",
-          "Gambar berhasil diterima, tetapi isi QR tidak dapat didekode."
-        );
+        await safeLogScan({
+          eventType:"QR_DECODE_ERROR",outcome:"ERROR",inputKind,
+          inputLength:rawToken.length,normalizedLength:0,
+          message:"Gambar QR diterima, tetapi isi QR tidak dapat didekode."
+        });
+        show("error","QR TIDAK TERBACA","","Gambar berhasil diterima, tetapi isi QR tidak dapat didekode.");
         return;
       }
 
@@ -293,6 +310,11 @@ async function processScan(explicitRawToken=null){
     const token=normalizeScannedToken(decodedRaw);
 
     if(!token){
+      await safeLogScan({
+        eventType:"INVALID_CARD",outcome:"ERROR",inputKind,
+        inputLength:rawToken.length,normalizedLength:0,
+        message:"Isi QR kosong atau tidak dikenali."
+      });
       show("error","KARTU TIDAK VALID","","Isi QR kosong atau tidak dikenali.");
       return;
     }
@@ -301,6 +323,14 @@ async function processScan(explicitRawToken=null){
 
     if(token===lastAcceptedToken && now-lastAcceptedAt<SAME_CARD_COOLDOWN_MS){
       const remain=secondsLeft(SAME_CARD_COOLDOWN_MS-(now-lastAcceptedAt));
+      await safeLogScan({
+        eventType:"DUPLICATE_BLOCKED",outcome:"INFO",
+        teacherId:lastAcceptedTeacher?.teacher_id||null,
+        teacherName:lastAcceptedTeacher?.teacher_name||null,
+        teacherCode:lastAcceptedTeacher?.teacher_code||null,
+        inputKind,inputLength:rawToken.length,normalizedLength:token.length,
+        message:`Scan ganda diblokir. Sisa jeda ${remain} detik.`
+      });
       show(
         "info",
         "SCAN GANDA DIABAIKAN",
@@ -316,7 +346,13 @@ async function processScan(explicitRawToken=null){
 
     if(!teacherId){
       const recognized=/^SIMANIS-GURU-(?:[0-9a-f]{32}|[0-9a-f]{64})$/.test(token);
-
+      await safeLogScan({
+        eventType:"INVALID_CARD",outcome:"ERROR",inputKind,
+        inputLength:rawToken.length,normalizedLength:token.length,
+        message:recognized
+          ?"Format QR SIMANIS valid tetapi kartu tidak ditemukan/aktif."
+          :"Hasil scanner tidak sesuai format kartu SIMANIS."
+      });
       show(
         "error",
         "KARTU TIDAK VALID",
@@ -334,14 +370,30 @@ async function processScan(explicitRawToken=null){
     let row=rows.find(r=>r.teacher_id===teacherId);
 
     if(!row){
+      await safeLogScan({
+        eventType:"TEACHER_NOT_FOUND",outcome:"ERROR",teacherId,inputKind,
+        inputLength:rawToken.length,normalizedLength:token.length,
+        message:"Guru kartu tidak ditemukan pada modul Absensi Guru."
+      });
       show("error","DATA GURU TIDAK DITEMUKAN","", "Guru kartu ini tidak ditemukan pada modul Absensi Guru.");
       return;
     }
 
     lastAcceptedToken=token;
     lastAcceptedAt=Date.now();
+    lastAcceptedTeacher={
+      teacher_id:teacherId,
+      teacher_name:row.teacher_name||null,
+      teacher_code:row.teacher_code||null
+    };
 
     if(!row.has_schedule){
+      await safeLogScan({
+        eventType:"NO_SCHEDULE",outcome:"INFO",teacherId,
+        teacherName:row.teacher_name,teacherCode:row.teacher_code,inputKind,
+        inputLength:rawToken.length,normalizedLength:token.length,
+        message:"Guru tidak memiliki jadwal hari ini."
+      });
       show("info","TIDAK ADA JADWAL",row.teacher_name,"Guru tidak memiliki kewajiban hadir hari ini.","Tidak dihitung sebagai alfa.");
       return;
     }
@@ -352,6 +404,13 @@ async function processScan(explicitRawToken=null){
       row=rows.find(r=>r.teacher_id===teacherId);
 
       const late=row?.attendance_status==="TERLAMBAT";
+      await safeLogScan({
+        eventType:"CHECK_IN",outcome:late?"WARNING":"SUCCESS",teacherId,
+        teacherName:row?.teacher_name||null,teacherCode:row?.teacher_code||null,
+        inputKind,inputLength:rawToken.length,normalizedLength:token.length,
+        message:late?`Absen masuk terlambat ${row?.late_minutes||0} menit.`:"Absen masuk berhasil.",
+        detail:{check_in:row?.check_in||null,attendance_status:row?.attendance_status||null,late_minutes:row?.late_minutes||0}
+      });
       show(
         late?"warning":"success",
         late?"ABSEN MASUK • TERLAMBAT":"ABSEN MASUK BERHASIL",
@@ -367,6 +426,13 @@ async function processScan(explicitRawToken=null){
 
       if(sinceCheckIn<MIN_CHECKOUT_AFTER_CHECKIN_MS){
         const remain=secondsLeft(MIN_CHECKOUT_AFTER_CHECKIN_MS-sinceCheckIn);
+        await safeLogScan({
+          eventType:"CHECKOUT_TOO_SOON",outcome:"WARNING",teacherId,
+          teacherName:row.teacher_name,teacherCode:row.teacher_code,inputKind,
+          inputLength:rawToken.length,normalizedLength:token.length,
+          message:`Absen pulang ditahan. Sisa jeda ${remain} detik.`,
+          detail:{check_in:row.check_in||null,remaining_seconds:remain}
+        });
         show(
           "warning",
           "BELUM BISA ABSEN PULANG",
@@ -381,6 +447,12 @@ async function processScan(explicitRawToken=null){
       rows=await api.db.rpc("get_teacher_attendance_by_date",{p_date:todayYMD()})||[];
       row=rows.find(r=>r.teacher_id===teacherId);
 
+      await safeLogScan({
+        eventType:"CHECK_OUT",outcome:"SUCCESS",teacherId,
+        teacherName:row?.teacher_name||null,teacherCode:row?.teacher_code||null,
+        inputKind,inputLength:rawToken.length,normalizedLength:token.length,
+        message:"Absen pulang berhasil.",detail:{check_out:row?.check_out||null}
+      });
       show(
         "success",
         "ABSEN PULANG BERHASIL",
@@ -391,10 +463,26 @@ async function processScan(explicitRawToken=null){
       return;
     }
 
+    await safeLogScan({
+      eventType:"ALREADY_COMPLETE",outcome:"INFO",teacherId,
+      teacherName:row.teacher_name,teacherCode:row.teacher_code,inputKind,
+      inputLength:rawToken.length,normalizedLength:token.length,
+      message:"Absen masuk dan pulang hari ini sudah tercatat.",
+      detail:{check_in:row.check_in||null,check_out:row.check_out||null}
+    });
     show("info","ABSENSI SUDAH LENGKAP",row.teacher_name,"Absen masuk dan pulang hari ini sudah tercatat.",`Masuk ${fmtTime(row.check_in)} • Pulang ${fmtTime(row.check_out)}`);
 
   }catch(err){
     console.error(err);
+    await safeLogScan({
+      eventType:"PROCESS_ERROR",outcome:"ERROR",
+      teacherId:lastAcceptedTeacher?.teacher_id||null,
+      teacherName:lastAcceptedTeacher?.teacher_name||null,
+      teacherCode:lastAcceptedTeacher?.teacher_code||null,
+      inputKind:typeof inputKind==="string"?inputKind:"UNKNOWN",
+      inputLength:typeof rawToken==="string"?rawToken.length:0,
+      normalizedLength:0,message:err.message||"Kartu gagal diproses."
+    });
     show("error","SCAN GAGAL","",err.message||"Kartu gagal diproses.");
   }finally{
     processing=false;
@@ -468,7 +556,7 @@ document.addEventListener("click",e=>{
     if(!session){location.replace("index.html");return}
     const user=await api.auth.getUser();
     profile=await loadProfile(user);
-    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Kiosk Stable V7`;
+    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Kiosk Audit V8`;
     requestWakeLock();
     refocus();
   }catch(err){

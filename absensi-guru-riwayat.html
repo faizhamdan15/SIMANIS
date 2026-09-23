@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Riwayat Scan Guru — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .audit-wrap{max-width:1250px;margin:auto}.audit-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-end;margin-bottom:16px}.audit-head h2{margin:0;color:var(--green-950)}.audit-head p{margin:6px 0 0;color:var(--muted);font-size:11px}
+    .audit-actions{display:flex;gap:8px;flex-wrap:wrap}.audit-btn{border:1px solid #d7e2dc;background:#fff;color:var(--green-900);border-radius:10px;padding:10px 13px;font-size:10px;font-weight:800;text-decoration:none;cursor:pointer}.audit-btn.primary{background:var(--green-800);color:#fff;border-color:var(--green-800)}
+    .audit-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.audit-stat{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}.audit-stat span{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.audit-stat strong{display:block;margin-top:5px;font-size:23px;color:var(--green-950)}
+    .audit-toolbar{display:grid;grid-template-columns:.8fr 1fr 1fr 1.4fr auto;gap:9px;margin-bottom:12px}.audit-toolbar input,.audit-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:11px;padding:10px 11px;background:#fff;font-size:11px}
+    .audit-table-wrap{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:auto}.audit-table{width:100%;border-collapse:collapse;min-width:1050px}.audit-table th,.audit-table td{padding:10px;border-bottom:1px solid #edf2ef;text-align:left;font-size:10px;vertical-align:top}.audit-table th{background:#fbfdfc;color:var(--muted);text-transform:uppercase;font-size:9px}.audit-name{font-weight:800;color:var(--green-950)}.audit-meta{font-size:9px;color:var(--muted);margin-top:3px}.badge{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:8px;font-weight:800}.b-SUCCESS{background:#dff4e7;color:#08743f}.b-WARNING{background:#fff0c9;color:#8a5a00}.b-ERROR{background:#ffe2de;color:#a52d22}.b-INFO{background:#e9efff;color:#365aaf}.empty{padding:28px;text-align:center;color:var(--muted);font-size:11px}
+    @media(max-width:900px){.audit-stats{grid-template-columns:1fr 1fr}.audit-toolbar{grid-template-columns:1fr 1fr}.audit-toolbar .wide{grid-column:1/-1}}@media(max-width:520px){.audit-head{align-items:flex-start;flex-direction:column}.audit-stats,.audit-toolbar{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Riwayat Scan...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Riwayat Scan Guru</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+    <main class="main">
+      <div class="audit-wrap">
+        <section class="audit-head">
+          <div><h2>Riwayat Scan Kiosk</h2><p>Audit scan kartu guru: berhasil, ditahan, gagal, serta alasan pemrosesannya.</p></div>
+          <div class="audit-actions">
+            <a class="audit-btn" href="absensi-guru.html">← Absensi Guru</a>
+            <a class="audit-btn" href="absensi-guru-kiosk.html">Kiosk</a>
+            <button id="exportBtn" class="audit-btn primary">Export CSV</button>
+          </div>
+        </section>
+        <section class="audit-stats">
+          <article class="audit-stat"><span>Total Scan</span><strong id="statTotal">0</strong></article>
+          <article class="audit-stat"><span>Berhasil</span><strong id="statSuccess">0</strong></article>
+          <article class="audit-stat"><span>Peringatan / Ditahan</span><strong id="statWarning">0</strong></article>
+          <article class="audit-stat"><span>Error</span><strong id="statError">0</strong></article>
+        </section>
+        <section class="audit-toolbar">
+          <input id="auditDate" type="date">
+          <select id="outcomeFilter"><option value="">Semua Hasil</option><option value="SUCCESS">Berhasil</option><option value="WARNING">Peringatan</option><option value="INFO">Info</option><option value="ERROR">Error</option></select>
+          <select id="eventFilter">
+            <option value="">Semua Event</option><option value="CHECK_IN">Absen Masuk</option><option value="CHECK_OUT">Absen Pulang</option><option value="DUPLICATE_BLOCKED">Scan Ganda</option><option value="CHECKOUT_TOO_SOON">Pulang Terlalu Cepat</option><option value="NO_SCHEDULE">Tanpa Jadwal</option><option value="ALREADY_COMPLETE">Sudah Lengkap</option><option value="INVALID_CARD">Kartu Tidak Valid</option><option value="QR_DECODE_ERROR">QR Gagal Dibaca</option><option value="TEACHER_NOT_FOUND">Guru Tidak Ditemukan</option><option value="PROCESS_ERROR">Error Proses</option>
+          </select>
+          <input id="searchInput" class="wide" type="search" placeholder="Cari guru, kode, operator, pesan...">
+          <button id="refreshBtn" class="audit-btn">Refresh</button>
+        </section>
+        <section class="audit-table-wrap">
+          <table class="audit-table"><thead><tr><th>Waktu</th><th>Guru</th><th>Event</th><th>Hasil</th><th>Pesan</th><th>Operator</th><th>Input</th></tr></thead><tbody id="auditBody"></tbody></table>
+          <div id="emptyState" class="empty" style="display:none">Belum ada riwayat scan pada filter ini.</div>
+        </section>
+      </div>
+    </main>
+  </section>
+</div>
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let api,profile,rows=[],filtered=[];
+function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function todayYMD(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
+function fmtDateTime(ts){if(!ts)return "-";return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(new Date(ts))}
+function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
+function formatRole(r){return (r||"-").replaceAll("_"," ")}
+function routeFor(code){return {DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html"}[code]||"#"}
+function eventLabel(v){return {CHECK_IN:"Absen Masuk",CHECK_OUT:"Absen Pulang",DUPLICATE_BLOCKED:"Scan Ganda",CHECKOUT_TOO_SOON:"Pulang Ditahan",NO_SCHEDULE:"Tanpa Jadwal",ALREADY_COMPLETE:"Sudah Lengkap",INVALID_CARD:"Kartu Tidak Valid",QR_DECODE_ERROR:"QR Gagal Dibaca",TEACHER_NOT_FOUND:"Guru Tidak Ditemukan",PROCESS_ERROR:"Error Proses"}[v]||v||"-"}
+function outcomeLabel(v){return {SUCCESS:"BERHASIL",WARNING:"PERINGATAN",INFO:"INFO",ERROR:"ERROR"}[v]||v||"-"}
+async function loadProfile(user){
+  const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
+  if(!r?.[0]||!r[0].is_active)throw new Error("Akun tidak aktif.");
+  const perm=await api.db.rpc("get_my_module_permission",{p_module_code:"ABSENSI_GURU"});
+  if(!(perm?.can_update||r[0].role==="SUPER_ADMIN"))throw new Error("Riwayat scan hanya untuk pengelola Absensi Guru.");
+  return r[0];
+}
+async function loadMenu(){const m=await api.db.rpc("get_my_modules",{});$("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${x.code==="ABSENSI_GURU"?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("")}
+async function loadLogs(){
+  $("loading").classList.remove("hidden");
+  try{const d=$("auditDate").value||todayYMD();rows=await api.db.rpc("list_teacher_scan_logs",{p_date_from:d,p_date_to:d,p_limit:1000})||[];applyFilters()}
+  finally{$("loading").classList.add("hidden")}
+}
+function applyFilters(){
+  const outcome=$("outcomeFilter").value,event=$("eventFilter").value,q=$("searchInput").value.trim().toLowerCase();
+  filtered=rows.filter(r=>{if(outcome&&r.outcome!==outcome)return false;if(event&&r.event_type!==event)return false;if(q&&!`${r.teacher_name||""} ${r.teacher_code||""} ${r.operator_name||""} ${r.message||""} ${r.event_type||""}`.toLowerCase().includes(q))return false;return true});
+  $("statTotal").textContent=rows.length;$("statSuccess").textContent=rows.filter(r=>r.outcome==="SUCCESS").length;$("statWarning").textContent=rows.filter(r=>r.outcome==="WARNING").length;$("statError").textContent=rows.filter(r=>r.outcome==="ERROR").length;render();
+}
+function render(){
+  $("emptyState").style.display=filtered.length?"none":"block";
+  $("auditBody").innerHTML=filtered.map(r=>`<tr><td>${esc(fmtDateTime(r.created_at))}</td><td><div class="audit-name">${esc(r.teacher_name||"-")}</div><div class="audit-meta">${esc(r.teacher_code||"")}</div></td><td>${esc(eventLabel(r.event_type))}</td><td><span class="badge b-${esc(r.outcome)}">${esc(outcomeLabel(r.outcome))}</span></td><td>${esc(r.message||"-")}</td><td>${esc(r.operator_name||"-")}</td><td><div>${esc(r.input_kind||"-")}</div><div class="audit-meta">${Number(r.input_length||0)} → ${Number(r.normalized_length||0)} karakter</div></td></tr>`).join("");
+}
+function csvCell(v){return `"${String(v??"").replaceAll('"','""')}"`}
+function exportCSV(){const data=[["Waktu","Guru","Kode","Event","Hasil","Pesan","Operator","Jenis Input","Panjang Input","Panjang Normal"],...filtered.map(r=>[fmtDateTime(r.created_at),r.teacher_name||"",r.teacher_code||"",eventLabel(r.event_type),outcomeLabel(r.outcome),r.message||"",r.operator_name||"",r.input_kind||"",r.input_length||0,r.normalized_length||0])];const csv="\uFEFF"+data.map(row=>row.map(csvCell).join(",")).join("\r\n");const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download=`riwayat-scan-guru-${$("auditDate").value||todayYMD()}.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)}
+$("auditDate").value=todayYMD();$("auditDate").onchange=loadLogs;$("outcomeFilter").onchange=applyFilters;$("eventFilter").onchange=applyFilters;$("searchInput").oninput=applyFilters;$("refreshBtn").onclick=loadLogs;$("exportBtn").onclick=exportCSV;
+(async function boot(){try{api=await window.simanisReady;const session=await api.auth.getSession();if(!session){location.replace("index.html");return}const user=await api.auth.getUser();profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();await loadMenu();await loadLogs();$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}}catch(err){console.error(err);alert("Riwayat scan gagal dimuat: "+(err.message||err));location.replace("absensi-guru.html")}finally{$("loading").classList.add("hidden")}})();
+</script>
+</body>
+</html>
