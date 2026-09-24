@@ -7,6 +7,7 @@ window.SIMANIS_CONFIG = {
 (function(){
   const files = [
     "global-mobile-nav.js",
+    "global-sidebar-route-fix.js",
     "dashboard-guru-personal-v5.js",
     "pretty-news-links.js",
     "public-finish.js",
