@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Audit Hak Akses — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .qa{max-width:1200px;margin:auto}.qa-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;margin-bottom:14px}.qa-head h2{margin:0;color:var(--green-950)}.qa-head p{font-size:10px;color:var(--muted);margin:5px 0 0}.qa-actions{display:flex;gap:8px;flex-wrap:wrap}.qa-btn{border:1px solid #d7e2dc;background:#fff;color:#075b3a;border-radius:10px;padding:10px 12px;font-size:10px;font-weight:800;text-decoration:none;cursor:pointer}.qa-btn.primary{background:#075b3a;color:#fff}
+    .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}.card span{font-size:9px;color:var(--muted)}.card strong{display:block;margin-top:4px;font-size:21px;color:var(--green-950)}
+    .tbl{overflow:auto;background:#fff;border:1px solid var(--line);border-radius:15px}.tbl table{width:100%;border-collapse:collapse;min-width:900px}.tbl th,.tbl td{padding:10px;border-bottom:1px solid #edf2ef;text-align:left;font-size:10px}.tbl th{font-size:9px;color:var(--muted);background:#fbfdfc;text-transform:uppercase}.yes{color:#08743f;font-weight:800}.no{color:#a52d22;font-weight:800}.open{font-size:9px;color:#075b3a;font-weight:800;text-decoration:none}.note{margin-top:12px;background:#fff9e8;border:1px solid #efd28a;border-radius:12px;padding:11px;font-size:9px;color:#745600}
+    @media(max-width:700px){.summary{grid-template-columns:1fr 1fr}.qa-head{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Mengaudit hak akses...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Quality Assurance · Hak Akses</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+    <main class="main"><div class="qa">
+      <section class="qa-head">
+        <div><h2>Audit Hak Akses Akun</h2><p>Login menggunakan masing-masing role lalu buka halaman ini untuk smoke test permission.</p></div>
+        <div class="qa-actions"><a class="qa-btn" href="pengaturan.html">← Pengaturan</a><button id="exportBtn" class="qa-btn primary">Export CSV</button></div>
+      </section>
+      <section class="summary">
+        <article class="card"><span>Role</span><strong id="statRole">-</strong></article>
+        <article class="card"><span>Bisa Dilihat</span><strong id="statView">0</strong></article>
+        <article class="card"><span>Bisa Update</span><strong id="statUpdate">0</strong></article>
+        <article class="card"><span>Ditolak</span><strong id="statDenied">0</strong></article>
+      </section>
+      <section class="tbl"><table><thead><tr><th>Modul</th><th>View</th><th>Create</th><th>Update</th><th>Delete</th><th>Direct URL</th></tr></thead><tbody id="body"></tbody></table></section>
+      <div class="note">Halaman ini tidak mengubah permission. Gunakan untuk memeriksa hasil konfigurasi role. Pengujian keamanan final tetap harus memastikan RPC/RLS database menolak operasi yang tidak berhak.</div>
+    </div></main>
+  </section>
+</div>
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let api,profile,rows=[];
+const MODULES=[
+ ["DASHBOARD","Dashboard","dashboard.html"],
+ ["ADMINISTRASI_KEPALA","Administrasi Kepala","administrasi.html"],
+ ["DATA_SISWA","Data Siswa","siswa.html"],
+ ["DATA_GURU","Data Guru","guru.html"],
+ ["KELAS","Kelas","kelas.html"],
+ ["MATA_PELAJARAN","Mata Pelajaran","mapel.html"],
+ ["JADWAL","Jadwal","jadwal.html"],
+ ["ABSENSI_GURU","Absensi Guru","absensi-guru.html"],
+ ["ABSENSI_SISWA","Absensi Siswa","absensi-siswa.html"],
+ ["NILAI","Nilai","nilai.html"],
+ ["PRESTASI","Prestasi","prestasi.html"],
+ ["BERITA","Berita","berita.html"],
+ ["PENGUMUMAN","Pengumuman","pengumuman.html"],
+ ["AGENDA","Agenda","agenda.html"],
+ ["KEUANGAN","Keuangan","keuangan.html"],
+ ["PORTAL_WALI","Portal Wali","wali-admin.html"],
+ ["PENGATURAN","Pengaturan","pengaturan.html"],
+ ["PKM_KURIKULUM","PKM Kurikulum","unit-kerja.html?unit=PKM_KURIKULUM"],
+ ["PKM_KESISWAAN","PKM Kesiswaan","unit-kerja.html?unit=PKM_KESISWAAN"],
+ ["PKM_BENDAHARA_SARPRAS","PKM Bendahara & Sarpras","unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS"],
+ ["PKM_HUMASY","PKM Humasy","unit-kerja.html?unit=PKM_HUMASY"],
+ ["KEPALA_TU","Kepala TU","unit-kerja.html?unit=KEPALA_TU"],
+ ["KALAB_IPA","Kalab IPA","unit-kerja.html?unit=KALAB_IPA"],
+ ["KALAB_BISNIS","Kalab Bisnis","unit-kerja.html?unit=KALAB_BISNIS"]
+];
+const yn=v=>v?'<span class="yes">YA</span>':'<span class="no">TIDAK</span>';
+function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function localDate(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
+function fmtRole(r){return String(r||"-").replaceAll("_"," ")}
+async function loadMenu(){const m=await api.db.rpc("get_my_modules",{});$("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="#" class="nav-item"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("")}
+async function audit(){
+  rows=[];
+  for(const [code,name,url] of MODULES){
+    let p={can_view:false,can_create:false,can_update:false,can_delete:false};
+    try{p=await api.db.rpc("get_my_module_permission",{p_module_code:code})||p}catch(e){p.error=e.message}
+    rows.push({code,name,url,...p});
+  }
+  $("statRole").textContent=fmtRole(profile.role);
+  $("statView").textContent=rows.filter(x=>x.can_view).length;
+  $("statUpdate").textContent=rows.filter(x=>x.can_update).length;
+  $("statDenied").textContent=rows.filter(x=>!x.can_view).length;
+  $("body").innerHTML=rows.map(r=>`<tr><td><strong>${esc(r.name)}</strong><div style="font-size:8px;color:#718078">${esc(r.code)}</div></td><td>${yn(r.can_view)}</td><td>${yn(r.can_create)}</td><td>${yn(r.can_update)}</td><td>${yn(r.can_delete)}</td><td>${r.can_view?`<a class="open" href="${esc(r.url)}" target="_blank" rel="noopener">Buka ↗</a>`:'<span class="no">Harus Ditolak</span>'}</td></tr>`).join("");
+}
+function csvCell(v){return `"${String(v??"").replaceAll('"','""')}"`}
+function exportCsv(){
+  const d=[["Role","Kode","Modul","View","Create","Update","Delete"],...rows.map(r=>[profile.role,r.code,r.name,!!r.can_view,!!r.can_create,!!r.can_update,!!r.can_delete])];
+  const csv="\uFEFF"+d.map(x=>x.map(csvCell).join(",")).join("\r\n");
+  const u=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=u;a.download=`audit-hak-akses-${profile.role}.csv`;a.click();URL.revokeObjectURL(u)
+}
+$("exportBtn").onclick=exportCsv;
+(async()=>{
+  try{
+    api=await window.simanisReady;
+    const session=await api.auth.getSession();if(!session){location.replace("index.html");return}
+    const user=await api.auth.getUser();if(!user){location.replace("index.html");return}
+    const p=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
+    profile=p?.[0];if(!profile?.is_active)throw new Error("Akun tidak aktif.");
+    $("sideUserName").textContent=profile.full_name||user.email;$("sideUserRole").textContent=fmtRole(profile.role);$("headerUser").textContent=profile.full_name||user.email;$("currentDate").textContent=localDate();
+    await loadMenu();await audit();$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}
+  }catch(e){alert("Audit hak akses gagal: "+e.message)}
+  finally{$("loading").classList.add("hidden")}
+})();
+</script>
+</body>
+</html>

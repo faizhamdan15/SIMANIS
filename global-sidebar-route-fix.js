@@ -1,22 +1,12 @@
 (function(){
   const ROUTES={
-    DASHBOARD:"dashboard.html",
-    ADMINISTRASI_KEPALA:"administrasi.html",
-    DATA_SISWA:"siswa.html",
-    DATA_GURU:"guru.html",
-    KELAS:"kelas.html",
-    MATA_PELAJARAN:"mapel.html",
-    JADWAL:"jadwal.html",
-    ABSENSI_GURU:"absensi-guru.html",
-    ABSENSI_SISWA:"absensi-siswa.html",
-    NILAI:"nilai.html",
-    PRESTASI:"prestasi.html",
-    BERITA:"berita.html",
-    PENGUMUMAN:"pengumuman.html",
-    AGENDA:"agenda.html",
-    KEUANGAN:"keuangan.html",
-    PORTAL_WALI:"wali-admin.html",
-    PENGATURAN:"pengaturan.html",
+    DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",
+    DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",
+    MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",
+    ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",
+    NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",
+    PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",
+    PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",
     PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",
     PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",
     PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",
@@ -27,10 +17,7 @@
   };
 
   let api=null,modules=[],fixing=false;
-
-  function normalizeText(s){
-    return String(s??"").replace(/\s+/g," ").trim().toLowerCase();
-  }
+  const norm=s=>String(s??"").replace(/\s+/g," ").trim().toLowerCase();
 
   async function ensureModules(){
     if(modules.length)return modules;
@@ -38,7 +25,7 @@
       api=api||await window.simanisReady;
       modules=await api.db.rpc("get_my_modules",{})||[];
     }catch(err){
-      console.warn("SIMANIS route normalizer: gagal membaca modul",err);
+      console.warn("SIMANIS route normalizer:",err);
       modules=[];
     }
     return modules;
@@ -47,39 +34,27 @@
   async function fixSidebar(){
     if(fixing)return;
     const menu=document.getElementById("sidebarMenu");
-    if(!menu || !menu.children.length)return;
-
+    if(!menu||!menu.children.length)return;
     fixing=true;
     try{
       const mods=await ensureModules();
       if(!mods.length)return;
-
-      const byName=new Map(mods.map(m=>[normalizeText(m.name),m]));
-
+      const byName=new Map(mods.map(m=>[norm(m.name),m]));
       [...menu.querySelectorAll("a.nav-item")].forEach(a=>{
-        const mod=byName.get(normalizeText(a.textContent));
-        if(!mod)return;
-
-        const target=ROUTES[mod.code];
+        const mod=byName.get(norm(a.textContent));
+        const target=mod?ROUTES[mod.code]:null;
         if(!target)return;
-
-        a.setAttribute("href",target);
+        a.href=target;
         a.removeAttribute("onclick");
       });
-    }finally{
-      fixing=false;
-    }
+    }finally{fixing=false}
   }
 
   function boot(){
     const menu=document.getElementById("sidebarMenu");
     if(!menu){setTimeout(boot,120);return}
-
-    new MutationObserver(()=>fixSidebar())
-      .observe(menu,{childList:true,subtree:true});
-
+    new MutationObserver(()=>fixSidebar()).observe(menu,{childList:true,subtree:true});
     fixSidebar();
   }
-
   boot();
 })();

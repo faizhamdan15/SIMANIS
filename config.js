@@ -6,9 +6,9 @@ window.SIMANIS_CONFIG = {
 /* Global add-ons SIMANIS. */
 (function(){
   const files = [
+    "direct-url-security-v2.js",
     "global-mobile-nav.js",
     "global-sidebar-route-fix.js",
-    "global-direct-access-guard.js",
     "dashboard-guru-personal-v5.js",
     "pretty-news-links.js",
     "public-finish.js",
@@ -20,7 +20,7 @@ window.SIMANIS_CONFIG = {
     if (document.querySelector(`script[data-simanis-addon="${src}"]`)) return;
     const s = document.createElement("script");
     s.src = src;
-    s.defer = true;
+    s.async = false;
     s.dataset.simanisAddon = src;
     document.head.appendChild(s);
   });
