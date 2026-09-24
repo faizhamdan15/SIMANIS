@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Riwayat Perubahan Absensi Siswa — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .hist-wrap{max-width:1280px;margin:auto}.hist-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-bottom:16px}.hist-head h2{margin:0;color:var(--green-950)}.hist-head p{margin:6px 0 0;color:var(--muted);font-size:11px}
+    .hist-actions{display:flex;gap:8px;flex-wrap:wrap}.hist-btn{border:1px solid #d7e2dc;background:#fff;color:var(--green-900);border-radius:10px;padding:10px 13px;font-size:10px;font-weight:800;text-decoration:none;cursor:pointer}.hist-btn.primary{background:var(--green-800);color:#fff;border-color:var(--green-800)}
+    .hist-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.hist-stat{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}.hist-stat span{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.hist-stat strong{display:block;margin-top:5px;font-size:23px;color:var(--green-950)}
+    .hist-toolbar{display:grid;grid-template-columns:.8fr 1.1fr 1.5fr auto;gap:9px;margin-bottom:12px}.hist-toolbar input,.hist-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:11px;padding:10px 11px;background:#fff;font-size:11px}
+    .hist-table-wrap{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:auto}.hist-table{width:100%;border-collapse:collapse;min-width:1120px}.hist-table th,.hist-table td{padding:10px;border-bottom:1px solid #edf2ef;text-align:left;font-size:10px;vertical-align:top}.hist-table th{background:#fbfdfc;color:var(--muted);text-transform:uppercase;font-size:9px}.student{font-weight:800;color:var(--green-950)}.sub{font-size:9px;color:var(--muted);margin-top:3px}.change{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.old,.new{padding:5px 7px;border-radius:8px;font-size:9px;font-weight:800}.old{background:#fff0ed;color:#9b342a}.new{background:#e6f6ec;color:#08743f}.arrow{color:#8d9a93;font-weight:800}.field-list{font-size:8px;color:#65736b;margin-top:5px}.empty{padding:30px;text-align:center;color:var(--muted);font-size:11px}
+    @media(max-width:900px){.hist-stats{grid-template-columns:1fr 1fr}.hist-toolbar{grid-template-columns:1fr 1fr}.hist-toolbar .wide{grid-column:1/-1}}@media(max-width:520px){.hist-head{align-items:flex-start;flex-direction:column}.hist-stats,.hist-toolbar{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Riwayat Perubahan...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Absensi Siswa · Riwayat Perubahan</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+    <main class="main">
+      <div class="hist-wrap">
+        <section class="hist-head">
+          <div><h2>Riwayat Perubahan Absensi</h2><p>Melihat siapa yang mengubah, kapan, siswa mana, dan data sebelum → sesudah.</p></div>
+          <div class="hist-actions"><a class="hist-btn" href="absensi-siswa.html">← Absensi Siswa</a><button id="exportBtn" class="hist-btn primary">Export CSV</button></div>
+        </section>
+
+        <section class="hist-stats">
+          <article class="hist-stat"><span>Total Perubahan</span><strong id="statTotal">0</strong></article>
+          <article class="hist-stat"><span>Siswa Terdampak</span><strong id="statStudents">0</strong></article>
+          <article class="hist-stat"><span>Perubahan Status</span><strong id="statStatus">0</strong></article>
+          <article class="hist-stat"><span>Pengubah</span><strong id="statEditors">0</strong></article>
+        </section>
+
+        <section class="hist-toolbar">
+          <input id="historyDate" type="date">
+          <select id="classFilter"><option value="">Semua Kelas</option></select>
+          <input id="searchInput" class="wide" type="search" placeholder="Cari siswa, NIS, kelas, atau nama pengubah...">
+          <button id="refreshBtn" class="hist-btn">Refresh</button>
+        </section>
+
+        <section class="hist-table-wrap">
+          <table class="hist-table">
+            <thead><tr><th>Waktu</th><th>Kelas</th><th>Siswa</th><th>Status</th><th>Field Berubah</th><th>Diubah Oleh</th></tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+          <div id="emptyState" class="empty" style="display:none">Belum ada perubahan absensi pada filter ini.</div>
+        </section>
+      </div>
+    </main>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let api,profile,classes=[],logs=[],filtered=[];
+
+function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function localISODate(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
+function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
+function fmtDT(ts){if(!ts)return"-";return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(new Date(ts))}
+function formatRole(r){return (r||"-").replaceAll("_"," ")}
+function routeFor(code){return {DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"}[code]||"#"}
+function sLabel(s){return {BELUM_DIABSEN:"Belum Diabsen",HADIR:"Hadir",TERLAMBAT:"Terlambat",IZIN:"Izin",SAKIT:"Sakit",ALFA:"Alfa"}[s]||s||"-"}
+function fieldLabel(f){return {attendance_status:"Status",arrival_time:"Jam Datang",late_minutes:"Terlambat",note:"Catatan"}[f]||f}
+
+async function loadProfile(user){
+  const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
+  if(!r?.[0]||!r[0].is_active)throw new Error("Akun tidak aktif.");
+  return r[0];
+}
+async function loadMenu(){
+  const m=await api.db.rpc("get_my_modules",{});
+  $("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${x.code==="ABSENSI_SISWA"?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("");
+}
+async function loadClasses(){
+  classes=(await api.db.rpc("get_my_attendance_classes",{})||[]).filter(c=>c.can_manage);
+  $("classFilter").innerHTML='<option value="">Semua Kelas</option>'+classes.map(c=>`<option value="${c.class_id}">${esc(c.class_name)}</option>`).join("");
+  const q=new URLSearchParams(location.search);
+  const requested=q.get("class");
+  if(requested&&classes.some(c=>String(c.class_id)===requested))$("classFilter").value=requested;
+}
+async function loadLogs(){
+  $("loading").classList.remove("hidden");
+  try{
+    const d=$("historyDate").value||localISODate();
+    const c=$("classFilter").value||null;
+    logs=await api.db.rpc("list_student_attendance_change_logs",{p_date_from:d,p_date_to:d,p_class_id:c,p_limit:2000})||[];
+    applyFilter();
+  }finally{$("loading").classList.add("hidden")}
+}
+function applyFilter(){
+  const q=$("searchInput").value.trim().toLowerCase();
+  filtered=logs.filter(r=>{
+    if(!q)return true;
+    return `${r.student_name||""} ${r.nis||""} ${r.class_name||""} ${r.changed_by_name||""}`.toLowerCase().includes(q);
+  });
+
+  $("statTotal").textContent=logs.length;
+  $("statStudents").textContent=new Set(logs.map(r=>r.enrollment_id).filter(Boolean)).size;
+  $("statStatus").textContent=logs.filter(r=>(r.changed_fields||[]).includes("attendance_status")).length;
+  $("statEditors").textContent=new Set(logs.map(r=>r.changed_by).filter(Boolean)).size;
+  render();
+}
+function render(){
+  $("emptyState").style.display=filtered.length?"none":"block";
+  $("historyBody").innerHTML=filtered.map(r=>{
+    const before=r.before_data||{},after=r.after_data||{};
+    const fields=(r.changed_fields||[]).map(fieldLabel).join(", ");
+    return `<tr>
+      <td>${esc(fmtDT(r.created_at))}</td>
+      <td><strong>${esc(r.class_name||"-")}</strong><div class="sub">${esc(r.attendance_date||"")}</div></td>
+      <td><div class="student">${esc(r.student_name||"-")}</div><div class="sub">NIS ${esc(r.nis||"-")}</div></td>
+      <td><div class="change"><span class="old">${esc(sLabel(before.attendance_status))}</span><span class="arrow">→</span><span class="new">${esc(sLabel(after.attendance_status))}</span></div></td>
+      <td>${esc(fields||"-")}<div class="field-list">${esc((r.changed_fields||[]).includes("arrival_time")?`Jam ${before.arrival_time||"-"} → ${after.arrival_time||"-"}`:"")}</div></td>
+      <td><strong>${esc(r.changed_by_name||"-")}</strong><div class="sub">${esc(formatRole(r.changed_by_role))}</div></td>
+    </tr>`;
+  }).join("");
+}
+function csvCell(v){return `"${String(v??"").replaceAll('"','""')}"`}
+function exportCSV(){
+  const data=[["Waktu","Tanggal Absensi","Kelas","Siswa","NIS","Status Sebelum","Status Sesudah","Field Berubah","Diubah Oleh","Role"],
+    ...filtered.map(r=>[fmtDT(r.created_at),r.attendance_date,r.class_name,r.student_name,r.nis,sLabel(r.before_data?.attendance_status),sLabel(r.after_data?.attendance_status),(r.changed_fields||[]).map(fieldLabel).join("; "),r.changed_by_name,r.changed_by_role])];
+  const csv="\uFEFF"+data.map(row=>row.map(csvCell).join(",")).join("\r\n");
+  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  const a=document.createElement("a");a.href=url;a.download=`riwayat-perubahan-absensi-${$("historyDate").value||localISODate()}.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+
+const qs=new URLSearchParams(location.search);
+$("historyDate").value=qs.get("date")||localISODate();
+$("historyDate").onchange=loadLogs;
+$("classFilter").onchange=loadLogs;
+$("searchInput").oninput=applyFilter;
+$("refreshBtn").onclick=loadLogs;
+$("exportBtn").onclick=exportCSV;
+
+(async function boot(){
+  try{
+    api=await window.simanisReady;
+    const session=await api.auth.getSession();if(!session){location.replace("index.html");return}
+    const user=await api.auth.getUser();profile=await loadProfile(user);
+    $("sideUserName").textContent=profile.full_name||user.email||"Pengguna";
+    $("sideUserRole").textContent=formatRole(profile.role);
+    $("headerUser").textContent=profile.full_name||user.email||"Pengguna";
+    $("currentDate").textContent=localDateID();
+    await loadMenu();await loadClasses();await loadLogs();
+    $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")};
+  }catch(err){
+    console.error(err);
+    alert("Riwayat perubahan gagal dimuat: "+(err.message||err));
+    location.replace("absensi-siswa.html");
+  }finally{$("loading").classList.add("hidden")}
+})();
+</script>
+</body>
+</html>

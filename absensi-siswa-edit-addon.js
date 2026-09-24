@@ -8,8 +8,11 @@
   let editSnapshot=null;
   let editContext=null;
   let applying=false;
+  let pendingAudit=null;
+  let rpcHookInstalled=false;
 
   const COMPLETE_STATUSES=new Set(["HADIR","TERLAMBAT","IZIN","SAKIT","ALFA"]);
+  const AUDIT_FIELDS=["attendance_status","arrival_time","late_minutes","note"];
 
   function clone(v){
     try{return structuredClone(v)}
@@ -30,6 +33,70 @@
     return canManage() && hasSavedAttendance && !editMode;
   }
 
+  function normRow(r){
+    return {
+      attendance_status:String(r?.attendance_status||"BELUM_DIABSEN"),
+      arrival_time:r?.arrival_time?String(r.arrival_time).slice(0,5):null,
+      late_minutes:Number(r?.late_minutes||0),
+      note:r?.note==null||String(r.note).trim()===""?null:String(r.note)
+    };
+  }
+
+  function buildChanges(){
+    if(!Array.isArray(editSnapshot)||!Array.isArray(rows))return [];
+
+    const beforeMap=new Map(editSnapshot.map(r=>[String(r.enrollment_id),r]));
+    const changes=[];
+
+    rows.forEach(afterRow=>{
+      const beforeRow=beforeMap.get(String(afterRow.enrollment_id));
+      if(!beforeRow)return;
+
+      const before=normRow(beforeRow);
+      const after=normRow(afterRow);
+      const changedFields=AUDIT_FIELDS.filter(k=>before[k]!==after[k]);
+
+      if(!changedFields.length)return;
+
+      changes.push({
+        enrollment_id:afterRow.enrollment_id,
+        student_name:afterRow.full_name||beforeRow.full_name||"",
+        nis:afterRow.nis||beforeRow.nis||"",
+        nisn:afterRow.nisn||beforeRow.nisn||"",
+        changed_fields:changedFields,
+        before,
+        after
+      });
+    });
+
+    return changes;
+  }
+
+  function showToast(message,type="ok"){
+    let box=document.getElementById("studentAttendanceAuditToast");
+    if(!box){
+      box=document.createElement("div");
+      box.id="studentAttendanceAuditToast";
+      box.style.cssText="position:fixed;right:18px;bottom:18px;z-index:99999;max-width:360px;padding:12px 14px;border-radius:12px;font:700 10px Inter,Arial,sans-serif;box-shadow:0 14px 35px rgba(0,0,0,.18);transition:.2s";
+      document.body.appendChild(box);
+    }
+    box.textContent=message;
+    box.style.background=type==="warn"?"#fff4d7":"#e5f6eb";
+    box.style.color=type==="warn"?"#8a5a00":"#166534";
+    box.style.opacity="1";
+    clearTimeout(box._timer);
+    box._timer=setTimeout(()=>{box.style.opacity="0"},4200);
+  }
+
+  function historyUrl(){
+    const d=document.getElementById("attendanceDate")?.value||"";
+    const c=selectedClass?.class_id||"";
+    const qs=new URLSearchParams();
+    if(d)qs.set("date",d);
+    if(c)qs.set("class",c);
+    return "absensi-siswa-riwayat.html"+(qs.toString()?`?${qs.toString()}`:"");
+  }
+
   function ensureUI(){
     if(document.getElementById("studentAttendanceEditTools"))return;
 
@@ -47,6 +114,7 @@
       .sa-edit-tools button{border:1px solid #d7e2dc;background:#fff;color:#075b3a;border-radius:10px;padding:10px 12px;font-size:10px;font-weight:800;cursor:pointer}
       .sa-edit-tools .edit{background:#075b3a;color:#fff;border-color:#075b3a}
       .sa-edit-tools .cancel{color:#8a5a00}
+      .sa-edit-tools .history{color:#365aaf;border-color:#ccd8ef}
       .sa-edit-tools button.hidden{display:none}
       .sa-locked-field{background:#f5f7f6!important;color:#6b746f!important;cursor:not-allowed!important}
     `;
@@ -73,6 +141,7 @@
       tools.id="studentAttendanceEditTools";
       tools.className="sa-edit-tools";
       tools.innerHTML=`
+        <button type="button" id="attendanceHistoryBtn" class="history">Riwayat Perubahan</button>
         <button type="button" id="cancelAttendanceEditBtn" class="cancel hidden">Batalkan Edit</button>
         <button type="button" id="editAttendanceBtn" class="edit hidden">Edit Absensi</button>
       `;
@@ -80,6 +149,7 @@
 
       document.getElementById("editAttendanceBtn").addEventListener("click",startEdit);
       document.getElementById("cancelAttendanceEditBtn").addEventListener("click",cancelEdit);
+      document.getElementById("attendanceHistoryBtn").addEventListener("click",()=>location.href=historyUrl());
     }
   }
 
@@ -87,9 +157,7 @@
     if(applying)return;
     applying=true;
     try{
-      document.querySelectorAll(
-        '#attendanceBody [data-field], #attendanceCards [data-field]'
-      ).forEach(el=>{
+      document.querySelectorAll('#attendanceBody [data-field], #attendanceCards [data-field]').forEach(el=>{
         el.disabled=disabled || !canManage();
         el.classList.toggle("sa-locked-field",disabled && canManage());
       });
@@ -112,9 +180,12 @@
     const badge=document.getElementById("studentAttendanceSavedBadge");
     const editBtn=document.getElementById("editAttendanceBtn");
     const cancelBtn=document.getElementById("cancelAttendanceEditBtn");
+    const historyBtn=document.getElementById("attendanceHistoryBtn");
     const saveBtn=document.getElementById("saveBtn");
 
     if(!notice || !saveBtn)return;
+
+    if(historyBtn)historyBtn.style.display=selectedClass?"":"none";
 
     if(locked()){
       notice.classList.add("show");
@@ -137,7 +208,7 @@
     if(editMode && hasSavedAttendance && canManage()){
       notice.classList.add("show","editing");
       noticeTitle.textContent="Mode Edit Absensi";
-      noticeText.textContent="Perbaiki data yang salah, lalu klik Simpan Perubahan. Anda juga dapat membatalkan edit.";
+      noticeText.textContent="Perbaiki data yang salah, lalu klik Simpan Perubahan. Perubahan akan masuk ke riwayat audit.";
       badge.textContent="SEDANG DIEDIT";
       badge.classList.add("editing");
 
@@ -167,6 +238,7 @@
     editSnapshot=clone(rows);
     editContext={
       classId:selectedClass?.class_id||"",
+      className:selectedClass?.class_name||"",
       date:document.getElementById("attendanceDate")?.value||""
     };
     editMode=true;
@@ -177,7 +249,6 @@
 
   function cancelEdit(){
     if(!editMode)return;
-
     if(!confirm("Batalkan perubahan dan kembalikan data seperti sebelum diedit?"))return;
 
     if(Array.isArray(editSnapshot)){
@@ -187,6 +258,7 @@
     editMode=false;
     editSnapshot=null;
     editContext=null;
+    pendingAudit=null;
 
     try{renderAll()}catch(_){}
     applyUI();
@@ -196,6 +268,50 @@
     editMode=false;
     editSnapshot=null;
     editContext=null;
+    pendingAudit=null;
+  }
+
+  function installRpcHook(){
+    if(rpcHookInstalled)return true;
+    if(!api?.db?.rpc)return false;
+
+    rpcHookInstalled=true;
+    const originalRpc=api.db.rpc.bind(api.db);
+
+    api.db.rpc=async function(name,params={}){
+      if(name!=="save_class_student_attendance"){
+        return originalRpc(name,params);
+      }
+
+      try{
+        const result=await originalRpc(name,params);
+
+        const audit=pendingAudit;
+        pendingAudit=null;
+
+        if(audit?.changes?.length){
+          try{
+            await originalRpc("record_student_attendance_changes",{
+              p_class_id:audit.classId,
+              p_class_name:audit.className,
+              p_date:audit.date,
+              p_changes:audit.changes
+            });
+            showToast(`${audit.changes.length} perubahan siswa tercatat di riwayat.`);
+          }catch(auditErr){
+            console.warn("Riwayat perubahan gagal dicatat:",auditErr);
+            showToast("Absensi berhasil disimpan, tetapi riwayat perubahan gagal dicatat.","warn");
+          }
+        }
+
+        return result;
+      }catch(err){
+        pendingAudit=null;
+        throw err;
+      }
+    };
+
+    return true;
   }
 
   function install(){
@@ -212,6 +328,11 @@
 
     installed=true;
     ensureUI();
+
+    const rpcTimer=setInterval(()=>{
+      if(installRpcHook())clearInterval(rpcTimer);
+    },150);
+    installRpcHook();
 
     const originalLoadAttendance=loadAttendance;
     loadAttendance=async function(...args){
@@ -240,16 +361,33 @@
         }
 
         if(editMode && hasSavedAttendance){
+          const changes=buildChanges();
+
+          if(!changes.length){
+            alert("Tidak ada perubahan data absensi.");
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return;
+          }
+
           const className=selectedClass?.class_name||"kelas ini";
           const date=document.getElementById("attendanceDate")?.value||"tanggal yang dipilih";
           const ok=confirm(
-            `Simpan perubahan absensi ${className} tanggal ${date}?\n\nData lama akan diperbarui dengan data yang sedang tampil.`
+            `Simpan perubahan absensi ${className} tanggal ${date}?\n\n${changes.length} siswa mengalami perubahan. Riwayat perubahan akan dicatat.`
           );
 
           if(!ok){
             e.preventDefault();
             e.stopImmediatePropagation();
+            return;
           }
+
+          pendingAudit={
+            classId:selectedClass.class_id,
+            className:selectedClass.class_name||"",
+            date,
+            changes
+          };
         }
       },true);
     }
@@ -306,7 +444,6 @@
     if(body)observer.observe(body,{childList:true,subtree:true});
     if(cards)observer.observe(cards,{childList:true,subtree:true});
 
-    // Bila addon aktif sesudah data kelas pertama selesai dimuat.
     setTimeout(()=>{
       if(Array.isArray(rows) && rows.length){
         hasSavedAttendance=completeFromRows();
