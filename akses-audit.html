@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Audit Hak Akses — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .audit-wrap{max-width:1450px;margin:auto}.audit-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-end;margin-bottom:15px}.audit-head h2{margin:0;color:var(--green-950)}.audit-head p{margin:5px 0 0;color:var(--muted);font-size:10px}
+    .audit-actions{display:flex;gap:8px;flex-wrap:wrap}.audit-btn{border:1px solid #d7e2dc;background:#fff;color:var(--green-900);border-radius:10px;padding:10px 12px;font-size:9px;font-weight:800;text-decoration:none;cursor:pointer}.audit-btn.primary{background:var(--green-800);color:#fff;border-color:var(--green-800)}
+    .audit-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.audit-stat{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}.audit-stat span{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.audit-stat strong{display:block;margin-top:5px;font-size:23px;color:var(--green-950)}
+    .audit-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px;margin-bottom:14px}.audit-card h3{font-size:13px;margin:0 0 5px;color:var(--green-950)}.audit-card>p{font-size:9px;color:var(--muted);margin:0 0 12px}
+    .warn-list{display:grid;gap:7px}.warn{border-radius:11px;padding:10px 12px;font-size:9px;line-height:1.5}.warn.critical{background:#ffe8e5;color:#9d2e24}.warn.warning{background:#fff4d7;color:#855800}.warn.ok{background:#e7f7ed;color:#08743f}
+    .table-wrap{overflow:auto;border:1px solid #e2ebe6;border-radius:13px}.matrix{width:100%;border-collapse:collapse;min-width:1200px}.matrix th,.matrix td{padding:9px 8px;border-bottom:1px solid #edf2ef;text-align:left;font-size:8.5px;white-space:nowrap}.matrix th{background:#fafcfb;color:#64756c;text-transform:uppercase;font-size:8px;position:sticky;top:0;z-index:1}.matrix .module{font-weight:800;color:#143d2e}.perm{display:inline-flex;gap:3px}.perm i{font-style:normal;display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;background:#eef2f0;color:#8a9690;font-size:7px;font-weight:800}.perm i.on{background:#dff4e7;color:#08743f}.perm i.danger{background:#ffe2de;color:#a52d22}
+    .route-ok{color:#08743f;font-weight:800}.route-bad{color:#a52d22;font-weight:800}.sub{display:block;margin-top:2px;color:#819087;font-size:7.5px}.legend{font-size:8px;color:#6e7d75;margin-top:8px}
+    @media(max-width:900px){.audit-stats{grid-template-columns:1fr 1fr}.audit-head{align-items:flex-start;flex-direction:column}}@media(max-width:520px){.audit-stats{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memeriksa Hak Akses...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Finalisasi · Security & Permission Audit</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+    <main class="main">
+      <div class="audit-wrap">
+        <section class="audit-head">
+          <div><h2>Audit Hak Akses & Direct URL</h2><p>Membaca konfigurasi production saat ini. Halaman ini hanya untuk SUPER ADMIN.</p></div>
+          <div class="audit-actions">
+            <a class="audit-btn" href="pengaturan.html">← Pengaturan</a>
+            <button id="refreshBtn" class="audit-btn">Refresh</button>
+            <button id="csvBtn" class="audit-btn primary">Export CSV</button>
+          </div>
+        </section>
+
+        <section class="audit-stats">
+          <article class="audit-stat"><span>Modul Aktif</span><strong id="statModules">0</strong></article>
+          <article class="audit-stat"><span>Role Diaudit</span><strong id="statRoles">8</strong></article>
+          <article class="audit-stat"><span>Direct URL Terjaga</span><strong id="statGuarded">0</strong></article>
+          <article class="audit-stat"><span>Temuan</span><strong id="statWarnings">0</strong></article>
+        </section>
+
+        <section class="audit-card">
+          <h3>Temuan Otomatis</h3>
+          <p>Temuan ini membantu menemukan permission yang tidak konsisten sebelum release V1.0.</p>
+          <div id="warningList" class="warn-list"></div>
+        </section>
+
+        <section class="audit-card">
+          <h3>Matriks Hak Akses Semua Role</h3>
+          <p>V = View, C = Create, U = Update, D = Delete. SUPER_ADMIN ditampilkan Full Access karena sistem menggunakan override administrator.</p>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead id="matrixHead"></thead>
+              <tbody id="matrixBody"></tbody>
+            </table>
+          </div>
+          <div class="legend">Hijau = diizinkan · abu-abu = tidak diizinkan · merah = konfigurasi anomali (aksi aktif tetapi View mati).</div>
+        </section>
+
+        <section class="audit-card">
+          <h3>Coverage Direct URL Guard</h3>
+          <p>Memastikan route modul internal dikenali oleh pengaman sebelum page-script menerima API SIMANIS.</p>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead><tr><th>Modul</th><th>Route Production</th><th>Status Modul</th><th>Guard</th><th>Keterangan</th></tr></thead>
+              <tbody id="routeBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const ROLES=["SUPER_ADMIN","KEPALA_MADRASAH","TU","WAKA_KURIKULUM","WAKA_KESISWAAN","BENDAHARA","GURU","WALI_KELAS"];
+const MAIN_ROUTE_CODES={
+  "dashboard.html":"DASHBOARD","administrasi.html":"ADMINISTRASI_KEPALA","siswa.html":"DATA_SISWA","guru.html":"DATA_GURU","kelas.html":"KELAS","mapel.html":"MATA_PELAJARAN","jadwal.html":"JADWAL","absensi-guru.html":"ABSENSI_GURU","absensi-siswa.html":"ABSENSI_SISWA","nilai.html":"NILAI","prestasi.html":"PRESTASI","berita.html":"BERITA","pengumuman.html":"PENGUMUMAN","agenda.html":"AGENDA","keuangan.html":"KEUANGAN","wali-admin.html":"PORTAL_WALI","pengaturan.html":"PENGATURAN",
+  "unit-kerja.html":"STRUCTURAL"
+};
+let api,profile,overview={modules:[],permissions:[]},warnings=[];
+
+function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function roleLabel(r){return String(r||"-").replaceAll("_"," ")}
+function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
+function routeFor(code){return {DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"}[code]||"#"}
+
+function guardStatus(m){
+  const route=String(m.route||routeFor(m.code)||"").trim();
+  if(!route || route==="#")return {ok:false,note:"Route kosong / belum dipetakan"};
+
+  const [file,query=""]=route.split("?");
+  if(file==="unit-kerja.html"){
+    const unit=new URLSearchParams(query).get("unit")||"";
+    return {ok:unit===m.code,note:unit===m.code?"Dijaga berdasarkan parameter unit":"Parameter unit tidak cocok"};
+  }
+
+  const mapped=MAIN_ROUTE_CODES[file];
+  return {ok:mapped===m.code,note:mapped===m.code?"Route dikenali Direct URL Guard":`Mapping guard ${mapped||"tidak ada"}`};
+}
+
+function permFor(role,code){
+  if(role==="SUPER_ADMIN")return {can_view:true,can_create:true,can_update:true,can_delete:true,super:true};
+  return overview.permissions.find(p=>p.role===role&&p.module_code===code)||{can_view:false,can_create:false,can_update:false,can_delete:false};
+}
+
+function permHtml(p){
+  const anomaly=!p.can_view&&(p.can_create||p.can_update||p.can_delete);
+  const one=(key,label)=>`<i class="${p[key]?"on":""} ${anomaly&&key!=="can_view"&&p[key]?"danger":""}">${label}</i>`;
+  return `<span class="perm">${one("can_view","V")}${one("can_create","C")}${one("can_update","U")}${one("can_delete","D")}</span>`;
+}
+
+async function loadProfile(user){
+  const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
+  if(!r?.[0]||!r[0].is_active)throw new Error("Akun tidak aktif.");
+  if(r[0].role!=="SUPER_ADMIN")throw new Error("Audit akses hanya dapat dibuka SUPER ADMIN.");
+  return r[0];
+}
+
+async function loadMenu(){
+  const mods=await api.db.rpc("get_my_modules",{});
+  $("sidebarMenu").innerHTML=(mods||[]).map(m=>`<a href="${routeFor(m.code)}" class="nav-item ${m.code==="PENGATURAN"?"active":""}"><span class="nav-dot"></span><span>${esc(m.name)}</span></a>`).join("");
+}
+
+function analyze(){
+  warnings=[];
+  const modules=overview.modules||[];
+  const moduleCodes=new Set(modules.map(m=>m.code));
+
+  for(const p of overview.permissions||[]){
+    if(!moduleCodes.has(p.module_code)){
+      warnings.push({level:"warning",text:`Permission ${p.role} mengacu ke modul ${p.module_code} yang tidak ada di master modul.`});
+    }
+    if(!p.can_view&&(p.can_create||p.can_update||p.can_delete)){
+      warnings.push({level:"critical",text:`${roleLabel(p.role)} · ${p.module_code}: Create/Update/Delete aktif sementara View mati.`});
+    }
+    if(p.role!=="SUPER_ADMIN"&&p.module_code==="PENGATURAN"&&p.can_view){
+      warnings.push({level:"critical",text:`${roleLabel(p.role)} memiliki View pada PENGATURAN. Modul ini seharusnya khusus SUPER ADMIN.`});
+    }
+  }
+
+  for(const m of modules){
+    const gs=guardStatus(m);
+    if(m.is_active&&!gs.ok){
+      warnings.push({level:"critical",text:`Modul aktif ${m.code} belum tercakup Direct URL Guard dengan benar: ${gs.note}.`});
+    }
+
+    if(!m.is_active){
+      const enabled=(overview.permissions||[]).filter(p=>p.module_code===m.code&&(p.can_view||p.can_create||p.can_update||p.can_delete));
+      if(enabled.length){
+        warnings.push({level:"warning",text:`Modul ${m.code} nonaktif tetapi masih memiliki ${enabled.length} permission role yang aktif.`});
+      }
+    }
+  }
+}
+
+function render(){
+  analyze();
+  const modules=[...(overview.modules||[])].sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0));
+  const active=modules.filter(m=>m.is_active);
+  const guarded=active.filter(m=>guardStatus(m).ok).length;
+
+  $("statModules").textContent=active.length;
+  $("statRoles").textContent=ROLES.length;
+  $("statGuarded").textContent=`${guarded}/${active.length}`;
+  $("statWarnings").textContent=warnings.length;
+
+  $("warningList").innerHTML=warnings.length
+    ?warnings.map(w=>`<div class="warn ${w.level}">${esc(w.text)}</div>`).join("")
+    :'<div class="warn ok">Tidak ditemukan anomali otomatis pada konfigurasi permission dan direct URL guard.</div>';
+
+  $("matrixHead").innerHTML=`<tr><th>Modul</th>${ROLES.map(r=>`<th>${esc(roleLabel(r))}</th>`).join("")}</tr>`;
+  $("matrixBody").innerHTML=modules.map(m=>`<tr>
+    <td class="module">${esc(m.name||m.code)}<span class="sub">${esc(m.code)} · ${m.is_active?"AKTIF":"NONAKTIF"}</span></td>
+    ${ROLES.map(r=>`<td>${permHtml(permFor(r,m.code))}</td>`).join("")}
+  </tr>`).join("");
+
+  $("routeBody").innerHTML=modules.map(m=>{
+    const s=guardStatus(m),route=m.route||routeFor(m.code)||"-";
+    return `<tr>
+      <td class="module">${esc(m.name||m.code)}<span class="sub">${esc(m.code)}</span></td>
+      <td>${esc(route)}</td>
+      <td>${m.is_active?"AKTIF":"NONAKTIF"}</td>
+      <td class="${s.ok?"route-ok":"route-bad"}">${s.ok?"TERJAGA":"PERLU CEK"}</td>
+      <td>${esc(s.note)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function csvCell(v){return `"${String(v??"").replaceAll('"','""')}"`}
+function exportCSV(){
+  const modules=[...(overview.modules||[])].sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0));
+  const rows=[["Module Code","Module Name","Active","Route",...ROLES]];
+  for(const m of modules){
+    rows.push([
+      m.code,m.name,m.is_active?"YES":"NO",m.route||routeFor(m.code)||"",
+      ...ROLES.map(r=>{
+        const p=permFor(r,m.code);
+        return `V:${p.can_view?1:0} C:${p.can_create?1:0} U:${p.can_update?1:0} D:${p.can_delete?1:0}`;
+      })
+    ]);
+  }
+  const csv="\uFEFF"+rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
+  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  const a=document.createElement("a");a.href=url;a.download=`simanis-audit-hak-akses-${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+
+async function load(){
+  $("loading").classList.remove("hidden");
+  try{
+    overview=await api.db.rpc("settings_get_overview",{})||{};
+    overview.modules=overview.modules||[];
+    overview.permissions=overview.permissions||[];
+    render();
+  }finally{$("loading").classList.add("hidden")}
+}
+
+$("refreshBtn").onclick=load;
+$("csvBtn").onclick=exportCSV;
+
+(async function boot(){
+  try{
+    api=await window.simanisReady;
+    const session=await api.auth.getSession();if(!session){location.replace("index.html");return}
+    const user=await api.auth.getUser();if(!user){location.replace("index.html");return}
+    profile=await loadProfile(user);
+    $("sideUserName").textContent=profile.full_name||user.email||"Pengguna";
+    $("sideUserRole").textContent=roleLabel(profile.role);
+    $("headerUser").textContent=profile.full_name||user.email||"Pengguna";
+    $("currentDate").textContent=localDateID();
+    await loadMenu();
+    await load();
+    $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")};
+  }catch(err){
+    console.error(err);
+    alert("Audit hak akses gagal dimuat: "+(err.message||err));
+    location.replace("pengaturan.html");
+  }finally{$("loading").classList.add("hidden")}
+})();
+</script>
+</body>
+</html>

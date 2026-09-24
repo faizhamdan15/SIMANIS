@@ -26,9 +26,7 @@
     KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"
   };
 
-  let api=null;
-  let modules=[];
-  let fixing=false;
+  let api=null,modules=[],fixing=false;
 
   function normalizeText(s){
     return String(s??"").replace(/\s+/g," ").trim().toLowerCase();
@@ -56,32 +54,17 @@
       const mods=await ensureModules();
       if(!mods.length)return;
 
-      const byName=new Map(
-        mods.map(m=>[normalizeText(m.name),m])
-      );
+      const byName=new Map(mods.map(m=>[normalizeText(m.name),m]));
 
       [...menu.querySelectorAll("a.nav-item")].forEach(a=>{
-        const label=normalizeText(a.textContent);
-        const mod=byName.get(label);
+        const mod=byName.get(normalizeText(a.textContent));
         if(!mod)return;
 
         const target=ROUTES[mod.code];
         if(!target)return;
 
-        const shouldStripBrokenHandler=
-          a.getAttribute("href")==="#" ||
-          a.getAttribute("href")==="" ||
-          !a.getAttribute("href");
-
-        if(shouldStripBrokenHandler){
-          const clone=a.cloneNode(true);
-          clone.setAttribute("href",target);
-          clone.removeAttribute("onclick");
-          a.replaceWith(clone);
-        }else{
-          a.setAttribute("href",target);
-          a.removeAttribute("onclick");
-        }
+        a.setAttribute("href",target);
+        a.removeAttribute("onclick");
       });
     }finally{
       fixing=false;
@@ -90,13 +73,12 @@
 
   function boot(){
     const menu=document.getElementById("sidebarMenu");
-    if(menu){
-      const observer=new MutationObserver(()=>fixSidebar());
-      observer.observe(menu,{childList:true,subtree:true});
-      fixSidebar();
-    }else{
-      setTimeout(boot,120);
-    }
+    if(!menu){setTimeout(boot,120);return}
+
+    new MutationObserver(()=>fixSidebar())
+      .observe(menu,{childList:true,subtree:true});
+
+    fixSidebar();
   }
 
   boot();
