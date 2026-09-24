@@ -10,7 +10,8 @@ window.SIMANIS_CONFIG = {
     "dashboard-guru-personal-v5.js",
     "pretty-news-links.js",
     "public-finish.js",
-    "absensi-guru-card-addon.js"
+    "absensi-guru-card-addon.js",
+    "absensi-siswa-edit-addon.js"
   ];
 
   files.forEach(src => {
