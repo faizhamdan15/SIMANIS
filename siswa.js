@@ -1,3 +1,4 @@
+// SIMANIS Data Siswa — Permission Hardening V2
 const $ = (id) => document.getElementById(id);
 
 let api, profile;
@@ -7,6 +8,7 @@ let teachingClasses = [];
 let activeSemesterId = null;
 let isTeacherMode = false;
 let activeScope = "ALL";
+let modulePerm = {can_view:false,can_create:false,can_update:false,can_delete:false};
 let page = 1;
 const pageSize = 30;
 
@@ -19,7 +21,27 @@ function fmtDate(v){if(!v)return"-";try{return new Intl.DateTimeFormat("id-ID",{
 function classById(id){return classes.find(c=>c.id===id)}
 function homeroomClassIds(){return new Set(classes.filter(c=>c.homeroom_teacher_id===profile?.teacher_id).map(c=>c.id))}
 function teachingClassIds(){return new Set(teachingClasses.map(c=>c.id))}
-function can(action){try{return api?.access?.can?.(action)!==false}catch{return true}}
+function can(action){
+  if(action==="view")return modulePerm.can_view===true;
+  if(action==="create")return modulePerm.can_create===true;
+  if(action==="update")return modulePerm.can_update===true;
+  if(action==="delete")return modulePerm.can_delete===true;
+  return false
+}
+
+async function loadModulePermission(){
+  const p=await api.db.rpc("get_my_module_permission",{p_module_code:"DATA_SISWA"});
+  modulePerm={
+    can_view:p?.can_view===true,
+    can_create:p?.can_create===true,
+    can_update:p?.can_update===true,
+    can_delete:p?.can_delete===true
+  };
+  if(!modulePerm.can_view){
+    location.replace("dashboard.html?access_denied=DATA_SISWA");
+    throw new Error("Tidak memiliki akses Data Siswa.");
+  }
+}
 
 async function loadProfile(user){
   const rows=await api.db.select("profiles",`select=id,full_name,role,is_active,teacher_id&id=eq.${encodeURIComponent(user.id)}&limit=1`);
@@ -162,13 +184,27 @@ function openEdit(id){
   resetForm();$("modalTitle").textContent="Edit Data Siswa";$("studentId").value=s.id;$("enrollmentId").value=s.enrollment_id||"";$("fullName").value=s.full_name||"";$("nis").value=s.nis||"";$("nisn").value=s.nisn||"";$("nik").value=s.nik||"";$("phone").value=s.phone||"";$("gender").value=s.gender||"";$("classId").value=s.class_id||"";$("rollNumber").value=s.roll_number||"";$("admissionYear").value=s.admission_year||"";$("birthPlace").value=s.birth_place||"";$("birthDate").value=s.birth_date||"";$("fatherName").value=s.father_name||"";$("motherName").value=s.mother_name||"";$("guardianName").value=s.guardian_name||"";$("guardianPhone").value=s.guardian_phone||"";$("kipPipNumber").value=s.kip_pip_number||"";$("specialNeeds").value=s.special_needs||"";$("disability").value=s.disability||"";$("address").value=s.address||"";openModal()
 }
 async function restWrite(path,method,body,prefer="return=representation"){
+  const m=String(method||"GET").toUpperCase();
+  if(m==="POST" && !can("create"))throw new Error("Izin tambah Data Siswa ditolak.");
+  if((m==="PATCH"||m==="PUT") && !can("update") && !can("delete"))throw new Error("Izin perubahan Data Siswa ditolak.");
+  if(m==="DELETE" && !can("delete"))throw new Error("Izin hapus Data Siswa ditolak.");
+
   const session=await api.auth.getSession();if(!session?.access_token)throw new Error("Sesi login tidak ditemukan.");
   const cfg=window.SIMANIS_CONFIG,res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/rest/v1/${path}`,{method,headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:prefer},body:body===undefined?undefined:JSON.stringify(body)});
   const text=await res.text();let data=null;try{data=text?JSON.parse(text):null}catch{data=text}if(!res.ok)throw new Error(data?.message||data?.error||text||`HTTP ${res.status}`);return data
 }
 async function saveStudent(e){
-  e.preventDefault();if(!can("create")&&!can("update"))return;
+  e.preventDefault();
   const saveBtn=$("saveBtn"),studentId=$("studentId").value,enrollmentId=$("enrollmentId").value,classId=$("classId").value||null,roll=$("rollNumber").value?Number($("rollNumber").value):null;
+
+  if(studentId && !can("update")){
+    $("formMessage").textContent="Akun tidak memiliki izin mengubah data siswa.";
+    return;
+  }
+  if(!studentId && !can("create")){
+    $("formMessage").textContent="Akun tidak memiliki izin menambah data siswa.";
+    return;
+  }
   const payload={full_name:$("fullName").value.trim(),nis:$("nis").value.trim()||null,nisn:$("nisn").value.trim()||null,nik:$("nik").value.trim()||null,phone:$("phone").value.trim()||null,gender:$("gender").value||null,admission_year:$("admissionYear").value?Number($("admissionYear").value):null,birth_place:$("birthPlace").value.trim()||null,birth_date:$("birthDate").value||null,father_name:$("fatherName").value.trim()||null,mother_name:$("motherName").value.trim()||null,guardian_name:$("guardianName").value.trim()||null,guardian_phone:$("guardianPhone").value.trim()||null,kip_pip_number:$("kipPipNumber").value.trim()||null,special_needs:$("specialNeeds").value.trim()||null,disability:$("disability").value.trim()||null,address:$("address").value.trim()||null,status:"AKTIF"};
   if(!payload.full_name){$("formMessage").textContent="Nama siswa wajib diisi.";return}
   saveBtn.disabled=true;saveBtn.textContent="Menyimpan...";$("formMessage").textContent="";
@@ -201,6 +237,7 @@ async function boot(){
     api=await window.simanisReady;
     const session=await api.auth.getSession();if(!session){location.replace("index.html");return}
     const user=await api.auth.getUser();if(!user){location.replace("index.html");return}
+    await loadModulePermission();
     profile=await loadProfile(user);applyTeacherUI();
     $("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();
     await Promise.all([loadMenu(),loadMaster()]);await loadStudents();
