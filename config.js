@@ -23,7 +23,8 @@ window.SIMANIS_CONFIG = {
     "public-finish.js",
     "absensi-guru-card-addon.js",
     "absensi-siswa-edit-addon.js",
-    "absensi-siswa-boot-fix.js"
+    "absensi-siswa-boot-fix.js",
+    "data-siswa-boot-fix.js"
   ];
 
   files.forEach(src => {
