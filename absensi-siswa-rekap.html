@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rekap Absensi Saya — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .recap-wrap{max-width:1260px;margin:auto}.recap-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-bottom:16px}.recap-head h2{margin:0;color:var(--green-950)}.recap-head p{margin:6px 0 0;color:var(--muted);font-size:11px}
+    .recap-actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid #d7e2dc;background:#fff;color:var(--green-900);border-radius:10px;padding:10px 13px;font-size:10px;font-weight:800;text-decoration:none;cursor:pointer}.btn.primary{background:var(--green-800);color:#fff;border-color:var(--green-800)}
+    .recap-note{background:#f3fbf6;border:1px solid #d7eadf;border-radius:14px;padding:12px 14px;margin-bottom:14px;font-size:9px;color:#53675c;line-height:1.6}.recap-note b{color:#075b3a}
+    .recap-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.stat2{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}.stat2 span{font-size:9px;color:var(--muted);text-transform:uppercase}.stat2 strong{display:block;margin-top:5px;font-size:23px;color:var(--green-950)}
+    .toolbar{display:grid;grid-template-columns:.9fr .9fr 1.1fr 1.4fr auto;gap:9px;margin-bottom:12px}.toolbar input,.toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:11px;padding:10px 11px;background:#fff;font-size:11px}
+    .table-wrap{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:auto}.table{width:100%;border-collapse:collapse;min-width:1120px}.table th,.table td{padding:10px;border-bottom:1px solid #edf2ef;text-align:left;font-size:10px;vertical-align:top}.table th{background:#fbfdfc;color:var(--muted);text-transform:uppercase;font-size:9px}.class-name{font-weight:800;color:var(--green-950)}.sub{font-size:9px;color:var(--muted);margin-top:3px}.counts{display:flex;gap:4px;flex-wrap:wrap}.counts span{padding:4px 6px;border-radius:999px;background:#eef4f0;font-size:8px;font-weight:800}.row-actions{display:flex;gap:6px;flex-wrap:wrap}.mini{border:1px solid #d7e2dc;background:#fff;color:#075b3a;border-radius:8px;padding:7px 8px;font-size:8px;font-weight:800;cursor:pointer}.mini.primary{background:#075b3a;color:#fff;border-color:#075b3a}.mini:disabled{opacity:.45;cursor:not-allowed}.empty{padding:30px;text-align:center;color:var(--muted);font-size:11px}
+    @media(max-width:900px){.recap-stats{grid-template-columns:1fr 1fr}.toolbar{grid-template-columns:1fr 1fr}.toolbar .wide{grid-column:1/-1}}@media(max-width:520px){.recap-head{align-items:flex-start;flex-direction:column}.recap-stats,.toolbar{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Rekap Absensi Saya...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Absensi Siswa · Rekap Guru</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+
+    <main class="main">
+      <div class="recap-wrap">
+        <section class="recap-head">
+          <div><h2>Rekap Absensi Saya</h2><p>Arsip absensi kelas yang pernah Anda simpan sebagai guru pengajar.</p></div>
+          <div class="recap-actions">
+            <a class="btn" href="absensi-siswa.html">← Absensi Siswa</a>
+            <a class="btn" href="absensi-siswa-riwayat.html">Riwayat Perubahan</a>
+            <button id="exportAllBtn" class="btn primary">Download Rekap Terfilter</button>
+          </div>
+        </section>
+
+        <div class="recap-note"><b>Tidak harus wali kelas.</b> Rekap ini milik akun guru yang melakukan absensi. Data dapat dibuka kembali pada hari berikutnya selama kelas masih berada dalam hak kelola guru, dan setiap rekap dapat diunduh sebagai CSV.</div>
+
+        <section class="recap-stats">
+          <article class="stat2"><span>Total Rekap</span><strong id="statRecap">0</strong></article>
+          <article class="stat2"><span>Kelas</span><strong id="statClass">0</strong></article>
+          <article class="stat2"><span>Total Hadir</span><strong id="statPresent">0</strong></article>
+          <article class="stat2"><span>Total Alfa</span><strong id="statAbsent">0</strong></article>
+        </section>
+
+        <section class="toolbar">
+          <input id="dateFrom" type="date">
+          <input id="dateTo" type="date">
+          <select id="classFilter"><option value="">Semua Kelas</option></select>
+          <input id="searchInput" class="wide" type="search" placeholder="Cari kelas atau mata pelajaran...">
+          <button id="refreshBtn" class="btn">Refresh</button>
+        </section>
+
+        <section class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Tanggal</th><th>Kelas / Mapel</th><th>Rekap</th><th>Revisi</th><th>Terakhir Diperbarui</th><th>Aksi</th></tr></thead>
+            <tbody id="recapBody"></tbody>
+          </table>
+          <div id="emptyState" class="empty" style="display:none">Belum ada rekap pada rentang ini.</div>
+        </section>
+      </div>
+    </main>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let api,profile,classes=[],recaps=[],filtered=[];
+
+function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function localISODate(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
+function addDays(iso,d){const x=new Date(`${iso}T12:00:00+07:00`);x.setUTCDate(x.getUTCDate()+d);return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(x)}
+function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
+function fmtDate(v){if(!v)return"-";return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"short",day:"2-digit",month:"short",year:"numeric"}).format(new Date(`${v}T12:00:00+07:00`))}
+function fmtDT(v){if(!v)return"-";return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(v))}
+function formatRole(r){return(r||"-").replaceAll("_"," ")}
+function routeFor(code){return{DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"}[code]||"#"}
+
+async function loadProfile(user){
+  const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
+  if(!r?.[0]||!r[0].is_active)throw new Error("Akun tidak aktif.");
+  if(!["GURU","WALI_KELAS"].includes(String(r[0].role||"").toUpperCase()))throw new Error("Rekap Absensi Saya hanya untuk akun guru.");
+  const perm=await api.db.rpc("get_my_module_permission",{p_module_code:"ABSENSI_SISWA"});
+  if(!perm?.can_view)throw new Error("Akun tidak memiliki akses Absensi Siswa.");
+  return r[0];
+}
+
+async function loadMenu(){
+  const m=await api.db.rpc("get_my_modules",{});
+  $("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${x.code==="ABSENSI_SISWA"?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("");
+}
+
+async function loadClasses(){
+  classes=await api.db.rpc("get_my_attendance_classes",{})||[];
+  const names=new Map();
+  classes.forEach(c=>names.set(String(c.class_id),c.class_name));
+  $("classFilter").innerHTML='<option value="">Semua Kelas</option>'+[...names.entries()].map(([id,name])=>`<option value="${id}">${esc(name)}</option>`).join("");
+  const q=new URLSearchParams(location.search);
+  const requested=q.get("class");
+  if(requested&&names.has(requested))$("classFilter").value=requested;
+}
+
+async function loadRecaps(){
+  $("loading").classList.remove("hidden");
+  try{
+    recaps=await api.db.rpc("list_my_student_attendance_recaps",{
+      p_date_from:$("dateFrom").value,
+      p_date_to:$("dateTo").value,
+      p_limit:2000
+    })||[];
+    applyFilters();
+  }finally{$("loading").classList.add("hidden")}
+}
+
+function applyFilters(){
+  const classId=$("classFilter").value;
+  const q=$("searchInput").value.trim().toLowerCase();
+
+  filtered=recaps.filter(r=>{
+    if(classId && String(r.class_id)!==String(classId))return false;
+    if(q && !`${r.class_name||""} ${r.subject_names||""}`.toLowerCase().includes(q))return false;
+    return true;
+  });
+
+  $("statRecap").textContent=filtered.length;
+  $("statClass").textContent=new Set(filtered.map(r=>r.class_id)).size;
+  $("statPresent").textContent=filtered.reduce((n,r)=>n+Number(r.present_count||0)+Number(r.late_count||0),0);
+  $("statAbsent").textContent=filtered.reduce((n,r)=>n+Number(r.absent_count||0),0);
+  render();
+}
+
+function editUrl(r){
+  const qs=new URLSearchParams({date:r.attendance_date,class:r.class_id,recap:String(r.id),edit:"1"});
+  return `absensi-siswa.html?${qs.toString()}`;
+}
+
+function render(){
+  $("emptyState").style.display=filtered.length?"none":"block";
+  $("recapBody").innerHTML=filtered.map(r=>`
+    <tr>
+      <td><b>${esc(fmtDate(r.attendance_date))}</b></td>
+      <td><div class="class-name">${esc(r.class_name||"-")}</div><div class="sub">${esc(r.subject_names||"Mata pelajaran tidak tercatat")}</div></td>
+      <td><div class="counts"><span>H ${Number(r.present_count||0)}</span><span>T ${Number(r.late_count||0)}</span><span>I ${Number(r.permit_count||0)}</span><span>S ${Number(r.sick_count||0)}</span><span>A ${Number(r.absent_count||0)}</span></div><div class="sub">${Number(r.student_count||0)} siswa</div></td>
+      <td>Revisi ${Number(r.revision_no||1)}</td>
+      <td>${esc(fmtDT(r.updated_at))}</td>
+      <td><div class="row-actions">
+        <button class="mini primary" data-edit="${r.id}" ${r.can_edit?"":"disabled"}>${r.can_edit?"Buka / Edit":"Lihat Saja"}</button>
+        <button class="mini" data-download="${r.id}">Download CSV</button>
+      </div></td>
+    </tr>
+  `).join("");
+
+  document.querySelectorAll("[data-edit]").forEach(b=>{
+    if(b.disabled)return;
+    b.onclick=()=>{
+      const r=recaps.find(x=>String(x.id)===String(b.dataset.edit));
+      if(r)location.href=editUrl(r);
+    };
+  });
+
+  document.querySelectorAll("[data-download]").forEach(b=>{
+    b.onclick=()=>{
+      const r=recaps.find(x=>String(x.id)===String(b.dataset.download));
+      if(r)downloadOne(r);
+    };
+  });
+}
+
+function csvCell(v){return `"${String(v??"").replaceAll('"','""')}"`}
+
+async function detailFor(r){
+  return await api.db.rpc("get_my_student_attendance_recap_detail",{p_recap_id:Number(r.id)})||[];
+}
+
+async function downloadOne(r){
+  try{
+    const detail=await detailFor(r);
+    if(!detail.length){alert("Detail rekap tidak ditemukan.");return}
+
+    const data=[
+      ["Tanggal","Kelas","Mata Pelajaran","No","Nama Siswa","NIS","NISN","Status","Jam Datang","Terlambat (menit)","Catatan"],
+      ...detail.map(x=>[
+        r.attendance_date,r.class_name,r.subject_names||"",x.roll_number??"",x.student_name||"",x.nis||"",x.nisn||"",x.attendance_status||"",x.arrival_time?String(x.arrival_time).slice(0,5):"",Number(x.late_minutes||0),x.note||""
+      ])
+    ];
+
+    saveCSV(data,`Rekap_Absensi_${safe(r.class_name)}_${r.attendance_date}.csv`);
+  }catch(err){alert("Gagal mengunduh rekap: "+(err.message||err))}
+}
+
+function safe(v){return String(v||"Kelas").replace(/[^\p{L}\p{N}]+/gu,"_").replace(/^_+|_+$/g,"")}
+
+function saveCSV(data,filename){
+  const csv="\uFEFFsep=;\r\n"+data.map(row=>row.map(csvCell).join(";")).join("\r\n");
+  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
+}
+
+async function exportAll(){
+  if(!filtered.length){alert("Tidak ada rekap untuk diunduh.");return}
+  const btn=$("exportAllBtn");btn.disabled=true;btn.textContent="Menyiapkan...";
+  try{
+    const data=[["Tanggal","Kelas","Mata Pelajaran","No","Nama Siswa","NIS","NISN","Status","Jam Datang","Terlambat (menit)","Catatan"]];
+    for(const r of filtered){
+      const detail=await detailFor(r);
+      detail.forEach(x=>data.push([
+        r.attendance_date,r.class_name,r.subject_names||"",x.roll_number??"",x.student_name||"",x.nis||"",x.nisn||"",x.attendance_status||"",x.arrival_time?String(x.arrival_time).slice(0,5):"",Number(x.late_minutes||0),x.note||""
+      ]));
+    }
+    saveCSV(data,`Rekap_Absensi_Saya_${$("dateFrom").value}_${$("dateTo").value}.csv`);
+  }catch(err){alert("Gagal menyiapkan download: "+(err.message||err))}
+  finally{btn.disabled=false;btn.textContent="Download Rekap Terfilter"}
+}
+
+const today=localISODate();
+$("dateTo").value=today;
+$("dateFrom").value=addDays(today,-30);
+$("dateFrom").onchange=loadRecaps;
+$("dateTo").onchange=loadRecaps;
+$("classFilter").onchange=applyFilters;
+$("searchInput").oninput=applyFilters;
+$("refreshBtn").onclick=loadRecaps;
+$("exportAllBtn").onclick=exportAll;
+
+(async()=>{
+  try{
+    api=await window.simanisReady;
+    const session=await api.auth.getSession();if(!session){location.replace("index.html");return}
+    const user=await api.auth.getUser();if(!user){location.replace("index.html");return}
+    profile=await loadProfile(user);
+
+    $("sideUserName").textContent=profile.full_name||user.email;
+    $("sideUserRole").textContent=formatRole(profile.role);
+    $("headerUser").textContent=profile.full_name||user.email;
+    $("currentDate").textContent=localDateID();
+
+    await loadMenu();
+    await loadClasses();
+
+    try{await api.db.rpc("backfill_my_student_attendance_recaps",{p_days:120})}catch(err){console.warn("Backfill:",err)}
+
+    await loadRecaps();
+
+    $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")};
+  }catch(err){
+    console.error(err);
+    alert("Rekap Absensi Saya gagal dimuat: "+(err.message||err));
+    location.replace("absensi-siswa.html");
+  }finally{
+    $("loading").classList.add("hidden");
+  }
+})();
+</script>
+</body>
+</html>
