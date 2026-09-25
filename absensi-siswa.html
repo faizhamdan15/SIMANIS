@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=20260925-v7" />
   <style>
     .student-att-toolbar{display:grid;grid-template-columns:.8fr .9fr 1.15fr .7fr;gap:10px;margin-bottom:14px}
     .student-att-toolbar input,.student-att-toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;background:#fff}
@@ -27,6 +27,7 @@
     .teacher-hint{display:flex;gap:9px;align-items:center;border:1px solid #dfe9e4;background:#f7fbf8;border-radius:13px;padding:10px 12px;margin-bottom:14px}.teacher-hint svg{width:18px;height:18px;color:#0b7347;flex:0 0 auto}.teacher-hint b{display:block;font-size:9.5px;color:#173f30}.teacher-hint span{font-size:8px;color:#718078}
     .current-class{outline:2px solid #ffd900;outline-offset:2px}.next-class{box-shadow:inset 0 0 0 1px rgba(255,217,0,.8)}
     .save-bar .progress-text{display:flex;align-items:center;gap:8px}.save-dot{width:8px;height:8px;border-radius:50%;background:#b7c3bd}.save-dot.good{background:#0b8b4d}.save-dot.warn{background:#e2a700}
+    .absen-boot-notice{margin:0 0 14px;padding:12px 14px;border:1px solid #efd28a;background:#fff9e8;color:#6c5007;border-radius:14px;font-size:10px;line-height:1.55}
     @media(max-width:1050px){.today-class-list{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:850px){.student-att-toolbar{grid-template-columns:1fr 1fr}.student-att-table-wrap{display:none}.student-att-cards{display:grid;gap:10px}.today-class-list{grid-template-columns:1fr}}
     @media(max-width:520px){.student-att-toolbar{grid-template-columns:1fr}.class-info{align-items:flex-start;flex-direction:column}.save-bar{align-items:stretch;flex-direction:column}.save-bar button{width:100%}.today-panel-head{flex-direction:column}}
@@ -34,6 +35,98 @@
 </head>
 <body>
 <div id="loading" class="loading-overlay">Memuat Absensi Siswa...</div>
+
+<script>
+(function(){
+  const VERSION="ABSENSI SISWA INLINE BOOT GUARD V7";
+  const startedAt=Date.now();
+  let released=false;
+
+  function loadingEl(){return document.getElementById("loading")}
+
+  function visible(){
+    const el=loadingEl();
+    if(!el)return false;
+    const s=getComputedStyle(el);
+    return !el.classList.contains("hidden") &&
+      s.display!=="none" &&
+      s.visibility!=="hidden";
+  }
+
+  function release(){
+    const el=loadingEl();
+    if(!el)return;
+    el.classList.add("hidden");
+    el.style.setProperty("display","none","important");
+    el.style.setProperty("visibility","hidden","important");
+    el.style.setProperty("pointer-events","none","important");
+    el.setAttribute("aria-hidden","true");
+    released=true;
+  }
+
+  function notice(title,detail){
+    if(document.getElementById("absensiInlineBootNotice"))return;
+
+    const box=document.createElement("div");
+    box.id="absensiInlineBootNotice";
+    box.className="absen-boot-notice";
+    box.innerHTML=
+      "<strong style='display:block;font-size:11px;margin-bottom:4px'>"+title+"</strong>"+
+      "<span>"+String(detail||"").replace(/[<>]/g,"")+"</span>";
+
+    const insert=()=>{
+      const head=document.querySelector(".page-head");
+      const main=document.querySelector(".main");
+      if(head)head.insertAdjacentElement("afterend",box);
+      else if(main)main.prepend(box);
+      else document.body.appendChild(box);
+    };
+
+    if(document.readyState==="loading"){
+      document.addEventListener("DOMContentLoaded",insert,{once:true});
+    }else insert();
+  }
+
+  window.addEventListener("error",function(e){
+    if(!visible())return;
+    release();
+    notice(
+      "Absensi Siswa gagal dimuat",
+      "JavaScript error: "+(e.message||"tidak diketahui")
+    );
+  });
+
+  window.addEventListener("unhandledrejection",function(e){
+    if(!visible())return;
+    release();
+    const msg=e.reason?.message||String(e.reason||"Promise error");
+    notice("Proses awal Absensi Siswa terhenti",msg);
+  });
+
+  // Fail-safe independen dari config.js, sdk-loader.js, addon, dan Supabase.
+  setTimeout(function(){
+    if(!visible())return;
+    release();
+
+    const sdkState=
+      typeof window.simanisReady==="undefined"
+        ?"simanisReady belum dibuat"
+        :"simanisReady ada tetapi proses boot belum selesai";
+
+    notice(
+      "Loading Absensi Siswa melewati 8 detik",
+      sdkState+". Overlay dilepas paksa oleh "+VERSION+"."
+    );
+  },8000);
+
+  window.SIMANIS_ABSENSI_INLINE_GUARD={
+    version:VERSION,
+    started_at:startedAt,
+    released:()=>released
+  };
+})();
+</script>
+
 <div class="app">
   <aside class="sidebar">
     <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
@@ -87,6 +180,10 @@
     </main>
   </section>
 </div>
-<script src="config.js"></script><script src="sdk-loader.js"></script><script src="absensi-siswa.js"></script>
+
+<!-- Cache-busting khusus diagnosis white overlay V7. -->
+<script src="config.js?v=20260925-v7"></script>
+<script src="sdk-loader.js?v=20260925-v7"></script>
+<script src="absensi-siswa.js?v=20260925-v7"></script>
 </body>
 </html>
