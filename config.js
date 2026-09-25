@@ -6,7 +6,7 @@ window.SIMANIS_CONFIG = {
 /* Global add-ons SIMANIS. */
 (function(){
   const files = [
-    "direct-url-security-v2.js",
+    "direct-url-security-v3.js",
     "global-mobile-nav.js",
     "global-sidebar-route-fix.js",
     "dashboard-guru-personal-v5.js",

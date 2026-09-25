@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Release Readiness — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .rr{max-width:1180px;margin:auto}.rr-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;margin-bottom:14px}.rr-head h2{margin:0;color:var(--green-950)}.rr-head p{margin:5px 0 0;font-size:10px;color:var(--muted)}
+    .rr-actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid #d7e2dc;background:#fff;color:#075b3a;border-radius:10px;padding:10px 12px;font-size:10px;font-weight:800;text-decoration:none;cursor:pointer}.btn.primary{background:#075b3a;color:#fff;border-color:#075b3a}
+    .score{background:linear-gradient(135deg,#075b3a,#12804e);color:#fff;border-radius:18px;padding:18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:15px}.score strong{font-size:36px}.score span{font-size:10px;opacity:.88}.score .label{font-size:13px;font-weight:800}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.panel{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}.panel h3{margin:0 0 10px;font-size:12px;color:var(--green-950)}
+    .test{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #edf2ef}.test:last-child{border-bottom:0}.test b{font-size:10px}.test small{display:block;margin-top:3px;color:var(--muted);font-size:8px;line-height:1.45}.badge{padding:5px 8px;border-radius:999px;font-size:8px;font-weight:800;white-space:nowrap}.pass{background:#dff4e7;color:#08743f}.warn{background:#fff0c9;color:#8a5a00}.fail{background:#ffe2de;color:#a52d22}
+    .manual{margin-top:12px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}.manual h3{margin:0 0 10px;font-size:12px;color:var(--green-950)}.check{display:flex;gap:9px;padding:7px 0;font-size:9px;color:#42574d}.check input{margin-top:1px}
+    @media(max-width:800px){.grid{grid-template-columns:1fr}.rr-head,.score{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Menjalankan pemeriksaan...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Quality Assurance · Release Readiness</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+    <main class="main"><div class="rr">
+      <section class="rr-head">
+        <div><h2>SIMANIS V1.0 Release Readiness</h2><p>Pemeriksaan otomatis non-destruktif pada sesi, permission, keamanan halaman, dan komponen inti.</p></div>
+        <div class="rr-actions"><a href="security-access-check.html" class="btn">Audit Hak Akses</a><button id="rerunBtn" class="btn primary">Jalankan Ulang</button></div>
+      </section>
+      <section class="score"><div><div class="label">Skor pemeriksaan akun ini</div><span id="scoreText">Menunggu hasil...</span></div><strong id="score">0%</strong></section>
+      <section class="grid">
+        <article class="panel"><h3>Authentication & Account</h3><div id="authTests"></div></article>
+        <article class="panel"><h3>Permission & Security</h3><div id="securityTests"></div></article>
+        <article class="panel"><h3>Frontend & PWA</h3><div id="frontendTests"></div></article>
+        <article class="panel"><h3>Core Read Checks</h3><div id="dataTests"></div></article>
+      </section>
+      <section class="manual">
+        <h3>Checklist manual sebelum tag v1.0.0</h3>
+        <label class="check"><input type="checkbox"> Login minimal satu akun untuk setiap role utama.</label>
+        <label class="check"><input type="checkbox"> Coba URL modul yang ditolak dari akun tanpa permission.</label>
+        <label class="check"><input type="checkbox"> Uji absensi guru masuk/pulang dengan beberapa kartu berurutan.</label>
+        <label class="check"><input type="checkbox"> Uji absensi siswa, Edit Absensi, dan Riwayat Perubahan.</label>
+        <label class="check"><input type="checkbox"> Uji satu asesmen nilai satu kelas sampai tersimpan.</label>
+        <label class="check"><input type="checkbox"> Rekonsiliasi satu transaksi/tagihan keuangan sampai lunas.</label>
+        <label class="check"><input type="checkbox"> Backup database production dibuat dan restore plan dicatat.</label>
+        <label class="check"><input type="checkbox"> Tidak ada bug blocker selama masa uji operasional.</label>
+      </section>
+    </div></main>
+  </section>
+</div>
+<script src="config.js"></script><script src="sdk-loader.js"></script>
+<script>
+const $=id=>document.getElementById(id);let api,profile;const tests=[];
+function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function roleName(v){return String(v||"-").replaceAll("_"," ")}
+function localDate(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
+function routeFor(code){return {DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"}[code]||"#"}
+async function loadMenu(){const m=await api.db.rpc("get_my_modules",{});$("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("")}
+function add(group,name,status,detail){tests.push({group,name,status,detail})}
+function renderGroup(group,id){const arr=tests.filter(t=>t.group===group);$(id).innerHTML=arr.map(t=>`<div class="test"><div><b>${esc(t.name)}</b><small>${esc(t.detail||"")}</small></div><span class="badge ${esc(t.status)}">${t.status==="pass"?"LULUS":t.status==="warn"?"PERINGATAN":"GAGAL"}</span></div>`).join("")}
+function render(){
+  renderGroup("auth","authTests");renderGroup("security","securityTests");renderGroup("frontend","frontendTests");renderGroup("data","dataTests");
+  const pass=tests.filter(t=>t.status==="pass").length,warn=tests.filter(t=>t.status==="warn").length,fail=tests.filter(t=>t.status==="fail").length;
+  const pct=tests.length?Math.round((pass+warn*.5)/tests.length*100):0;
+  $("score").textContent=pct+"%";$("scoreText").textContent=`${pass} lulus · ${warn} peringatan · ${fail} gagal`;
+}
+async function testRpc(name,payload={}){try{await api.db.rpc(name,payload);return{ok:true}}catch(e){return{ok:false,error:e.message||String(e)}}}
+async function run(){
+  tests.length=0;$("loading").classList.remove("hidden");
+  try{
+    const session=await api.auth.getSession();add("auth","Session login",session?.access_token?"pass":"fail",session?.access_token?"Session aktif.":"Session tidak tersedia.");
+    const user=await api.auth.getUser();add("auth","User Supabase",user?.id?"pass":"fail",user?.email||"User tidak ditemukan.");
+    const p=await api.db.select("profiles",`select=id,full_name,role,is_active,must_change_password&id=eq.${encodeURIComponent(user.id)}&limit=1`);
+    profile=p?.[0];add("auth","Profil SIMANIS",profile?.id?"pass":"fail",profile?.full_name||"Profil tidak ditemukan.");
+    add("auth","Status akun",profile?.is_active?"pass":"fail",profile?.is_active?"Akun aktif.":"Akun nonaktif.");
+    add("auth","Password gate",profile?.must_change_password?"warn":"pass",profile?.must_change_password?"Masih diwajibkan mengganti password.":"Tidak ada kewajiban ganti password.");
+
+    const ctx=await testRpc("get_my_access_context",{});add("security","Access context RPC",ctx.ok?"pass":"fail",ctx.ok?"RPC aktif.":ctx.error);
+    const mods=await api.db.rpc("get_my_modules",{})||[];add("security","Daftar modul akun",mods.length?"pass":"warn",`${mods.length} modul tersedia.`);
+    let mismatch=0;
+    for(const m of mods){try{const p=await api.db.rpc("get_my_module_permission",{p_module_code:m.code});if(!p?.can_view)mismatch++}catch{mismatch++}}
+    add("security","Konsistensi module permission",mismatch===0?"pass":"fail",mismatch===0?"Semua modul sidebar memiliki can_view.":`${mismatch} modul tidak konsisten.`);
+    add("security","Direct URL guard",document.querySelector('script[src*="direct-url-security"]')?"pass":"fail","Guard halaman privat.");
+    add("security","Koneksi HTTPS",location.protocol==="https:"?"pass":"warn",location.protocol==="https:"?"Origin HTTPS.":"Bukan HTTPS.");
+    add("security","Frontend key type",String(window.SIMANIS_CONFIG?.SUPABASE_PUBLISHABLE_KEY||"").startsWith("sb_publishable_")?"pass":"fail","Frontend memakai publishable key.");
+
+    add("frontend","Global route normalizer",document.querySelector('script[src*="global-sidebar-route-fix"]')?"pass":"warn","Normalizer sidebar global.");
+    add("frontend","Responsive viewport",document.querySelector('meta[name="viewport"]')?"pass":"fail","Meta viewport tersedia.");
+    add("frontend","Service Worker API","serviceWorker" in navigator?"pass":"warn","Dukungan browser.");
+    if("serviceWorker" in navigator){const reg=await navigator.serviceWorker.getRegistration();add("frontend","Service Worker registration",reg?"pass":"warn",reg?`Scope ${reg.scope}`:"Belum aktif pada tab ini.");}
+
+    for(const [label,fn,payload] of [["Dashboard permission","get_my_module_permission",{p_module_code:"DASHBOARD"}],["Pengaturan permission","get_my_module_permission",{p_module_code:"PENGATURAN"}],["Modul list","get_my_modules",{}]]){
+      const r=await testRpc(fn,payload);add("data",label,r.ok?"pass":"fail",r.ok?`${fn} merespons.`:r.error);
+    }
+    try{const classes=await api.db.rpc("get_my_attendance_classes",{})||[];add("data","Kelas absensi scoped","pass",`${classes.length} kelas dapat dibaca sesuai scope akun.`)}
+    catch(e){add("data","Kelas absensi scoped","warn",e.message||String(e))}
+  }catch(e){add("auth","Runner QA","fail",e.message||String(e))}
+  finally{render();$("loading").classList.add("hidden")}
+}
+$("rerunBtn").onclick=run;
+(async()=>{
+  try{
+    api=await window.simanisReady;const user=await api.auth.getUser();if(!user){location.replace("index.html");return}
+    const p=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);profile=p?.[0];
+    $("sideUserName").textContent=profile?.full_name||user.email;$("sideUserRole").textContent=roleName(profile?.role);$("headerUser").textContent=profile?.full_name||user.email;$("currentDate").textContent=localDate();
+    await loadMenu();$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")};await run();
+  }catch(e){alert("Release Readiness gagal dibuka: "+(e.message||e));location.replace("dashboard.html")}
+  finally{$("loading").classList.add("hidden")}
+})();
+</script>
+</body>
+</html>
