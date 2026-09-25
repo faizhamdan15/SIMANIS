@@ -73,7 +73,7 @@ function applyTeacherUI(){
 }
 async function loadMaster(){
   const [classRows,semesterRows,teachRows]=await Promise.all([
-    api.db.select("classes","select=id,name,grade_level,homeroom_teacher_id,homeroom_teacher,active_students&is_active=eq.true&order=grade_level.asc,name.asc"),
+    api.db.select("classes","select=id,name,grade_level,homeroom_teacher_id&is_active=eq.true&order=grade_level.asc,name.asc")
     api.db.select("semesters","select=id,name,is_active,academic_year_id&is_active=eq.true&limit=1"),
     isTeacherMode?api.db.rpc("get_my_scoped_classes",{p_scope:"TEACH_ONLY"}).catch(()=>[]):Promise.resolve([])
   ]);
