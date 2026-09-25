@@ -22,7 +22,8 @@ window.SIMANIS_CONFIG = {
     "pretty-news-links.js",
     "public-finish.js",
     "absensi-guru-card-addon.js",
-    "absensi-siswa-edit-addon.js"
+    "absensi-siswa-edit-addon.js",
+    "absensi-siswa-boot-fix.js"
   ];
 
   files.forEach(src => {
