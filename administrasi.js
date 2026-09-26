@@ -36,6 +36,7 @@ async function loadMenu(){
   document.querySelectorAll('.nav-item[href="#"]').forEach(a=>a.addEventListener("click",e=>{e.preventDefault();alert(`Modul "${a.textContent.trim()}" akan diaktifkan bertahap.`);}));
 }
 async function loadData(){
+  try{await api.db.rpc("sync_admin_document_integrations",{})}catch(err){console.warn("Sinkronisasi administrasi:",err)}
   rows = await api.db.select("v_admin_document_status","select=*&academic_year=eq.2026/2027&order=category_order.asc,document_order.asc") || [];
   const map = new Map();
   rows.forEach(r=>{ if(!map.has(r.category_id)) map.set(r.category_id,{id:r.category_id,code:r.category_code,name:r.category_name,order:r.category_order,expected:r.expected_documents}); });
@@ -45,16 +46,20 @@ async function loadData(){
 }
 function renderStats(){
   const total=rows.length, complete=rows.filter(r=>r.status==="LENGKAP").length, draft=rows.filter(r=>r.status==="DRAFT").length, revision=rows.filter(r=>r.status==="PERLU_REVISI").length, missing=rows.filter(r=>r.status==="BELUM_ADA").length;
-  const pct=total?Math.round(complete/total*100):0;
+  const available=Math.max(0,total-missing), pct=total?Math.round(available/total*100):0;
   $("statComplete").textContent=complete; $("statDraft").textContent=draft; $("statRevision").textContent=revision; $("statMissing").textContent=missing;
-  $("overallText").textContent=`${complete} / ${total} (${pct}%)`; $("overallFill").style.width=`${pct}%`;
+  $("overallText").textContent=available+" / "+total+" tersedia ("+pct+"%)"; $("overallFill").style.width=pct+"%";
 }
 function renderCategories(){
   $("categoryGrid").innerHTML=categories.map(c=>{
-    const rr=rows.filter(r=>r.category_id===c.id), done=rr.filter(r=>r.status==="LENGKAP").length, pct=rr.length?Math.round(done/rr.length*100):0;
+    const rr=rows.filter(r=>r.category_id===c.id);
+    const done=rr.filter(r=>r.status==="LENGKAP").length;
+    const draft=rr.filter(r=>r.status==="DRAFT").length;
+    const revision=rr.filter(r=>r.status==="PERLU_REVISI").length;
+    const available=done+draft+revision, pct=rr.length?Math.round(available/rr.length*100):0;
     return `<article class="admin-cat ${selectedCategory===c.id?"active":""}" data-cat="${c.id}">
-      <div class="admin-cat-top"><h4>${String(c.order).padStart(2,"0")}. ${esc(c.name)}</h4><span class="count">${done}/${rr.length}</span></div>
-      <small>${pct}% lengkap</small><div class="cat-track"><div class="cat-fill" style="width:${pct}%"></div></div></article>`;
+      <div class="admin-cat-top"><h4>${String(c.order).padStart(2,"0")}. ${esc(c.name)}</h4><span class="count">${available}/${rr.length}</span></div>
+      <small>${available} tersedia · ${done} lengkap · ${draft} draft</small><div class="cat-track"><div class="cat-fill" style="width:${pct}%"></div></div></article>`;
   }).join("");
   document.querySelectorAll("[data-cat]").forEach(el=>el.addEventListener("click",()=>{selectedCategory=el.dataset.cat;renderCategories();renderDocs();}));
 }
