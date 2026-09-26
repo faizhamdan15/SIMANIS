@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[],summons=[],activityGroups=[],activityMembers=[],studentAffairsRecap={summary:{},class_recap:[],student_recap:[]},humasDocs=[],humasSocial=[],humasNews=[],humasRecap={summary:{},months:[],channels:[]},letterClasses=[],tuDispositions=[],tuFiles=[],tuRecap={summary:{},months:[],classifications:[]},labBookings=[],labLoans=[],labMovements=[],labSafety=[],labRecap={summary:{},low_stock:[],condition_summary:[],monthly_usage:[]},bizPractices=[],bizTransactions=[],bizMovements=[],bizRecap={summary:{},low_stock:[],monthly:[],payments:[]};
+let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],financeTransactions=[],financeBills=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[],summons=[],activityGroups=[],activityMembers=[],studentAffairsRecap={summary:{},class_recap:[],student_recap:[]},humasDocs=[],humasSocial=[],humasNews=[],humasRecap={summary:{},months:[],channels:[]},letterClasses=[],tuDispositions=[],tuFiles=[],tuRecap={summary:{},months:[],classifications:[]},labBookings=[],labLoans=[],labMovements=[],labSafety=[],labRecap={summary:{},low_stock:[],condition_summary:[],monthly_usage:[]},bizPractices=[],bizTransactions=[],bizMovements=[],bizRecap={summary:{},low_stock:[],monthly:[],payments:[]};
 const unitCode=new URLSearchParams(location.search).get("unit")||"";
 
 const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"};
@@ -51,7 +51,7 @@ function qrCanvas(target,text,size=180){
 
 
 async function loadProfile(user){const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);if(!r?.[0])throw new Error("Profil pengguna tidak ditemukan.");if(!r[0].is_active)throw new Error("Akun tidak aktif.");return r[0]}
-async function loadMenu(){myModules=await api.db.rpc("get_my_modules",{})||[];$("sidebarMenu").innerHTML=myModules.map(x=>`<a href="${x.route||ROUTES[x.code]||"#"}" class="nav-item ${x.code===unitCode?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("")}
+async function loadMenu(){myModules=await api.db.rpc("get_my_modules",{})||[];const menu=unitCode==="PKM_BENDAHARA_SARPRAS"?myModules.filter(x=>x.code!=="KEUANGAN"):myModules;$("sidebarMenu").innerHTML=menu.map(x=>`<a href="${x.route||ROUTES[x.code]||"#"}" class="nav-item ${x.code===unitCode?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("")}
 async function restWrite(path,method,body){
  const s=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG,res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/rest/v1/${path}`,{method,headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${s.access_token}`,"Content-Type":"application/json",Prefer:"return=representation"},body:body===undefined?undefined:JSON.stringify(body)});
  const txt=await res.text();let data=null;try{data=txt?JSON.parse(txt):null}catch{data=txt}if(!res.ok)throw new Error(data?.message||data?.error||txt||`HTTP ${res.status}`);return data
@@ -79,7 +79,15 @@ async function loadData(){
  else if(unitCode==="KEPALA_TU")baseJobs.push(api.db.select("office_letters","select=*&order=letter_date.desc,created_at.desc"));
  else if(unitCode==="KALAB_IPA"||unitCode==="KALAB_BISNIS")baseJobs.push(api.db.select("lab_inventory",`select=*&lab_code=eq.${u.lab}&order=item_name.asc`));
  const r=await Promise.all(baseJobs);programs=r[0]||[];logs=r[1]||[];specific=r[2]||[];
- if(unitCode==="PKM_BENDAHARA_SARPRAS")assets=specific;
+ if(unitCode==="PKM_BENDAHARA_SARPRAS"){
+   assets=specific;
+   const financeExtra=await Promise.all([
+     api.db.select("v_finance_transactions_detail","select=*&order=transaction_date.desc,created_at.desc").catch(err=>{console.warn("Keuangan belum tersedia:",err);return[]}),
+     api.db.select("v_student_education_bills","select=*&order=class_name_snapshot.asc,student_name.asc").catch(err=>{console.warn("Tagihan siswa belum tersedia:",err);return[]})
+   ]);
+   financeTransactions=financeExtra[0]||[];
+   financeBills=financeExtra[1]||[];
+ }
 
  if(unitCode==="PKM_KURIKULUM"){
    const activeSemester=semesters.find(s=>s.is_active)||semesters[0];
@@ -156,11 +164,12 @@ async function loadData(){
 }
 function setTab(name){
  document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
- ["Summary","Programs","Logs","Specific","Documents","Calendar","Recap","Summons","Activities","Studentrecap","Contentcalendar","Documentation","Socialmedia","Humasnews","Humasrecap","Letteragenda","Dispositions","Letterarchive","Turecap","Labbookings","Labloans","Labstock","Labsafety","Labrecap","Bizpractices","Biztransactions","Bizstock","Bizrecap"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
+ ["Summary","Programs","Logs","Specific","Finance","Documents","Calendar","Recap","Summons","Activities","Studentrecap","Contentcalendar","Documentation","Socialmedia","Humasnews","Humasrecap","Letteragenda","Dispositions","Letterarchive","Turecap","Labbookings","Labloans","Labstock","Labsafety","Labrecap","Bizpractices","Biztransactions","Bizstock","Bizrecap"].forEach(x=>$("panel"+x).classList.toggle("hidden",x.toLowerCase()!==name));
 }
 function renderTabs(){
  const u=UNITS[unitCode];
  const base=[["summary","Ringkasan"],["programs","Program Kerja"],["logs","Log Aktivitas"],["specific",u.specificTab]];
+ if(unitCode==="PKM_BENDAHARA_SARPRAS"){base.push(["finance","Keuangan"])}
  if(unitCode==="PKM_KURIKULUM"){
    base.push(["documents","Perangkat Ajar"],["calendar","Kalender Akademik"],["recap","Rekap Guru"]);
  }
@@ -311,6 +320,51 @@ function renderSpecific(){
    $("bizTypeFilter").onchange=renderBizInventoryTable;
    $("bizConditionFilter").onchange=renderBizInventoryTable;
  }
+}
+
+
+function renderFinance(){
+ if(unitCode!=="PKM_BENDAHARA_SARPRAS")return;
+ const posted=financeTransactions.filter(x=>x.status==="POSTED");
+ const balance=posted.reduce((n,x)=>n+Number(x.signed_amount||0),0);
+ const income=posted.filter(x=>x.transaction_type==="INCOME").reduce((n,x)=>n+Number(x.amount||0),0);
+ const expense=posted.filter(x=>x.transaction_type==="EXPENSE").reduce((n,x)=>n+Number(x.amount||0),0);
+ const billed=financeBills.reduce((n,x)=>n+Number(x.bill_amount||0),0);
+ const paid=financeBills.reduce((n,x)=>n+Number(x.total_paid||0),0);
+ const remaining=financeBills.reduce((n,x)=>n+Number(x.remaining_amount||0),0);
+ const recent=financeTransactions.slice(0,6);
+ $("panelFinance").innerHTML=`
+  <section class="stats">
+   <article class="statx"><span>Saldo Total</span><b>${money(balance)}</b></article>
+   <article class="statx"><span>Pemasukan</span><b>${money(income)}</b></article>
+   <article class="statx"><span>Pengeluaran</span><b>${money(expense)}</b></article>
+   <article class="statx"><span>Sisa Tagihan Siswa</span><b>${money(remaining)}</b></article>
+  </section>
+  <div class="grid2">
+   <article class="cardx">
+    <h3>Keuangan Madrasah</h3>
+    <p>Buku kas, bukti transaksi, pemasukan, pengeluaran, serta saldo kas/rekening.</p>
+    <div class="focus">
+      <a class="focus-item" style="text-decoration:none" href="keuangan.html?tab=cashbook&from=pkm"><b>Buku Kas</b><br><span style="font-size:8px;color:#718078">${financeTransactions.length} transaksi</span></a>
+      <a class="focus-item" style="text-decoration:none" href="keuangan.html?tab=studentpay&from=pkm"><b>Pembayaran Siswa</b><br><span style="font-size:8px;color:#718078">Terbayar ${money(paid)}</span></a>
+      <a class="focus-item" style="text-decoration:none" href="keuangan.html?tab=recap&from=pkm"><b>Rekap Pembayaran</b><br><span style="font-size:8px;color:#718078">Tagihan ${money(billed)}</span></a>
+      <a class="focus-item" style="text-decoration:none" href="keuangan.html?from=pkm"><b>Buka Modul Lengkap</b><br><span style="font-size:8px;color:#718078">Kelola seluruh fitur keuangan</span></a>
+    </div>
+   </article>
+   <article class="cardx">
+    <h3>Ringkasan Pembayaran Siswa</h3>
+    <div style="display:grid;gap:8px">
+      <div class="focus-item">Total Tagihan <b style="float:right">${money(billed)}</b></div>
+      <div class="focus-item">Sudah Dibayar <b style="float:right">${money(paid)}</b></div>
+      <div class="focus-item">Sisa / Tunggakan <b style="float:right">${money(remaining)}</b></div>
+      <div class="focus-item">Siswa Lunas <b style="float:right">${financeBills.filter(x=>x.payment_status==="LUNAS").length}</b></div>
+    </div>
+   </article>
+  </div>
+  <article class="cardx">
+    <div class="dash-title"><h3>Transaksi Terbaru</h3><a href="keuangan.html?tab=cashbook&from=pkm" style="font-size:9px;font-weight:800;color:#075b3a;text-decoration:none">Lihat Semua →</a></div>
+    <div class="table-wrap"><table class="tablex"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Uraian</th><th>Penyimpanan</th><th>Nominal</th></tr></thead><tbody>${recent.length?recent.map(x=>`<tr><td>${dateID(x.transaction_date)}</td><td>${badge(x.transaction_type==="INCOME"?"PEMASUKAN":"PENGELUARAN")}</td><td><b>${esc(x.category_name||"-")}</b><br>${esc(x.description||"-")}</td><td>${x.account_type==="CASH"?"Tunai":esc(x.account_name||"Rekening")}</td><td><b>${money(x.amount)}</b></td></tr>`).join(""):'<tr><td colspan="5"><div class="empty">Belum ada transaksi keuangan.</div></td></tr>'}</tbody></table></div>
+  </article>`;
 }
 
 function filteredAssets(){
@@ -1360,7 +1414,7 @@ function exportTeacherRecap(){
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`rekap-kurikulum-${activeSemester()?.name||"semester"}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
 }
 
-function renderAll(){renderStats();renderSummary();renderPrograms();renderLogs();renderSpecific();if(unitCode==="PKM_KURIKULUM"){renderDocuments();renderAcademicCalendar();renderTeacherRecap()}if(unitCode==="PKM_KESISWAAN"){renderSummons();renderActivities();renderStudentRecap()}if(unitCode==="PKM_HUMASY"){renderContentCalendar();renderDocumentation();renderSocialMedia();renderHumasNews();renderHumasRecap()}if(unitCode==="KEPALA_TU"){renderLetterAgenda();renderTuDispositions();renderTuArchive();renderTuRecap()}if(unitCode==="KALAB_IPA"){renderLabBookings();renderLabLoans();renderLabStock();renderLabSafety();renderLabRecap()}if(unitCode==="KALAB_BISNIS"){renderBizPractices();renderBizTransactions();renderBizStock();renderBizRecap()}}
+function renderAll(){renderStats();renderSummary();renderPrograms();renderLogs();renderSpecific();if(unitCode==="PKM_BENDAHARA_SARPRAS"){renderFinance()}if(unitCode==="PKM_KURIKULUM"){renderDocuments();renderAcademicCalendar();renderTeacherRecap()}if(unitCode==="PKM_KESISWAAN"){renderSummons();renderActivities();renderStudentRecap()}if(unitCode==="PKM_HUMASY"){renderContentCalendar();renderDocumentation();renderSocialMedia();renderHumasNews();renderHumasRecap()}if(unitCode==="KEPALA_TU"){renderLetterAgenda();renderTuDispositions();renderTuArchive();renderTuRecap()}if(unitCode==="KALAB_IPA"){renderLabBookings();renderLabLoans();renderLabStock();renderLabSafety();renderLabRecap()}if(unitCode==="KALAB_BISNIS"){renderBizPractices();renderBizTransactions();renderBizStock();renderBizRecap()}}
 
 function setFields(html){$("entryFields").innerHTML=html}
 function openModal(title,mode,id=""){$("entryTitle").textContent=title;$("entryMode").value=mode;$("entryId").value=id;$("entryMessage").textContent="";const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="";$("entryModal").classList.remove("hidden")}
@@ -1882,6 +1936,7 @@ $("entryForm").onsubmit=saveEntry;$("entryClose").onclick=closeModal;$("entryCan
  profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name;$("sideUserRole").textContent=roleLabel(profile.role);$("headerUser").textContent=profile.full_name;$("currentDate").textContent=localDateID();
  if(!UNITS[unitCode])throw new Error("Parameter unit kerja tidak valid.");if(!await checkAccess())throw new Error("Akun ini tidak ditugaskan pada unit kerja tersebut.");
  await loadMenu();await loadMasters();renderHeader();renderTabs();await loadData();
+ const requestedTab=new URLSearchParams(location.search).get("tab");if(requestedTab&&document.querySelector(`[data-tab="${requestedTab}"]`))setTab(requestedTab);
  const assetParam=new URLSearchParams(location.search).get("asset");
  if(unitCode==="PKM_BENDAHARA_SARPRAS"&&assetParam&&specific.some(a=>a.id===assetParam)){setTab("specific");setTimeout(()=>openAssetDetail(assetParam),100)}
  $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"}
