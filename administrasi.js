@@ -51,6 +51,12 @@ function integrationButton(r){
 async function loadProfile(user){
   const p = await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
   if(!p?.[0]) throw new Error("Profil pengguna tidak ditemukan.");
+  if(!p[0].is_active) throw new Error("Akun SIMANIS tidak aktif.");
+  const role=String(p[0].role||"").toUpperCase();
+  const perm=await api.db.rpc("get_my_module_permission",{p_module_code:"ADMINISTRASI_KEPALA"});
+  if(!["SUPER_ADMIN","KEPALA_MADRASAH"].includes(role) && !perm?.can_view){
+    throw new Error("Akun tidak memiliki akses Administrasi Kepala Madrasah.");
+  }
   return p[0];
 }
 async function loadMenu(){
