@@ -39,6 +39,15 @@ function integrationRoute(key){
     outgoing_mail:"unit-kerja.html?unit=KEPALA_TU"
   }[key]||null;
 }
+function integrationBadge(r){
+  if(!r.integration_key)return "";
+  const count=integrationSources.get(r.integration_key)||0;
+  return '<span class="integration-badge">Terhubung SIMANIS'+(count>0?' · '+count+' data':'')+'</span>';
+}
+function integrationButton(r){
+  const route=r.integration_key?integrationRoute(r.integration_key):null;
+  return route?'<a href="'+route+'" style="text-decoration:none"><button type="button">Buka Sumber</button></a>':"";
+}
 async function loadProfile(user){
   const p = await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
   if(!p?.[0]) throw new Error("Profil pengguna tidak ditemukan.");
@@ -98,12 +107,12 @@ function renderDocs(){
     <div class="doc-code">${esc(r.document_code.replace("ADM-",""))}</div>
     <div><div class="doc-title">${esc(r.title)}</div><div class="doc-meta">
       <span class="status-badge status-${r.status}">${statusLabel(r.status)}</span>
-      ${r.integration_key?'<span class="integration-badge">Terhubung SIMANIS</span>':''}
+      ${integrationBadge(r)}
       ${r.file_name?`<span class="doc-file">${esc(r.file_name)} · v${r.version_no||1}</span>`:""}
     </div></div>
     <div class="doc-actions">
       <select data-status="${r.record_id}">${["BELUM_ADA","DRAFT","PERLU_REVISI","LENGKAP"].map(s=>`<option value="${s}" ${r.status===s?"selected":""}>${statusLabel(s)}</option>`).join("")}</select>
-      <button data-note="${r.record_id}">Catatan</button>${r.storage_path?`<button data-view="${r.record_id}">Lihat File</button>`:""}<button class="primary-small" data-upload="${r.record_id}">Upload</button>
+      <button data-note="${r.record_id}">Catatan</button>${integrationButton(r)}${r.storage_path?`<button data-view="${r.record_id}">Lihat File</button>`:""}<button class="primary-small" data-upload="${r.record_id}">Upload</button>
     </div></article>`).join("");
   document.querySelectorAll("[data-status]").forEach(el=>el.addEventListener("change",()=>updateStatus(el.dataset.status,el.value)));
   document.querySelectorAll("[data-note]").forEach(el=>el.addEventListener("click",()=>editNote(el.dataset.note)));
