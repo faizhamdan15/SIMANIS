@@ -198,7 +198,7 @@ function bulkPrint(){
     return `<article class="card">
       <div class="identity">
         <div class="brand"><img src="${logoUrl}" alt=""><div><b>MA NURUL ISLAM</b><span>KARTU GURU • SIMANIS</span></div></div>
-        <h2>${esc(t.teacher_name)}</h2>
+        <h2 class="${String(t.teacher_name||"").length>38?"name-vlong":String(t.teacher_name||"").length>26?"name-long":""}">${esc(t.teacher_name)}</h2>
         <p>Kode Guru: <b>${esc(t.teacher_code||"-")}</b></p>
         ${t.nip?`<p>NIP: ${esc(t.nip)}</p>`:""}
         <small>Kartu Absensi Guru</small>
@@ -213,7 +213,7 @@ function bulkPrint(){
     .sheet{display:grid;grid-template-columns:86mm 86mm;gap:5mm 7mm;justify-content:center}
     .card{width:86mm;height:54mm;border-radius:3mm;padding:5mm;background:linear-gradient(135deg,#075b3a,#0b7347);display:grid;grid-template-columns:1fr 29mm;gap:4mm;align-items:center;break-inside:avoid;page-break-inside:avoid;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .brand{display:flex;align-items:center;gap:2.3mm;margin-bottom:4mm}.brand img{width:8mm;height:8mm;object-fit:contain;background:#fff;border-radius:50%;padding:.6mm}.brand b{display:block;font-size:8pt}.brand span{display:block;font-size:5.5pt;opacity:.78;margin-top:.5mm;letter-spacing:.4px}
-    h2{font-size:13pt;line-height:1.15;margin:0 0 2mm;max-height:30px;overflow:hidden}p{font-size:7pt;margin:.7mm 0;opacity:.92}small{display:block;font-size:6pt;margin-top:3mm;opacity:.72}
+    h2{font-size:12.5pt;line-height:1.12;margin:0 0 2mm;min-height:14mm;display:flex;align-items:flex-start;white-space:normal;overflow:visible;word-break:normal;overflow-wrap:anywhere}h2.name-long{font-size:11.2pt;line-height:1.08}h2.name-vlong{font-size:9.8pt;line-height:1.06}p{font-size:7pt;margin:.7mm 0;opacity:.92}small{display:block;font-size:6pt;margin-top:2mm;opacity:.72}
     .qr{background:#fff;border-radius:2.5mm;padding:2mm;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#075b3a}.qr img{width:25mm;height:25mm;display:block}.qr span{font-size:5pt;font-weight:700;margin-top:1mm;letter-spacing:.3px}
     @page{size:A4 portrait;margin:8mm}@media print{body{padding:0}.sheet{gap:5mm 7mm}}
   </style></head><body><div class="sheet">${cardsHtml}</div><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`);
