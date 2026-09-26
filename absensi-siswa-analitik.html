@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Analitik Absensi Siswa — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .wrap{max-width:1260px;margin:auto}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-bottom:16px}.head h2{margin:0;color:var(--green-950)}.head p{margin:6px 0 0;color:var(--muted);font-size:11px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid #d7e2dc;background:#fff;color:var(--green-900);border-radius:10px;padding:10px 13px;font-size:10px;font-weight:800;text-decoration:none;cursor:pointer}.btn.primary{background:var(--green-800);color:#fff;border-color:var(--green-800)}
+    .toolbar{display:grid;grid-template-columns:.9fr .9fr 1.2fr 1.2fr auto;gap:9px;margin-bottom:14px}.toolbar input,.toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:11px;padding:10px 11px;background:#fff;font-size:11px}
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}.kpi{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}.kpi span{font-size:8px;color:var(--muted);text-transform:uppercase}.kpi strong{display:block;margin-top:5px;font-size:22px;color:var(--green-950)}
+    .grid{display:grid;grid-template-columns:1.35fr .85fr;gap:14px;margin-bottom:14px}.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}.card h3{margin:0 0 4px;color:var(--green-950);font-size:13px}.card p{margin:0 0 12px;color:var(--muted);font-size:9px}
+    .chart{height:260px;display:flex;align-items:flex-end;gap:8px;padding:14px 8px 28px;border:1px solid #edf2ef;border-radius:12px;overflow-x:auto;background:#fbfdfc}.bar-col{min-width:34px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative}.bar{width:100%;max-width:28px;border-radius:7px 7px 2px 2px;background:#0b7347;min-height:2px}.bar-col small{position:absolute;bottom:-22px;font-size:7px;color:var(--muted);white-space:nowrap}.bar-col b{font-size:7px;margin-bottom:4px;color:#075b3a}
+    .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:8px;color:var(--muted)}.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#0b7347}
+    .subject-list{display:grid;gap:8px}.subject-row{border:1px solid #e3ece7;border-radius:11px;padding:9px}.subject-top{display:flex;justify-content:space-between;gap:8px;font-size:9px}.subject-top b{color:var(--green-950)}.meter{height:6px;background:#edf3ef;border-radius:999px;overflow:hidden;margin-top:7px}.meter i{display:block;height:100%;background:#0b7347;border-radius:999px}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:16px;background:#fff}.table{width:100%;border-collapse:collapse;min-width:900px}.table th,.table td{padding:10px;border-bottom:1px solid #edf2ef;text-align:left;font-size:9px}.table th{background:#fbfdfc;color:var(--muted);text-transform:uppercase}.pct{font-weight:800;color:#075b3a}.warn{font-weight:800;color:#9b5d00}.danger{font-weight:800;color:#a52d22}.empty{padding:28px;text-align:center;color:var(--muted);font-size:10px}
+    @media(max-width:1000px){.kpis{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}.toolbar{grid-template-columns:1fr 1fr}.toolbar .wide{grid-column:1/-1}}@media(max-width:560px){.head{flex-direction:column;align-items:flex-start}.kpis{grid-template-columns:1fr 1fr}.toolbar{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Analitik Absensi...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Absensi Siswa · Analitik Kehadiran</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+    <main class="main">
+      <div class="wrap">
+        <section class="head">
+          <div><h2>Dashboard Analitik Absensi</h2><p>Tren kehadiran, perbandingan mapel, dan siswa yang perlu perhatian berdasarkan data aktual.</p></div>
+          <div class="actions"><a class="btn" href="absensi-siswa.html">← Absensi</a><a class="btn" href="absensi-siswa-rekap.html">Rekap</a><a class="btn" href="absensi-siswa-riwayat.html">Riwayat</a><button id="printBtn" class="btn primary">Cetak / PDF</button></div>
+        </section>
+
+        <section class="toolbar">
+          <input id="dateFrom" type="date">
+          <input id="dateTo" type="date">
+          <select id="classFilter"><option value="">Pilih Kelas...</option></select>
+          <select id="subjectFilter"><option value="">Semua Mapel</option></select>
+          <button id="refreshBtn" class="btn">Refresh</button>
+        </section>
+
+        <section class="kpis">
+          <article class="kpi"><span>Total Siswa</span><strong id="kStudents">0</strong></article>
+          <article class="kpi"><span>Catatan Absensi</span><strong id="kRecords">0</strong></article>
+          <article class="kpi"><span>Hadir</span><strong id="kPresent">0</strong></article>
+          <article class="kpi"><span>Terlambat</span><strong id="kLate">0</strong></article>
+          <article class="kpi"><span>Tidak Hadir</span><strong id="kAbsent">0</strong></article>
+          <article class="kpi"><span>Kehadiran</span><strong id="kPct">0%</strong></article>
+        </section>
+
+        <section class="grid">
+          <article class="card">
+            <h3>Tren Kehadiran</h3>
+            <p>Persentase hadir + terlambat per tanggal pada filter aktif.</p>
+            <div id="trendChart" class="chart"><div class="empty">Pilih kelas untuk melihat tren.</div></div>
+            <div class="legend"><span><i class="dot"></i>Persentase kehadiran harian</span></div>
+          </article>
+          <article class="card">
+            <h3>Perbandingan Mata Pelajaran</h3>
+            <p>Persentase kehadiran berdasarkan mapel pada kelas dan periode yang dipilih.</p>
+            <div id="subjectList" class="subject-list"><div class="empty">Pilih kelas untuk melihat data mapel.</div></div>
+          </article>
+        </section>
+
+        <section class="card" style="padding:0;overflow:hidden">
+          <div style="padding:14px"><h3>Siswa yang Perlu Perhatian</h3><p>Diurutkan berdasarkan alfa, jumlah ketidakhadiran, lalu persentase kehadiran. Data ini bersifat indikator administrasi, bukan penilaian terhadap siswa.</p></div>
+          <div class="table-wrap" style="border:0;border-radius:0">
+            <table class="table">
+              <thead><tr><th>No</th><th>Siswa</th><th>NIS/NISN</th><th>Hadir</th><th>Terlambat</th><th>Izin</th><th>Sakit</th><th>Alfa</th><th>Total Tidak Hadir</th><th>% Kehadiran</th></tr></thead>
+              <tbody id="attentionBody"></tbody>
+            </table>
+            <div id="attentionEmpty" class="empty">Pilih kelas untuk melihat analitik siswa.</div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let api,profile,classes=[],subjects=[],stats=null,trend=[],attention=[],breakdown=[];
+
+function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function localISODate(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
+function addDays(iso,d){const x=new Date(`${iso}T12:00:00+07:00`);x.setUTCDate(x.getUTCDate()+d);return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(x)}
+function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
+function shortDate(v){return v?new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short"}).format(new Date(`${v}T12:00:00+07:00`)):"-"}
+function formatRole(r){return(r||"-").replaceAll("_"," ")}
+function routeFor(code){return{DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"}[code]||"#"}
+
+async function loadProfile(user){
+  const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
+  if(!r?.[0]||!r[0].is_active)throw new Error("Akun tidak aktif.");
+  const perm=await api.db.rpc("get_my_module_permission",{p_module_code:"ABSENSI_SISWA"});
+  if(!perm?.can_view)throw new Error("Akun tidak memiliki akses Absensi Siswa.");
+  return r[0];
+}
+async function loadMenu(){const m=await api.db.rpc("get_my_modules",{});$("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${x.code==="ABSENSI_SISWA"?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("")}
+async function loadClasses(){classes=await api.db.rpc("get_my_attendance_classes",{})||[];const map=new Map();classes.forEach(c=>map.set(String(c.class_id),c.class_name));$("classFilter").innerHTML='<option value="">Pilih Kelas...</option>'+[...map.entries()].map(([id,name])=>`<option value="${id}">${esc(name)}</option>`).join("");const q=new URLSearchParams(location.search);if(q.get("class")&&map.has(q.get("class")))$("classFilter").value=q.get("class")}
+async function loadSubjects(){subjects=await api.db.select("subjects","select=id,name&is_active=eq.true&order=name.asc")||[];$("subjectFilter").innerHTML='<option value="">Semua Mapel</option>'+subjects.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}
+
+async function loadAnalytics(){
+  const classId=$("classFilter").value;
+  if(!classId){stats=null;trend=[];attention=[];breakdown=[];renderAll();return}
+  $("loading").classList.remove("hidden");
+  try{
+    const common={p_class_id:classId,p_subject_id:$("subjectFilter").value||null,p_date_from:$("dateFrom").value||null,p_date_to:$("dateTo").value||null};
+    const [st,tr,at,br]=await Promise.all([
+      api.db.rpc("get_student_attendance_stats",common),
+      api.db.rpc("get_student_attendance_trend",common),
+      api.db.rpc("get_student_attendance_attention",{...common,p_limit:20}),
+      api.db.rpc("get_student_attendance_subject_breakdown",{p_class_id:classId,p_date_from:common.p_date_from,p_date_to:common.p_date_to})
+    ]);
+    stats=st?.[0]||st||null;trend=tr||[];attention=at||[];breakdown=br||[];
+    renderAll();
+  }catch(err){console.error(err);alert("Analitik absensi gagal dimuat: "+(err.message||err))}
+  finally{$("loading").classList.add("hidden")}
+}
+
+function renderAll(){
+  const st=stats||{};
+  const absent=Number(st.izin_count||0)+Number(st.sakit_count||0)+Number(st.alfa_count||0);
+  $("kStudents").textContent=Number(st.total_students||0);
+  $("kRecords").textContent=Number(st.total_records||0);
+  $("kPresent").textContent=Number(st.hadir_count||0);
+  $("kLate").textContent=Number(st.terlambat_count||0);
+  $("kAbsent").textContent=absent;
+  $("kPct").textContent=`${Number(st.attendance_percentage||0).toFixed(2)}%`;
+  renderTrend();renderBreakdown();renderAttention();
+}
+
+function renderTrend(){
+  if(!trend.length){$("trendChart").innerHTML='<div class="empty">Belum ada data pada periode ini.</div>';return}
+  $("trendChart").innerHTML=trend.map(r=>{
+    const pct=Math.max(0,Math.min(100,Number(r.attendance_percentage||0)));
+    return `<div class="bar-col"><b>${pct.toFixed(0)}%</b><div class="bar" style="height:${Math.max(2,pct)}%"></div><small>${esc(shortDate(r.attendance_date))}</small></div>`;
+  }).join("");
+}
+
+function renderBreakdown(){
+  if(!breakdown.length){$("subjectList").innerHTML='<div class="empty">Belum ada data mapel pada periode ini.</div>';return}
+  $("subjectList").innerHTML=breakdown.map(r=>{
+    const pct=Math.max(0,Math.min(100,Number(r.attendance_percentage||0)));
+    return `<div class="subject-row"><div class="subject-top"><b>${esc(r.subject_name||"-")}</b><span>${pct.toFixed(2)}%</span></div><div class="meter"><i style="width:${pct}%"></i></div><div style="font-size:7px;color:var(--muted);margin-top:5px">${Number(r.total_records||0)} catatan · H ${Number(r.hadir_count||0)} · T ${Number(r.terlambat_count||0)} · I ${Number(r.izin_count||0)} · S ${Number(r.sakit_count||0)} · A ${Number(r.alfa_count||0)}</div></div>`;
+  }).join("");
+}
+
+function renderAttention(){
+  $("attentionEmpty").style.display=attention.length?"none":"block";
+  $("attentionBody").innerHTML=attention.map((r,i)=>{
+    const pct=Number(r.attendance_percentage||0);
+    const cls=pct<75?"danger":pct<90?"warn":"pct";
+    return `<tr><td>${r.roll_number??(i+1)}</td><td><b>${esc(r.full_name||"-")}</b></td><td>${esc(r.nis||"-")}<div style="font-size:7px;color:var(--muted)">NISN: ${esc(r.nisn||"-")}</div></td><td>${Number(r.hadir_count||0)}</td><td>${Number(r.terlambat_count||0)}</td><td>${Number(r.izin_count||0)}</td><td>${Number(r.sakit_count||0)}</td><td class="${Number(r.alfa_count||0)>0?"danger":""}">${Number(r.alfa_count||0)}</td><td>${Number(r.absence_count||0)}</td><td class="${cls}">${pct.toFixed(2)}%</td></tr>`;
+  }).join("");
+}
+
+const today=localISODate();$("dateTo").value=today;$("dateFrom").value=addDays(today,-30);
+$("dateFrom").onchange=loadAnalytics;$("dateTo").onchange=loadAnalytics;$("classFilter").onchange=loadAnalytics;$("subjectFilter").onchange=loadAnalytics;$("refreshBtn").onclick=loadAnalytics;$("printBtn").onclick=()=>window.print();
+
+(async()=>{
+  try{
+    api=await window.simanisReady;
+    const session=await api.auth.getSession();if(!session){location.replace("index.html");return}
+    const user=await api.auth.getUser();if(!user){location.replace("index.html");return}
+    profile=await loadProfile(user);
+    $("sideUserName").textContent=profile.full_name||user.email;$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email;$("currentDate").textContent=localDateID();
+    await loadMenu();await loadClasses();await loadSubjects();await loadAnalytics();
+    $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")};
+  }catch(err){console.error(err);alert("Analitik Absensi gagal dimuat: "+(err.message||err));location.replace("absensi-siswa.html")}
+  finally{$("loading").classList.add("hidden")}
+})();
+</script>
+</body>
+</html>
