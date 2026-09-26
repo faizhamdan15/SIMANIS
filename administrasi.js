@@ -34,7 +34,7 @@ function integrationRoute(key){
     student_report_cards:"nilai-semester.html",
     promotion_graduation:"siswa.html",
     inventory_master:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",
-    finance_cashbook:"keuangan.html",
+    finance_cashbook:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS&tab=finance",
     incoming_mail:"unit-kerja.html?unit=KEPALA_TU",
     outgoing_mail:"unit-kerja.html?unit=KEPALA_TU"
   }[key]||null;
