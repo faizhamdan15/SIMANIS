@@ -4,6 +4,7 @@ let rows = [];
 let categories = [];
 let selectedCategory = null;
 let uploadTarget = null;
+let integrationSources = new Map();
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -22,6 +23,22 @@ function routeFor(code){
 function statusLabel(s){
   return {BELUM_ADA:"Belum Ada",DRAFT:"Draft",PERLU_REVISI:"Perlu Revisi",LENGKAP:"Lengkap"}[s] || s;
 }
+function integrationRoute(key){
+  return {
+    teacher_attendance_daily:"absensi-guru.html",
+    teacher_attendance_monthly:"absensi-guru.html",
+    student_master:"siswa.html",
+    student_attendance_by_class:"absensi-siswa-rekap.html",
+    student_count_by_class:"kelas.html",
+    student_achievements:"prestasi.html",
+    student_report_cards:"nilai-semester.html",
+    promotion_graduation:"siswa.html",
+    inventory_master:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",
+    finance_cashbook:"keuangan.html",
+    incoming_mail:"unit-kerja.html?unit=KEPALA_TU",
+    outgoing_mail:"unit-kerja.html?unit=KEPALA_TU"
+  }[key]||null;
+}
 async function loadProfile(user){
   const p = await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
   if(!p?.[0]) throw new Error("Profil pengguna tidak ditemukan.");
@@ -36,7 +53,13 @@ async function loadMenu(){
   document.querySelectorAll('.nav-item[href="#"]').forEach(a=>a.addEventListener("click",e=>{e.preventDefault();alert(`Modul "${a.textContent.trim()}" akan diaktifkan bertahap.`);}));
 }
 async function loadData(){
-  try{await api.db.rpc("sync_admin_document_integrations",{})}catch(err){console.warn("Sinkronisasi administrasi:",err)}
+  try{
+    const syncRows=await api.db.rpc("sync_admin_document_integrations",{})||[];
+    integrationSources=new Map(syncRows.map(x=>[x.integration_key,Number(x.source_count||0)]));
+  }catch(err){
+    console.warn("Sinkronisasi administrasi:",err);
+    integrationSources=new Map();
+  }
   rows = await api.db.select("v_admin_document_status","select=*&academic_year=eq.2026/2027&order=category_order.asc,document_order.asc") || [];
   const map = new Map();
   rows.forEach(r=>{ if(!map.has(r.category_id)) map.set(r.category_id,{id:r.category_id,code:r.category_code,name:r.category_name,order:r.category_order,expected:r.expected_documents}); });
@@ -48,7 +71,7 @@ function renderStats(){
   const total=rows.length, complete=rows.filter(r=>r.status==="LENGKAP").length, draft=rows.filter(r=>r.status==="DRAFT").length, revision=rows.filter(r=>r.status==="PERLU_REVISI").length, missing=rows.filter(r=>r.status==="BELUM_ADA").length;
   const available=Math.max(0,total-missing), pct=total?Math.round(available/total*100):0;
   $("statComplete").textContent=complete; $("statDraft").textContent=draft; $("statRevision").textContent=revision; $("statMissing").textContent=missing;
-  $("overallText").textContent=available+" / "+total+" tersedia ("+pct+"%)"; $("overallFill").style.width=pct+"%";
+  $("overallText").textContent=available+" / "+total+" punya progres ("+pct+"%)"; $("overallFill").style.width=pct+"%";
 }
 function renderCategories(){
   $("categoryGrid").innerHTML=categories.map(c=>{
