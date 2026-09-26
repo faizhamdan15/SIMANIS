@@ -38,7 +38,7 @@
           <div class="recap-actions">
             <a class="btn" href="absensi-siswa.html">← Absensi Siswa</a>
             <a class="btn" href="absensi-siswa-riwayat.html">Riwayat Perubahan</a>
-            <button id="exportSummaryBtn" class="btn">CSV Ringkasan</button>
+            <button id="exportSummaryBtn" class="btn">Export Excel</button>
             <button id="printSummaryBtn" class="btn">Cetak / PDF</button>
             <button id="exportAllBtn" class="btn primary">Download Rekap Terfilter</button>
           </div>
@@ -242,16 +242,42 @@ function exportSummary(){
   if(!summaryRows.length){alert("Belum ada ringkasan untuk diunduh.");return}
   const classId=$("classFilter").value;
   const className=classes.find(x=>String(x.class_id)===String(classId))?.class_name||"Kelas";
-  const subjectName=subjects.find(x=>String(x.id)===String($("subjectFilter").value))?.name||"Semua_Mapel";
-  const data=[
-    ["No","Nama Siswa","NIS","NISN","Hadir","Terlambat","Izin","Sakit","Alfa","Persentase Kehadiran"],
-    ...summaryRows.map((r,i)=>[
-      r.roll_number??(i+1),r.full_name||"",r.nis||"",r.nisn||"",
-      Number(r.hadir_count||0),Number(r.terlambat_count||0),Number(r.izin_count||0),
-      Number(r.sakit_count||0),Number(r.alfa_count||0),Number(r.attendance_percentage||0).toFixed(2)+"%"
-    ])
-  ];
-  saveCSV(data,`Ringkasan_Absensi_${safe(className)}_${safe(subjectName)}_${$("dateFrom").value}_${$("dateTo").value}.csv`);
+  const subjectName=subjects.find(x=>String(x.id)===String($("subjectFilter").value))?.name||"Semua Mapel";
+  const st=summaryStats||{};
+  const rows=summaryRows.map((r,i)=>`
+    <tr>
+      <td>${r.roll_number??(i+1)}</td>
+      <td>${esc(r.full_name||"")}</td>
+      <td style="mso-number-format:'\\@'">${esc(r.nis||"")}</td>
+      <td style="mso-number-format:'\\@'">${esc(r.nisn||"")}</td>
+      <td>${Number(r.hadir_count||0)}</td>
+      <td>${Number(r.terlambat_count||0)}</td>
+      <td>${Number(r.izin_count||0)}</td>
+      <td>${Number(r.sakit_count||0)}</td>
+      <td>${Number(r.alfa_count||0)}</td>
+      <td>${Number(r.attendance_percentage||0).toFixed(2)}%</td>
+    </tr>
+  `).join("");
+
+  const html=`<!doctype html>
+  <html><head><meta charset="utf-8"></head><body>
+  <table>
+    <tr><th colspan="10" style="font-size:16px">RINGKASAN ABSENSI SISWA — SIMANIS</th></tr>
+    <tr><td colspan="10">Kelas: ${esc(className)}</td></tr>
+    <tr><td colspan="10">Mata Pelajaran: ${esc(subjectName)}</td></tr>
+    <tr><td colspan="10">Periode: ${esc($("dateFrom").value)} s.d. ${esc($("dateTo").value)}</td></tr>
+    <tr><td colspan="10">Total Siswa: ${Number(st.total_students||0)} | Catatan: ${Number(st.total_records||0)} | Kehadiran: ${Number(st.attendance_percentage||0).toFixed(2)}%</td></tr>
+    <tr></tr>
+    <tr><th>No</th><th>Nama Siswa</th><th>NIS</th><th>NISN</th><th>Hadir</th><th>Terlambat</th><th>Izin</th><th>Sakit</th><th>Alfa</th><th>% Kehadiran</th></tr>
+    ${rows}
+  </table></body></html>`;
+
+  const url=URL.createObjectURL(new Blob(["\uFEFF",html],{type:"application/vnd.ms-excel;charset=utf-8"}));
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`Ringkasan_Absensi_${safe(className)}_${safe(subjectName)}_${$("dateFrom").value}_${$("dateTo").value}.xls`;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),500);
 }
 
 function printSummary(){
