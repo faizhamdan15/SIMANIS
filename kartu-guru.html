@@ -15,6 +15,7 @@
     .kg-head h2{margin:0;color:var(--green-950)}.kg-head p{margin:6px 0 0;color:var(--muted);font-size:11px}
     .kg-back{display:inline-flex;text-decoration:none;border:1px solid var(--line);padding:10px 13px;border-radius:11px;color:var(--green-900);font-size:11px;font-weight:800;background:#fff}
     .kg-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px}
+    .kg-bulk{display:none;background:#f3fbf6;border:1px solid #d7eadf;border-radius:16px;padding:14px;margin-bottom:14px}.kg-bulk.show{display:block}.kg-bulk-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.kg-bulk h3{margin:0;color:var(--green-950);font-size:13px}.kg-bulk p{margin:4px 0 0;color:var(--muted);font-size:9px}.kg-bulk-stats{display:flex;gap:8px;flex-wrap:wrap}.kg-bulk-stat{background:#fff;border:1px solid #dfeae4;border-radius:10px;padding:8px 10px;min-width:86px}.kg-bulk-stat span{display:block;font-size:7px;color:var(--muted);text-transform:uppercase}.kg-bulk-stat strong{display:block;margin-top:3px;font-size:15px;color:#075b3a}.kg-bulk-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.kg-bulk-actions button{border:1px solid #cfe0d7;background:#fff;color:#075b3a;border-radius:10px;padding:9px 11px;font-size:9px;font-weight:800;cursor:pointer}.kg-bulk-actions .primary{background:#075b3a;color:#fff;border-color:#075b3a}.kg-bulk-actions button:disabled{opacity:.5;cursor:not-allowed}
     .kg-search{width:100%;border:1px solid #d7e2dc;border-radius:12px;padding:11px 12px;margin-bottom:14px}
     .kg-list{display:grid;gap:10px}.kg-item{border:1px solid #e4ebe7;border-radius:14px;padding:13px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
     .kg-name{font-weight:800;color:var(--green-950);font-size:13px}.kg-meta{font-size:10px;color:var(--muted);margin-top:4px}.kg-badge{display:inline-flex;margin-top:7px;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800}.kg-on{background:#dff4e7;color:#08743f}.kg-off{background:#f1f3f2;color:#65736b}
@@ -39,10 +40,24 @@
     <main class="main">
       <div class="kg-wrap">
         <section class="kg-head">
-          <div><h2>Kartu Guru</h2><p>Terbitkan, cetak, pakai kartu lama, atau blokir kartu QR untuk absensi SIMANIS.</p></div>
-          <a class="kg-back" href="absensi-guru.html">← Absensi Guru</a>
+          <div><h2>Kartu Guru</h2><p>Terbitkan, cetak satuan/massal, pakai kartu lama, atau blokir kartu QR untuk absensi SIMANIS.</p></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="kg-back" href="absensi-guru.html">← Absensi Guru</a><button id="bulkTopBtn" class="kg-back" type="button" style="display:none;cursor:pointer">Cetak Semua Kartu</button></div>
         </section>
         <section class="kg-panel">
+          <div id="bulkPanel" class="kg-bulk">
+            <div class="kg-bulk-top">
+              <div><h3>Kartu Guru Massal</h3><p>Khusus SUPER_ADMIN · ukuran kartu 86 × 54 mm, siap cetak A4 atau Save as PDF.</p></div>
+              <div class="kg-bulk-stats">
+                <div class="kg-bulk-stat"><span>Guru Aktif</span><strong id="bulkTeacherCount">0</strong></div>
+                <div class="kg-bulk-stat"><span>Kartu Aktif</span><strong id="bulkActiveCount">0</strong></div>
+                <div class="kg-bulk-stat"><span>Belum Aktif</span><strong id="bulkMissingCount">0</strong></div>
+              </div>
+            </div>
+            <div class="kg-bulk-actions">
+              <button id="bulkPrintBtn" class="primary" type="button">Cetak / Download Semua Aktif</button>
+              <button id="issueMissingBtn" type="button">Terbitkan Semua yang Belum Aktif</button>
+            </div>
+          </div>
           <input id="searchInput" class="kg-search" type="search" placeholder="Cari nama atau kode guru...">
           <div id="teacherList" class="kg-list"></div>
         </section>
@@ -100,35 +115,133 @@ async function loadMenu(){
 }
 
 async function loadData(){
-  const attendance=await api.db.rpc("get_teacher_attendance_by_date",{p_date:todayYMD()})||[];
-  const seen=new Map();
-
-  attendance.forEach(r=>{
-    if(r.teacher_id&&!seen.has(r.teacher_id)){
-      seen.set(r.teacher_id,{
-        teacher_id:r.teacher_id,
-        teacher_name:r.teacher_name||"Guru",
-        teacher_code:r.teacher_code||"",
-        schedule_detail:r.schedule_detail||""
-      });
-    }
-  });
-
-  teachers=[...seen.values()];
-
-  if(!canManageAll && profile?.teacher_id){
-    teachers=teachers.filter(t=>t.teacher_id===profile.teacher_id);
-  }
+  const teacherRows=await api.db.rpc("list_teacher_card_teachers",{})||[];
+  teachers=teacherRows.map(t=>({
+    teacher_id:t.teacher_id,
+    teacher_name:t.full_name||"Guru",
+    teacher_code:t.teacher_code??"",
+    nip:t.nip||"",
+    nuptk:t.nuptk||"",
+    employment_status:t.employment_status||""
+  }));
 
   teachers.sort((a,b)=>a.teacher_name.localeCompare(b.teacher_name,"id"));
 
-  if(!canManageAll && !profile?.teacher_id){
-    teachers=[];
-  }
-
   const cardRows=await api.db.rpc("list_teacher_cards",{})||[];
   cards=new Map(cardRows.map(c=>[c.teacher_id,c]));
+
+  updateBulkPanel();
   render();
+}
+
+
+function isSuperAdmin(){
+  return String(profile?.role||"").toUpperCase()==="SUPER_ADMIN";
+}
+
+function updateBulkPanel(){
+  const panel=$("bulkPanel");
+  const topBtn=$("bulkTopBtn");
+  if(!isSuperAdmin()){
+    panel?.classList.remove("show");
+    if(topBtn)topBtn.style.display="none";
+    return;
+  }
+
+  panel?.classList.add("show");
+  if(topBtn)topBtn.style.display="inline-flex";
+
+  const active=teachers.filter(t=>cards.get(t.teacher_id)?.is_active);
+  const missing=Math.max(0,teachers.length-active.length);
+
+  $("bulkTeacherCount").textContent=teachers.length;
+  $("bulkActiveCount").textContent=active.length;
+  $("bulkMissingCount").textContent=missing;
+
+  if($("bulkPrintBtn"))$("bulkPrintBtn").disabled=!active.length;
+  if($("issueMissingBtn")){
+    $("issueMissingBtn").disabled=!missing;
+    $("issueMissingBtn").textContent=missing
+      ?`Terbitkan ${missing} Kartu yang Belum Aktif`
+      :"Semua Kartu Sudah Aktif";
+  }
+}
+
+function qrDataURL(token){
+  const tmp=document.createElement("div");
+  tmp.style.cssText="position:fixed;left:-99999px;top:-99999px;width:320px;height:320px;background:#fff";
+  document.body.appendChild(tmp);
+  try{
+    new QRCode(tmp,{text:token,width:320,height:320,correctLevel:QRCode.CorrectLevel.M});
+    const canvas=tmp.querySelector("canvas");
+    if(canvas)return canvas.toDataURL("image/png");
+    const img=tmp.querySelector("img");
+    return img?.src||"";
+  }finally{
+    setTimeout(()=>tmp.remove(),0);
+  }
+}
+
+function bulkPrint(){
+  if(!isSuperAdmin()){alert("Fitur cetak massal khusus SUPER_ADMIN.");return}
+
+  const active=teachers.filter(t=>cards.get(t.teacher_id)?.is_active);
+  if(!active.length){alert("Belum ada kartu guru aktif untuk dicetak.");return}
+
+  const popup=window.open("","_blank");
+  if(!popup){alert("Popup diblokir browser. Izinkan popup untuk mencetak kartu massal.");return}
+
+  const logoUrl=new URL("logo.png",location.href).href;
+  const cardsHtml=active.map(t=>{
+    const c=cards.get(t.teacher_id);
+    const qr=qrDataURL(c.card_token);
+    return `<article class="card">
+      <div class="identity">
+        <div class="brand"><img src="${logoUrl}" alt=""><div><b>MA NURUL ISLAM</b><span>KARTU GURU • SIMANIS</span></div></div>
+        <h2>${esc(t.teacher_name)}</h2>
+        <p>Kode Guru: <b>${esc(t.teacher_code||"-")}</b></p>
+        ${t.nip?`<p>NIP: ${esc(t.nip)}</p>`:""}
+        <small>Kartu Absensi Guru</small>
+      </div>
+      <div class="qr"><img src="${qr}" alt="QR"><span>SCAN ABSENSI</span></div>
+    </article>`;
+  }).join("");
+
+  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Kartu Guru SIMANIS</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;padding:8mm;font-family:Arial,sans-serif;background:#fff;color:#fff}
+    .sheet{display:grid;grid-template-columns:86mm 86mm;gap:5mm 7mm;justify-content:center}
+    .card{width:86mm;height:54mm;border-radius:3mm;padding:5mm;background:linear-gradient(135deg,#075b3a,#0b7347);display:grid;grid-template-columns:1fr 29mm;gap:4mm;align-items:center;break-inside:avoid;page-break-inside:avoid;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .brand{display:flex;align-items:center;gap:2.3mm;margin-bottom:4mm}.brand img{width:8mm;height:8mm;object-fit:contain;background:#fff;border-radius:50%;padding:.6mm}.brand b{display:block;font-size:8pt}.brand span{display:block;font-size:5.5pt;opacity:.78;margin-top:.5mm;letter-spacing:.4px}
+    h2{font-size:13pt;line-height:1.15;margin:0 0 2mm;max-height:30px;overflow:hidden}p{font-size:7pt;margin:.7mm 0;opacity:.92}small{display:block;font-size:6pt;margin-top:3mm;opacity:.72}
+    .qr{background:#fff;border-radius:2.5mm;padding:2mm;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#075b3a}.qr img{width:25mm;height:25mm;display:block}.qr span{font-size:5pt;font-weight:700;margin-top:1mm;letter-spacing:.3px}
+    @page{size:A4 portrait;margin:8mm}@media print{body{padding:0}.sheet{gap:5mm 7mm}}
+  </style></head><body><div class="sheet">${cardsHtml}</div><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`);
+  popup.document.close();
+}
+
+async function issueAllMissing(){
+  if(!isSuperAdmin()){alert("Fitur ini khusus SUPER_ADMIN.");return}
+  const missing=teachers.filter(t=>!cards.get(t.teacher_id)?.is_active);
+  if(!missing.length){alert("Semua guru aktif sudah memiliki kartu.");return}
+
+  const ok=confirm(
+    `Terbitkan kartu QR baru untuk ${missing.length} guru yang belum memiliki kartu aktif?\n\n`+
+    "Jika ada kartu lama yang pernah diblokir, token lama akan diganti dan tidak berlaku lagi."
+  );
+  if(!ok)return;
+
+  const btn=$("issueMissingBtn");
+  if(btn){btn.disabled=true;btn.textContent="Menerbitkan..."}
+  try{
+    const count=await api.db.rpc("issue_missing_teacher_cards",{});
+    await loadData();
+    alert(`${Number(count||0)} kartu guru berhasil diterbitkan.\n\nSekarang semua kartu aktif dapat dicetak/download sekaligus.`);
+  }catch(e){
+    alert("Gagal menerbitkan kartu massal: "+(e.message||e));
+  }finally{
+    updateBulkPanel();
+  }
 }
 
 function render(){
@@ -204,6 +317,9 @@ function showCard(id){
 function closeCard(){$("cardModal").classList.add("hidden")}
 
 $("searchInput").oninput=render;
+$("bulkPrintBtn").onclick=bulkPrint;
+$("bulkTopBtn").onclick=bulkPrint;
+$("issueMissingBtn").onclick=issueAllMissing;
 $("cardModal").onclick=e=>{if(e.target===$("cardModal"))closeCard()};
 
 (async function boot(){
