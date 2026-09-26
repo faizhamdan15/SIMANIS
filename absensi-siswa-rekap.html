@@ -13,9 +13,10 @@
     .recap-actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid #d7e2dc;background:#fff;color:var(--green-900);border-radius:10px;padding:10px 13px;font-size:10px;font-weight:800;text-decoration:none;cursor:pointer}.btn.primary{background:var(--green-800);color:#fff;border-color:var(--green-800)}
     .recap-note{background:#f3fbf6;border:1px solid #d7eadf;border-radius:14px;padding:12px 14px;margin-bottom:14px;font-size:9px;color:#53675c;line-height:1.6}.recap-note b{color:#075b3a}
     .recap-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.stat2{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}.stat2 span{font-size:9px;color:var(--muted);text-transform:uppercase}.stat2 strong{display:block;margin-top:5px;font-size:23px;color:var(--green-950)}
-    .toolbar{display:grid;grid-template-columns:.9fr .9fr 1.1fr 1.4fr auto;gap:9px;margin-bottom:12px}.toolbar input,.toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:11px;padding:10px 11px;background:#fff;font-size:11px}
+    .toolbar{display:grid;grid-template-columns:.9fr .9fr 1.1fr 1.1fr 1.4fr auto;gap:9px;margin-bottom:12px}.toolbar input,.toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:11px;padding:10px 11px;background:#fff;font-size:11px}
     .table-wrap{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:auto}.table{width:100%;border-collapse:collapse;min-width:1120px}.table th,.table td{padding:10px;border-bottom:1px solid #edf2ef;text-align:left;font-size:10px;vertical-align:top}.table th{background:#fbfdfc;color:var(--muted);text-transform:uppercase;font-size:9px}.class-name{font-weight:800;color:var(--green-950)}.sub{font-size:9px;color:var(--muted);margin-top:3px}.counts{display:flex;gap:4px;flex-wrap:wrap}.counts span{padding:4px 6px;border-radius:999px;background:#eef4f0;font-size:8px;font-weight:800}.row-actions{display:flex;gap:6px;flex-wrap:wrap}.mini{border:1px solid #d7e2dc;background:#fff;color:#075b3a;border-radius:8px;padding:7px 8px;font-size:8px;font-weight:800;cursor:pointer}.mini.primary{background:#075b3a;color:#fff;border-color:#075b3a}.mini:disabled{opacity:.45;cursor:not-allowed}.empty{padding:30px;text-align:center;color:var(--muted);font-size:11px}
-    @media(max-width:900px){.recap-stats{grid-template-columns:1fr 1fr}.toolbar{grid-template-columns:1fr 1fr}.toolbar .wide{grid-column:1/-1}}@media(max-width:520px){.recap-head{align-items:flex-start;flex-direction:column}.recap-stats,.toolbar{grid-template-columns:1fr}}
+    .summary-panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0 16px}.summary-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.summary-head h3{margin:0;color:var(--green-950);font-size:14px}.summary-head p{margin:4px 0 0;color:var(--muted);font-size:9px}.summary-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px}.summary-kpi{border:1px solid #e3ece7;border-radius:12px;padding:10px;background:#fbfdfc}.summary-kpi span{display:block;font-size:8px;color:var(--muted);text-transform:uppercase}.summary-kpi strong{display:block;margin-top:4px;font-size:18px;color:var(--green-950)}.summary-table-wrap{overflow:auto;border:1px solid #edf2ef;border-radius:12px}.summary-table{width:100%;border-collapse:collapse;min-width:900px}.summary-table th,.summary-table td{padding:9px;border-bottom:1px solid #edf2ef;font-size:9px;text-align:left}.summary-table th{background:#f8fbf9;color:var(--muted);text-transform:uppercase}.pct{font-weight:800;color:#075b3a}
+    @media(max-width:900px){.recap-stats{grid-template-columns:1fr 1fr}.toolbar{grid-template-columns:1fr 1fr}.toolbar .wide{grid-column:1/-1}.summary-kpis{grid-template-columns:repeat(3,1fr)}}@media(max-width:520px){.recap-head{align-items:flex-start;flex-direction:column}.recap-stats,.toolbar{grid-template-columns:1fr}.summary-kpis{grid-template-columns:1fr 1fr}.summary-head{align-items:flex-start;flex-direction:column}}
   </style>
 </head>
 <body>
@@ -37,6 +38,8 @@
           <div class="recap-actions">
             <a class="btn" href="absensi-siswa.html">← Absensi Siswa</a>
             <a class="btn" href="absensi-siswa-riwayat.html">Riwayat Perubahan</a>
+            <button id="exportSummaryBtn" class="btn">CSV Ringkasan</button>
+            <button id="printSummaryBtn" class="btn">Cetak / PDF</button>
             <button id="exportAllBtn" class="btn primary">Download Rekap Terfilter</button>
           </div>
         </section>
@@ -53,9 +56,32 @@
         <section class="toolbar">
           <input id="dateFrom" type="date">
           <input id="dateTo" type="date">
-          <select id="classFilter"><option value="">Semua Kelas</option></select>
+          <select id="classFilter" title="Pilih kelas"><option value="">Semua Kelas</option></select>
+          <select id="subjectFilter" title="Filter mata pelajaran"><option value="">Semua Mapel</option></select>
           <input id="searchInput" class="wide" type="search" placeholder="Cari kelas atau mata pelajaran...">
           <button id="refreshBtn" class="btn">Refresh</button>
+        </section>
+
+        <section class="summary-panel">
+          <div class="summary-head">
+            <div><h3>Ringkasan Kehadiran per Siswa</h3><p>Rekap langsung dari data absensi berdasarkan kelas, rentang tanggal, dan mata pelajaran.</p></div>
+            <div class="sub" id="summaryContext">Pilih satu kelas untuk melihat ringkasan.</div>
+          </div>
+          <div class="summary-kpis">
+            <div class="summary-kpi"><span>Siswa</span><strong id="sumStudents">0</strong></div>
+            <div class="summary-kpi"><span>Catatan</span><strong id="sumRecords">0</strong></div>
+            <div class="summary-kpi"><span>Hadir</span><strong id="sumHadir">0</strong></div>
+            <div class="summary-kpi"><span>Terlambat</span><strong id="sumLate">0</strong></div>
+            <div class="summary-kpi"><span>Tidak Hadir</span><strong id="sumAbsent">0</strong></div>
+            <div class="summary-kpi"><span>Kehadiran</span><strong id="sumPct">0%</strong></div>
+          </div>
+          <div class="summary-table-wrap">
+            <table class="summary-table">
+              <thead><tr><th>No</th><th>Nama Siswa</th><th>NIS/NISN</th><th>Hadir</th><th>Terlambat</th><th>Izin</th><th>Sakit</th><th>Alfa</th><th>% Kehadiran</th></tr></thead>
+              <tbody id="summaryBody"></tbody>
+            </table>
+            <div id="summaryEmpty" class="empty">Pilih satu kelas untuk menampilkan ringkasan.</div>
+          </div>
         </section>
 
         <section class="table-wrap">
@@ -74,7 +100,7 @@
 <script src="sdk-loader.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-let api,profile,classes=[],recaps=[],filtered=[];
+let api,profile,classes=[],subjects=[],recaps=[],filtered=[],summaryRows=[],summaryStats=null;
 
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
 function localISODate(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
@@ -109,6 +135,16 @@ async function loadClasses(){
   if(requested&&names.has(requested))$("classFilter").value=requested;
 }
 
+async function loadSubjects(){
+  try{
+    subjects=await api.db.select("subjects","select=id,name&is_active=eq.true&order=name.asc")||[];
+    $("subjectFilter").innerHTML='<option value="">Semua Mapel</option>'+subjects.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("");
+  }catch(err){
+    console.warn("Mapel:",err);
+    subjects=[];
+  }
+}
+
 async function loadRecaps(){
   $("loading").classList.remove("hidden");
   try{
@@ -136,6 +172,98 @@ function applyFilters(){
   $("statPresent").textContent=filtered.reduce((n,r)=>n+Number(r.present_count||0)+Number(r.late_count||0),0);
   $("statAbsent").textContent=filtered.reduce((n,r)=>n+Number(r.absent_count||0),0);
   render();
+}
+
+
+async function loadSummary(){
+  const classId=$("classFilter").value;
+  const subjectId=$("subjectFilter").value||null;
+  if(!classId){
+    summaryRows=[];summaryStats=null;
+    renderSummary();
+    return;
+  }
+  try{
+    const params={
+      p_class_id:classId,
+      p_subject_id:subjectId,
+      p_date_from:$("dateFrom").value||null,
+      p_date_to:$("dateTo").value||null
+    };
+    const [rows,stats]=await Promise.all([
+      api.db.rpc("get_student_attendance_summary",params),
+      api.db.rpc("get_student_attendance_stats",params)
+    ]);
+    summaryRows=rows||[];
+    summaryStats=stats?.[0]||stats||null;
+    renderSummary();
+  }catch(err){
+    console.error("Ringkasan:",err);
+    summaryRows=[];summaryStats=null;
+    renderSummary("Ringkasan gagal dimuat: "+(err.message||err));
+  }
+}
+
+function renderSummary(errorMsg=""){
+  const classId=$("classFilter").value;
+  const className=classes.find(x=>String(x.class_id)===String(classId))?.class_name||"";
+  const subjectName=subjects.find(x=>String(x.id)===String($("subjectFilter").value))?.name||"Semua Mapel";
+  const st=summaryStats||{};
+  const absent=Number(st.izin_count||0)+Number(st.sakit_count||0)+Number(st.alfa_count||0);
+
+  $("sumStudents").textContent=Number(st.total_students||0);
+  $("sumRecords").textContent=Number(st.total_records||0);
+  $("sumHadir").textContent=Number(st.hadir_count||0);
+  $("sumLate").textContent=Number(st.terlambat_count||0);
+  $("sumAbsent").textContent=absent;
+  $("sumPct").textContent=`${Number(st.attendance_percentage||0).toFixed(2)}%`;
+  $("summaryContext").textContent=classId
+    ? `${className} · ${subjectName} · ${fmtDate($("dateFrom").value)} — ${fmtDate($("dateTo").value)}`
+    : "Pilih satu kelas untuk melihat ringkasan.";
+
+  $("summaryEmpty").style.display=summaryRows.length?"none":"block";
+  $("summaryEmpty").textContent=errorMsg||(classId?"Belum ada data absensi pada filter ini.":"Pilih satu kelas untuk menampilkan ringkasan.");
+  $("summaryBody").innerHTML=summaryRows.map((r,i)=>`
+    <tr>
+      <td>${r.roll_number??(i+1)}</td>
+      <td><b>${esc(r.full_name||"-")}</b></td>
+      <td>${esc(r.nis||"-")}<div class="sub">NISN: ${esc(r.nisn||"-")}</div></td>
+      <td>${Number(r.hadir_count||0)}</td>
+      <td>${Number(r.terlambat_count||0)}</td>
+      <td>${Number(r.izin_count||0)}</td>
+      <td>${Number(r.sakit_count||0)}</td>
+      <td>${Number(r.alfa_count||0)}</td>
+      <td class="pct">${Number(r.attendance_percentage||0).toFixed(2)}%</td>
+    </tr>
+  `).join("");
+}
+
+function exportSummary(){
+  if(!summaryRows.length){alert("Belum ada ringkasan untuk diunduh.");return}
+  const classId=$("classFilter").value;
+  const className=classes.find(x=>String(x.class_id)===String(classId))?.class_name||"Kelas";
+  const subjectName=subjects.find(x=>String(x.id)===String($("subjectFilter").value))?.name||"Semua_Mapel";
+  const data=[
+    ["No","Nama Siswa","NIS","NISN","Hadir","Terlambat","Izin","Sakit","Alfa","Persentase Kehadiran"],
+    ...summaryRows.map((r,i)=>[
+      r.roll_number??(i+1),r.full_name||"",r.nis||"",r.nisn||"",
+      Number(r.hadir_count||0),Number(r.terlambat_count||0),Number(r.izin_count||0),
+      Number(r.sakit_count||0),Number(r.alfa_count||0),Number(r.attendance_percentage||0).toFixed(2)+"%"
+    ])
+  ];
+  saveCSV(data,`Ringkasan_Absensi_${safe(className)}_${safe(subjectName)}_${$("dateFrom").value}_${$("dateTo").value}.csv`);
+}
+
+function printSummary(){
+  if(!summaryRows.length){alert("Belum ada ringkasan untuk dicetak.");return}
+  const classId=$("classFilter").value;
+  const className=classes.find(x=>String(x.class_id)===String(classId))?.class_name||"Kelas";
+  const subjectName=subjects.find(x=>String(x.id)===String($("subjectFilter").value))?.name||"Semua Mata Pelajaran";
+  const w=window.open("","_blank");
+  if(!w){alert("Popup diblokir browser. Izinkan popup untuk mencetak PDF.");return}
+  const rows=summaryRows.map((r,i)=>`<tr><td>${r.roll_number??(i+1)}</td><td>${esc(r.full_name||"-")}</td><td>${esc(r.nis||"-")}</td><td>${Number(r.hadir_count||0)}</td><td>${Number(r.terlambat_count||0)}</td><td>${Number(r.izin_count||0)}</td><td>${Number(r.sakit_count||0)}</td><td>${Number(r.alfa_count||0)}</td><td>${Number(r.attendance_percentage||0).toFixed(2)}%</td></tr>`).join("");
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Ringkasan Absensi</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#17251e}h2{margin:0 0 6px}p{margin:0 0 16px;color:#566}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ccd8d1;padding:7px;text-align:left}th{background:#f1f6f3}@page{size:A4 landscape;margin:12mm}</style></head><body><h2>Ringkasan Absensi Siswa</h2><p>${esc(className)} · ${esc(subjectName)} · ${esc($("dateFrom").value)} s.d. ${esc($("dateTo").value)}</p><table><thead><tr><th>No</th><th>Nama</th><th>NIS</th><th>Hadir</th><th>Terlambat</th><th>Izin</th><th>Sakit</th><th>Alfa</th><th>Kehadiran</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>{window.print()}<\/script></body></html>`);
+  w.document.close();
 }
 
 function editUrl(r){
@@ -224,11 +352,14 @@ async function exportAll(){
 const today=localISODate();
 $("dateTo").value=today;
 $("dateFrom").value=addDays(today,-30);
-$("dateFrom").onchange=loadRecaps;
-$("dateTo").onchange=loadRecaps;
-$("classFilter").onchange=applyFilters;
+$("dateFrom").onchange=()=>Promise.all([loadRecaps(),loadSummary()]);
+$("dateTo").onchange=()=>Promise.all([loadRecaps(),loadSummary()]);
+$("classFilter").onchange=()=>{applyFilters();loadSummary()};
+$("subjectFilter").onchange=loadSummary;
 $("searchInput").oninput=applyFilters;
-$("refreshBtn").onclick=loadRecaps;
+$("refreshBtn").onclick=()=>Promise.all([loadRecaps(),loadSummary()]);
+$("exportSummaryBtn").onclick=exportSummary;
+$("printSummaryBtn").onclick=printSummary;
 $("exportAllBtn").onclick=exportAll;
 
 (async()=>{
@@ -245,10 +376,11 @@ $("exportAllBtn").onclick=exportAll;
 
     await loadMenu();
     await loadClasses();
+    await loadSubjects();
 
     try{await api.db.rpc("backfill_my_student_attendance_recaps",{p_days:120})}catch(err){console.warn("Backfill:",err)}
 
-    await loadRecaps();
+    await Promise.all([loadRecaps(),loadSummary()]);
 
     $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")};
   }catch(err){
