@@ -3,6 +3,7 @@ let api, profile;
 let contexts = [], classStats = [], assessments = [], roster = [];
 let selectedContext = null, selectedAssessment = null;
 let isTeacherMode = false;
+let systemSettings = null;
 
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
 function formatRole(r){return (r||"-").replaceAll("_"," ")}
@@ -14,6 +15,7 @@ function assessmentProgress(a){const total=Number(a.student_count||0),filled=Num
 function filteredAssessments(){const q=$("assessmentSearch").value.trim().toLowerCase(),type=$("assessmentTypeFilter").value,progress=$("assessmentProgressFilter").value;return assessments.filter(a=>{const p=assessmentProgress(a);return(!q||`${a.title} ${a.assessment_type}`.toLowerCase().includes(q))&&(!type||a.assessment_type===type)&&(!progress||(progress==="INCOMPLETE"&&!p.complete)||(progress==="COMPLETE"&&p.complete)||(progress==="DRAFT"&&!a.is_published))})}
 
 async function loadProfile(user){const r=await api.db.select("profiles",`select=id,full_name,role,is_active,teacher_id&id=eq.${encodeURIComponent(user.id)}&limit=1`);if(!r?.[0])throw new Error("Profil pengguna tidak ditemukan.");if(!r[0].is_active)throw new Error("Akun SIMANIS tidak aktif.");return r[0]}
+async function loadSystemSettings(){try{const x=await api.db.rpc("get_public_system_settings",{});systemSettings=Array.isArray(x)?x[0]:x}catch(err){console.warn("Pengaturan madrasah:",err);systemSettings=null}}
 async function loadMenu(){const m=await api.db.rpc("get_my_modules",{});$("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${x.code==="NILAI"?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("");document.querySelectorAll('.nav-item[href="#"]').forEach(a=>a.addEventListener("click",e=>{e.preventDefault();alert(`Modul "${a.textContent.trim()}" akan diaktifkan bertahap.`)}))}
 
 function applyTeacherUI(){
@@ -62,7 +64,7 @@ function renderEmptyContext(){
   $("assessmentGrid").innerHTML='<div class="grade-empty" style="grid-column:1/-1">Tidak ada kelas/mata pelajaran yang dapat diakses akun ini.</div>';
   $("gradeBody").innerHTML='<tr><td colspan="5"><div class="grade-empty">Tidak ada data nilai yang dapat diakses.</div></td></tr>';
   $("statStudents").textContent="0";$("statAssessments").textContent="0";$("statFilled").textContent="0";$("statMode").textContent="-";
-  $("addAssessmentBtn").disabled=true;$("saveGradesBtn").disabled=true;$("bulkTools").classList.remove("show");
+  $("addAssessmentBtn").disabled=true;$("saveGradesBtn").disabled=true;$("bulkTools").classList.remove("show");$("exportExcelBtn").disabled=true;$("printGradesBtn").disabled=true;
 }
 
 async function onClassChange(preferredSubject=null){
@@ -128,7 +130,7 @@ function clearGradePanel(){
   selectedAssessment=null;roster=[];
   $("gradeTitle").textContent="Pilih asesmen";$("gradeSubtitle").textContent="Nilai siswa akan tampil di sini.";
   $("gradeBody").innerHTML='<tr><td colspan="5"><div class="grade-empty">Pilih salah satu asesmen di atas.</div></td></tr>';
-  $("saveInfo").innerHTML='<i id="saveDot" class="save-dot"></i>Belum ada asesmen dipilih.';$("saveGradesBtn").disabled=true;$("bulkTools").classList.remove("show");
+  $("saveInfo").innerHTML='<i id="saveDot" class="save-dot"></i>Belum ada asesmen dipilih.';$("saveGradesBtn").disabled=true;$("bulkTools").classList.remove("show");$("exportExcelBtn").disabled=true;$("printGradesBtn").disabled=true;
 }
 
 async function openAssessment(id){
@@ -139,6 +141,8 @@ async function openAssessment(id){
   $("gradeBody").innerHTML='<tr><td colspan="5"><div class="grade-empty">Memuat daftar siswa...</div></td></tr>';
   roster=await api.db.rpc("get_assessment_grade_roster",{p_assessment_id:id})||[];
   $("bulkTools").classList.toggle("show",!!selectedContext?.can_manage);
+  $("exportExcelBtn").disabled=!roster.length;
+  $("printGradesBtn").disabled=!roster.length;
   $("bulkScore").max=Number(selectedAssessment.max_score);
   renderRoster();
 }
@@ -158,6 +162,122 @@ function updateSaveInfo(){
   const missing=Math.max(0,roster.length-filled),complete=roster.length>0&&missing===0;
   $("saveInfo").innerHTML=`<i class="save-dot ${complete?"good":"warn"}"></i>${filled}/${roster.length} nilai terisi · ${missing} kosong · Skor maksimum ${fmtNum(selectedAssessment.max_score)}${selectedContext?.can_manage?"":" · mode lihat saja"}`;
   $("saveGradesBtn").disabled=!selectedContext?.can_manage;
+}
+
+
+function safeFileName(v){
+  return String(v||"data").normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu,"_").replace(/^_+|_+$/g,"");
+}
+
+function exportAssessmentExcel(){
+  if(!selectedAssessment||!selectedContext||!roster.length){
+    alert("Pilih asesmen terlebih dahulu.");
+    return;
+  }
+
+  const school=(systemSettings?.school_name||"MA Nurul Islam").toUpperCase();
+  const max=Number(selectedAssessment.max_score||100);
+  const filled=roster.filter(r=>r.score!==null&&r.score!==undefined&&r.score!=="").length;
+  const avg=filled
+    ? roster.filter(r=>r.score!==null&&r.score!==undefined&&r.score!=="").reduce((n,r)=>n+Number(r.score||0),0)/filled
+    : 0;
+
+  const rowsHtml=roster.map((r,i)=>`
+    <tr>
+      <td>${r.roll_number??(i+1)}</td>
+      <td>${esc(r.full_name||"")}</td>
+      <td style="mso-number-format:'\\@'">${esc(r.nis||"")}</td>
+      <td style="mso-number-format:'\\@'">${esc(r.nisn||"")}</td>
+      <td>${esc(r.gender||"")}</td>
+      <td>${r.score===null||r.score===undefined||r.score===""?"":Number(r.score)}</td>
+      <td>${esc(r.note||"")}</td>
+    </tr>`
+  ).join("");
+
+  const doc=`<!doctype html><html><head><meta charset="utf-8"></head><body><table>
+    <tr><th colspan="7">${esc(school)}</th></tr>
+    <tr><th colspan="7">REKAP NILAI ASESMEN</th></tr>
+    <tr><td colspan="7">Kelas: ${esc(selectedContext.class_name||"-")}</td></tr>
+    <tr><td colspan="7">Mata Pelajaran: ${esc(selectedContext.subject_name||"-")}</td></tr>
+    <tr><td colspan="7">Asesmen: ${esc(selectedAssessment.title||"-")} (${esc(selectedAssessment.assessment_type||"-")})</td></tr>
+    <tr><td colspan="7">Tanggal: ${esc(selectedAssessment.assessment_date||"-")} | Skor Maksimum: ${max} | Rata-rata: ${avg.toFixed(2)}</td></tr>
+    <tr></tr>
+    <tr><th>No</th><th>Nama Siswa</th><th>NIS</th><th>NISN</th><th>JK</th><th>Nilai</th><th>Catatan</th></tr>
+    ${rowsHtml}
+  </table></body></html>`;
+
+  const url=URL.createObjectURL(new Blob(["\uFEFF",doc],{type:"application/vnd.ms-excel;charset=utf-8"}));
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`Nilai_${safeFileName(selectedContext.class_name)}_${safeFileName(selectedContext.subject_name)}_${safeFileName(selectedAssessment.title)}.xls`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),500);
+}
+
+function printAssessmentGrades(){
+  if(!selectedAssessment||!selectedContext||!roster.length){
+    alert("Pilih asesmen terlebih dahulu.");
+    return;
+  }
+
+  const popup=window.open("","_blank");
+  if(!popup){
+    alert("Popup diblokir browser. Izinkan popup untuk mencetak PDF.");
+    return;
+  }
+
+  const school=(systemSettings?.school_name||"MA Nurul Islam").toUpperCase();
+  const address=[
+    systemSettings?.address,
+    systemSettings?.village,
+    systemSettings?.district,
+    systemSettings?.regency,
+    systemSettings?.province
+  ].filter(Boolean).join(", ");
+  const max=Number(selectedAssessment.max_score||100);
+  const filledRows=roster.filter(r=>r.score!==null&&r.score!==undefined&&r.score!=="");
+  const avg=filledRows.length?filledRows.reduce((n,r)=>n+Number(r.score||0),0)/filledRows.length:0;
+  const logoUrl=new URL("logo.png",location.href).href;
+
+  const body=roster.map((r,i)=>`
+    <tr>
+      <td>${r.roll_number??(i+1)}</td>
+      <td class="name">${esc(r.full_name||"-")}</td>
+      <td>${esc(r.nis||"-")}<br><small>NISN ${esc(r.nisn||"-")}</small></td>
+      <td>${esc(r.gender||"-")}</td>
+      <td class="score">${r.score===null||r.score===undefined||r.score===""?"-":fmtNum(r.score)}</td>
+      <td class="note">${esc(r.note||"-")}</td>
+    </tr>`
+  ).join("");
+
+  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Nilai ${esc(selectedAssessment.title||"")}</title>
+    <style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#17251e;margin:0;padding:12mm}
+      .head{display:grid;grid-template-columns:18mm 1fr 18mm;align-items:center;border-bottom:3px double #173f30;padding-bottom:4mm;margin-bottom:5mm}
+      .head img{width:15mm;height:15mm;object-fit:contain}.school{text-align:center}.school h2{margin:0;font-size:15pt}.school p{margin:1mm 0 0;font-size:8pt;color:#566}
+      h3{text-align:center;margin:0 0 4mm;font-size:12pt}.meta{display:grid;grid-template-columns:1fr 1fr;gap:2mm 8mm;margin-bottom:4mm;font-size:9pt}.meta b{display:inline-block;min-width:32mm}
+      table{width:100%;border-collapse:collapse;font-size:8.5pt}th,td{border:1px solid #cdd8d2;padding:2.2mm;text-align:center}th{background:#f2f7f4}.name,.note{text-align:left}.score{font-weight:700}small{font-size:7pt;color:#677}
+      .summary{margin-top:4mm;font-size:9pt}.sign{display:grid;grid-template-columns:1fr 1fr;gap:25mm;margin-top:12mm;text-align:center;font-size:9pt}.space{height:18mm}
+      @page{size:A4 portrait;margin:10mm}@media print{body{padding:0}}
+    </style></head><body>
+      <div class="head"><img src="${logoUrl}" alt=""><div class="school"><h2>${esc(school)}</h2><p>${esc(address||"Karangcempaka, Bluto, Sumenep")}</p></div><div></div></div>
+      <h3>DAFTAR NILAI ASESMEN</h3>
+      <div class="meta">
+        <div><b>Kelas</b>: ${esc(selectedContext.class_name||"-")}</div>
+        <div><b>Mata Pelajaran</b>: ${esc(selectedContext.subject_name||"-")}</div>
+        <div><b>Asesmen</b>: ${esc(selectedAssessment.title||"-")}</div>
+        <div><b>Jenis</b>: ${esc(selectedAssessment.assessment_type||"-")}</div>
+        <div><b>Tanggal</b>: ${esc(selectedAssessment.assessment_date||"-")}</div>
+        <div><b>Skor Maksimum</b>: ${max}</div>
+      </div>
+      <table><thead><tr><th>No</th><th>Nama Siswa</th><th>NIS / NISN</th><th>JK</th><th>Nilai</th><th>Catatan</th></tr></thead><tbody>${body}</tbody></table>
+      <div class="summary">Terisi: <b>${filledRows.length}/${roster.length}</b> · Rata-rata: <b>${avg.toFixed(2)}</b></div>
+      <div class="sign"><div>Mengetahui,<br>Kepala Madrasah<div class="space"></div><b>${esc(systemSettings?.headmaster_name||"Kepala Madrasah")}</b></div><div>Guru Mata Pelajaran<div class="space"></div><b>${esc(profile?.full_name||"Guru")}</b></div></div>
+      <script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script>
+    </body></html>`);
+  popup.document.close();
 }
 
 function fillEmptyScores(){
@@ -221,6 +341,8 @@ $("closeModalBtn").addEventListener("click",closeAssessmentModal);
 $("cancelBtn").addEventListener("click",closeAssessmentModal);
 $("assessmentForm").addEventListener("submit",saveAssessment);
 $("saveGradesBtn").addEventListener("click",saveGrades);
+$("exportExcelBtn").addEventListener("click",exportAssessmentExcel);
+$("printGradesBtn").addEventListener("click",printAssessmentGrades);
 $("assessmentModal").addEventListener("click",e=>{if(e.target===$("assessmentModal"))closeAssessmentModal()});
 
 (async function boot(){
@@ -234,7 +356,7 @@ $("assessmentModal").addEventListener("click",e=>{if(e.target===$("assessmentMod
     $("sideUserRole").textContent=formatRole(profile.role);
     $("headerUser").textContent=profile.full_name||user.email||"Pengguna";
     $("currentDate").textContent=localDateID();
-    await loadMenu();
+    await Promise.all([loadMenu(),loadSystemSettings()]);
     await loadContext();
     $("logoutBtn").addEventListener("click",async()=>{await api.auth.signOut();location.replace("index.html")})
   }catch(err){
