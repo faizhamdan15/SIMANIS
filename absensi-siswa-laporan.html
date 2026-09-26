@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Laporan Bulanan Absensi — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .wrap{max-width:1260px;margin:auto}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-bottom:16px}.head h2{margin:0;color:var(--green-950)}.head p{margin:6px 0 0;color:var(--muted);font-size:11px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid #d7e2dc;background:#fff;color:var(--green-900);border-radius:10px;padding:10px 13px;font-size:10px;font-weight:800;text-decoration:none;cursor:pointer}.btn.primary{background:var(--green-800);color:#fff;border-color:var(--green-800)}
+    .toolbar{display:grid;grid-template-columns:1fr 1.25fr 1.25fr auto;gap:9px;margin-bottom:14px}.toolbar input,.toolbar select{width:100%;border:1px solid #d7e2dc;border-radius:11px;padding:10px 11px;background:#fff;font-size:11px}
+    .report{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px}.report-header{display:grid;grid-template-columns:72px 1fr 72px;align-items:center;gap:12px;border-bottom:3px double #1c3d2e;padding-bottom:14px;margin-bottom:18px}.report-logo{width:64px;height:64px;object-fit:contain}.report-school{text-align:center}.report-school h2{margin:0;font-size:18px;letter-spacing:.04em;color:#173f30}.report-school p{margin:4px 0 0;font-size:9px;color:#56675d}.report-title{text-align:center;margin-bottom:16px}.report-title h3{margin:0;font-size:15px;color:#173f30}.report-title p{margin:5px 0 0;font-size:9px;color:#66766d}
+    .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}.meta div{border:1px solid #e3ece7;border-radius:11px;padding:9px}.meta span{display:block;font-size:7.5px;color:#78877f;text-transform:uppercase}.meta strong{display:block;margin-top:4px;font-size:10px;color:#173f30}
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px}.kpi{border:1px solid #e3ece7;border-radius:12px;padding:10px;background:#fbfdfc}.kpi span{display:block;font-size:7.5px;color:#75837b;text-transform:uppercase}.kpi strong{display:block;margin-top:4px;font-size:17px;color:#075b3a}
+    .table-wrap{overflow:auto;border:1px solid #dfe8e3;border-radius:12px}.table{width:100%;border-collapse:collapse;min-width:940px}.table th,.table td{padding:8px;border-bottom:1px solid #e9efec;border-right:1px solid #eef3f0;font-size:8.5px;text-align:center}.table th{background:#f3f8f5;color:#486055;text-transform:uppercase}.table td.name{text-align:left;font-weight:700;color:#173f30}.table td.id{text-align:left}.table tr:last-child td{border-bottom:0}.pct{font-weight:800;color:#075b3a}
+    .subject-box{margin-top:14px;border:1px solid #e3ece7;border-radius:12px;padding:12px}.subject-box h4{margin:0 0 9px;font-size:10px;color:#173f30}.subject-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.subject-item{background:#f8fbf9;border-radius:9px;padding:8px;font-size:8px}.subject-item b{display:block;color:#173f30;margin-bottom:3px}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:80px;margin-top:28px}.sig{text-align:center;font-size:9px}.sig .space{height:62px}.sig strong{display:block}.empty{padding:30px;text-align:center;color:var(--muted);font-size:10px}
+    @media(max-width:900px){.toolbar{grid-template-columns:1fr 1fr}.meta{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:repeat(3,1fr)}.subject-grid{grid-template-columns:1fr 1fr}}@media(max-width:560px){.head{flex-direction:column;align-items:flex-start}.toolbar{grid-template-columns:1fr}.meta,.kpis,.subject-grid{grid-template-columns:1fr 1fr}.report{padding:14px}.report-header{grid-template-columns:52px 1fr 0}.report-logo{width:48px;height:48px}.signatures{gap:18px}}
+    @media print{
+      body{background:#fff}.sidebar,.topbar,.head,.toolbar,.actions,.loading-overlay{display:none!important}.content,.main,.wrap{display:block!important;margin:0!important;padding:0!important;max-width:none!important}.report{border:0;border-radius:0;padding:0}.table-wrap{overflow:visible}.table{min-width:0;font-size:8px}.subject-grid{grid-template-columns:repeat(3,1fr)}@page{size:A4 landscape;margin:10mm}
+    }
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Menyiapkan Laporan Bulanan...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Absensi Siswa · Laporan Bulanan</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+    <main class="main">
+      <div class="wrap">
+        <section class="head">
+          <div><h2>Laporan Bulanan Absensi</h2><p>Rekap formal per kelas untuk wali kelas dan pimpinan madrasah.</p></div>
+          <div class="actions"><a class="btn" href="absensi-siswa.html">← Absensi</a><a class="btn" href="absensi-siswa-rekap.html">Rekap</a><a class="btn" href="absensi-siswa-analitik.html">Analitik</a><button id="excelBtn" class="btn">Export Excel</button><button id="printBtn" class="btn primary">Cetak / PDF</button></div>
+        </section>
+
+        <section class="toolbar">
+          <input id="monthFilter" type="month">
+          <select id="classFilter"><option value="">Pilih Kelas...</option></select>
+          <select id="subjectFilter"><option value="">Semua Mata Pelajaran</option></select>
+          <button id="refreshBtn" class="btn">Buat Laporan</button>
+        </section>
+
+        <article id="report" class="report">
+          <div class="report-header">
+            <img src="logo.png" alt="Logo" class="report-logo">
+            <div class="report-school">
+              <h2 id="schoolName">MA NURUL ISLAM</h2>
+              <p id="schoolAddress">Karangcempaka, Bluto, Sumenep</p>
+            </div>
+            <div></div>
+          </div>
+
+          <div class="report-title">
+            <h3>LAPORAN BULANAN ABSENSI SISWA</h3>
+            <p id="periodTitle">Pilih bulan dan kelas untuk menampilkan laporan.</p>
+          </div>
+
+          <section class="meta">
+            <div><span>Kelas</span><strong id="mClass">-</strong></div>
+            <div><span>Wali Kelas</span><strong id="mHomeroom">-</strong></div>
+            <div><span>Mata Pelajaran</span><strong id="mSubject">Semua Mata Pelajaran</strong></div>
+            <div><span>Hari Pencatatan</span><strong id="mDays">0 hari</strong></div>
+          </section>
+
+          <section class="kpis">
+            <div class="kpi"><span>Total Siswa</span><strong id="kStudents">0</strong></div>
+            <div class="kpi"><span>Hadir</span><strong id="kPresent">0</strong></div>
+            <div class="kpi"><span>Terlambat</span><strong id="kLate">0</strong></div>
+            <div class="kpi"><span>Izin</span><strong id="kPermit">0</strong></div>
+            <div class="kpi"><span>Sakit / Alfa</span><strong id="kAbsent">0</strong></div>
+            <div class="kpi"><span>Kehadiran</span><strong id="kPct">0%</strong></div>
+          </section>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>No</th><th>Nama Siswa</th><th>NIS / NISN</th><th>Hadir</th><th>Terlambat</th><th>Izin</th><th>Sakit</th><th>Alfa</th><th>Total Catatan</th><th>% Kehadiran</th></tr></thead>
+              <tbody id="reportBody"></tbody>
+            </table>
+            <div id="emptyState" class="empty">Pilih bulan dan kelas untuk membuat laporan.</div>
+          </div>
+
+          <section class="subject-box">
+            <h4>Ringkasan per Mata Pelajaran</h4>
+            <div id="subjectBreakdown" class="subject-grid"><div class="empty">Belum ada data.</div></div>
+          </section>
+
+          <section class="signatures">
+            <div class="sig">Mengetahui,<br>Kepala Madrasah<div class="space"></div><strong id="headmasterName">Kepala Madrasah</strong></div>
+            <div class="sig">Wali Kelas<div class="space"></div><strong id="homeroomSignature">-</strong></div>
+          </section>
+        </article>
+      </div>
+    </main>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let api,profile,classes=[],subjects=[],rows=[],stats=null,trend=[],breakdown=[],settings=null;
+
+function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function localISODate(){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`}
+function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
+function monthLabel(v){if(!v)return"-";const [y,m]=v.split("-").map(Number);return new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"Asia/Jakarta"}).format(new Date(Date.UTC(y,m-1,15)))}
+function monthRange(v){const [y,m]=v.split("-").map(Number);const first=`${y}-${String(m).padStart(2,"0")}-01`;const last=new Date(Date.UTC(y,m,0));const end=`${y}-${String(m).padStart(2,"0")}-${String(last.getUTCDate()).padStart(2,"0")}`;return{first,last:end}}
+function safe(v){return String(v||"Data").replace(/[^\p{L}\p{N}]+/gu,"_").replace(/^_+|_+$/g,"")}
+function formatRole(r){return(r||"-").replaceAll("_"," ")}
+function routeFor(code){return{DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"}[code]||"#"}
+
+async function loadProfile(user){
+  const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
+  if(!r?.[0]||!r[0].is_active)throw new Error("Akun tidak aktif.");
+  const perm=await api.db.rpc("get_my_module_permission",{p_module_code:"ABSENSI_SISWA"});
+  if(!perm?.can_view)throw new Error("Akun tidak memiliki akses Absensi Siswa.");
+  return r[0];
+}
+async function loadMenu(){const m=await api.db.rpc("get_my_modules",{});$("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${x.code==="ABSENSI_SISWA"?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("")}
+async function loadClasses(){classes=await api.db.rpc("get_my_attendance_classes",{})||[];const map=new Map();classes.forEach(c=>map.set(String(c.class_id),c));$("classFilter").innerHTML='<option value="">Pilih Kelas...</option>'+[...map.values()].map(c=>`<option value="${c.class_id}">${esc(c.class_name)}</option>`).join("");const q=new URLSearchParams(location.search);if(q.get("class")&&map.has(q.get("class")))$("classFilter").value=q.get("class")}
+async function loadSubjects(){subjects=await api.db.select("subjects","select=id,name&is_active=eq.true&order=name.asc")||[];$("subjectFilter").innerHTML='<option value="">Semua Mata Pelajaran</option>'+subjects.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}
+async function loadSettings(){try{const x=await api.db.rpc("get_public_system_settings",{});settings=Array.isArray(x)?x[0]:x;if(settings){$("schoolName").textContent=(settings.school_name||"MA Nurul Islam").toUpperCase();const addr=[settings.address,settings.village,settings.district,settings.regency,settings.province].filter(Boolean).join(", ");$("schoolAddress").textContent=addr||"Karangcempaka, Bluto, Sumenep";$("headmasterName").textContent=settings.headmaster_name||"Kepala Madrasah"}}catch(err){console.warn("Settings:",err)}}
+
+async function buildReport(){
+  const classId=$("classFilter").value,month=$("monthFilter").value;
+  if(!classId||!month){rows=[];stats=null;trend=[];breakdown=[];render();return}
+  const {first,last}=monthRange(month),subjectId=$("subjectFilter").value||null;
+  $("loading").classList.remove("hidden");
+  try{
+    const common={p_class_id:classId,p_subject_id:subjectId,p_date_from:first,p_date_to:last};
+    const [r,s,t,b]=await Promise.all([
+      api.db.rpc("get_student_attendance_summary",common),
+      api.db.rpc("get_student_attendance_stats",common),
+      api.db.rpc("get_student_attendance_trend",common),
+      api.db.rpc("get_student_attendance_subject_breakdown",{p_class_id:classId,p_date_from:first,p_date_to:last})
+    ]);
+    rows=r||[];stats=s?.[0]||s||null;trend=t||[];breakdown=b||[];render();
+  }catch(err){console.error(err);alert("Laporan bulanan gagal dimuat: "+(err.message||err))}
+  finally{$("loading").classList.add("hidden")}
+}
+
+function render(){
+  const classId=$("classFilter").value,month=$("monthFilter").value;
+  const c=classes.find(x=>String(x.class_id)===String(classId));
+  const subjectName=subjects.find(x=>String(x.id)===String($("subjectFilter").value))?.name||"Semua Mata Pelajaran";
+  const st=stats||{};
+  $("periodTitle").textContent=classId&&month?`Periode ${monthLabel(month)}`:"Pilih bulan dan kelas untuk menampilkan laporan.";
+  $("mClass").textContent=c?.class_name||"-";$("mHomeroom").textContent=c?.homeroom_teacher||"-";$("mSubject").textContent=subjectName;$("mDays").textContent=`${trend.length} hari`;
+  $("homeroomSignature").textContent=c?.homeroom_teacher||"Wali Kelas";
+  $("kStudents").textContent=Number(st.total_students||0);$("kPresent").textContent=Number(st.hadir_count||0);$("kLate").textContent=Number(st.terlambat_count||0);$("kPermit").textContent=Number(st.izin_count||0);$("kAbsent").textContent=Number(st.sakit_count||0)+Number(st.alfa_count||0);$("kPct").textContent=`${Number(st.attendance_percentage||0).toFixed(2)}%`;
+
+  $("emptyState").style.display=rows.length?"none":"block";
+  $("emptyState").textContent=classId&&month?"Belum ada data absensi pada periode ini.":"Pilih bulan dan kelas untuk membuat laporan.";
+  $("reportBody").innerHTML=rows.map((r,i)=>`<tr><td>${r.roll_number??(i+1)}</td><td class="name">${esc(r.full_name||"-")}</td><td class="id">${esc(r.nis||"-")}<br><span style="color:#7a8981">NISN ${esc(r.nisn||"-")}</span></td><td>${Number(r.hadir_count||0)}</td><td>${Number(r.terlambat_count||0)}</td><td>${Number(r.izin_count||0)}</td><td>${Number(r.sakit_count||0)}</td><td>${Number(r.alfa_count||0)}</td><td>${Number(r.total_records||0)}</td><td class="pct">${Number(r.attendance_percentage||0).toFixed(2)}%</td></tr>`).join("");
+
+  $("subjectBreakdown").innerHTML=breakdown.length?breakdown.map(x=>`<div class="subject-item"><b>${esc(x.subject_name||"-")}</b>${Number(x.total_records||0)} catatan · Kehadiran ${Number(x.attendance_percentage||0).toFixed(2)}%<br>H ${Number(x.hadir_count||0)} · T ${Number(x.terlambat_count||0)} · I ${Number(x.izin_count||0)} · S ${Number(x.sakit_count||0)} · A ${Number(x.alfa_count||0)}</div>`).join(""):'<div class="empty">Belum ada data mata pelajaran.</div>';
+}
+
+function exportExcel(){
+  if(!rows.length){alert("Belum ada laporan untuk diekspor.");return}
+  const c=classes.find(x=>String(x.class_id)===String($("classFilter").value));
+  const subjectName=subjects.find(x=>String(x.id)===String($("subjectFilter").value))?.name||"Semua Mata Pelajaran";
+  const st=stats||{};
+  const body=rows.map((r,i)=>`<tr><td>${r.roll_number??(i+1)}</td><td>${esc(r.full_name||"")}</td><td style="mso-number-format:'\\@'">${esc(r.nis||"")}</td><td style="mso-number-format:'\\@'">${esc(r.nisn||"")}</td><td>${Number(r.hadir_count||0)}</td><td>${Number(r.terlambat_count||0)}</td><td>${Number(r.izin_count||0)}</td><td>${Number(r.sakit_count||0)}</td><td>${Number(r.alfa_count||0)}</td><td>${Number(r.total_records||0)}</td><td>${Number(r.attendance_percentage||0).toFixed(2)}%</td></tr>`).join("");
+  const doc=`<!doctype html><html><head><meta charset="utf-8"></head><body><table><tr><th colspan="11">${esc((settings?.school_name||"MA Nurul Islam").toUpperCase())}</th></tr><tr><th colspan="11">LAPORAN BULANAN ABSENSI SISWA</th></tr><tr><td colspan="11">Periode: ${esc(monthLabel($("monthFilter").value))}</td></tr><tr><td colspan="11">Kelas: ${esc(c?.class_name||"-")} | Wali Kelas: ${esc(c?.homeroom_teacher||"-")} | Mapel: ${esc(subjectName)}</td></tr><tr><td colspan="11">Kehadiran: ${Number(st.attendance_percentage||0).toFixed(2)}%</td></tr><tr></tr><tr><th>No</th><th>Nama</th><th>NIS</th><th>NISN</th><th>Hadir</th><th>Terlambat</th><th>Izin</th><th>Sakit</th><th>Alfa</th><th>Total</th><th>% Kehadiran</th></tr>${body}</table></body></html>`;
+  const url=URL.createObjectURL(new Blob(["\uFEFF",doc],{type:"application/vnd.ms-excel;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download=`Laporan_Absensi_${safe(c?.class_name)}_${$("monthFilter").value}.xls`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
+}
+
+const today=localISODate();$("monthFilter").value=today.slice(0,7);
+$("monthFilter").onchange=buildReport;$("classFilter").onchange=buildReport;$("subjectFilter").onchange=buildReport;$("refreshBtn").onclick=buildReport;$("printBtn").onclick=()=>window.print();$("excelBtn").onclick=exportExcel;
+
+(async()=>{
+  try{
+    api=await window.simanisReady;
+    const session=await api.auth.getSession();if(!session){location.replace("index.html");return}
+    const user=await api.auth.getUser();if(!user){location.replace("index.html");return}
+    profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name||user.email;$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email;$("currentDate").textContent=localDateID();
+    await Promise.all([loadMenu(),loadClasses(),loadSubjects(),loadSettings()]);
+    await buildReport();
+    $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")};
+  }catch(err){console.error(err);alert("Laporan Bulanan gagal dimuat: "+(err.message||err));location.replace("absensi-siswa.html")}
+  finally{$("loading").classList.add("hidden")}
+})();
+</script>
+</body>
+</html>
