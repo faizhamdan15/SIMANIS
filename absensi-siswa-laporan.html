@@ -37,7 +37,7 @@
       <div class="wrap">
         <section class="head">
           <div><h2>Laporan Bulanan Absensi</h2><p>Rekap formal per kelas untuk wali kelas dan pimpinan madrasah.</p></div>
-          <div class="actions"><a class="btn" href="absensi-siswa.html">← Absensi</a><a class="btn" href="absensi-siswa-rekap.html">Rekap</a><a class="btn" href="absensi-siswa-analitik.html">Analitik</a><button id="excelBtn" class="btn">Export Excel</button><button id="printBtn" class="btn primary">Cetak / PDF</button></div>
+          <div class="actions"><a class="btn" href="absensi-siswa.html">← Absensi</a><a class="btn" href="absensi-siswa-rekap.html">Rekap</a><a class="btn" href="absensi-siswa-analitik.html">Analitik</a><a class="btn" href="absensi-siswa-riwayat.html">Riwayat</a><button id="excelBtn" class="btn">Export Excel</button><button id="printBtn" class="btn primary">Cetak / PDF</button></div>
         </section>
 
         <section class="toolbar">
@@ -160,7 +160,8 @@ function render(){
   $("emptyState").textContent=classId&&month?"Belum ada data absensi pada periode ini.":"Pilih bulan dan kelas untuk membuat laporan.";
   $("reportBody").innerHTML=rows.map((r,i)=>`<tr><td>${r.roll_number??(i+1)}</td><td class="name">${esc(r.full_name||"-")}</td><td class="id">${esc(r.nis||"-")}<br><span style="color:#7a8981">NISN ${esc(r.nisn||"-")}</span></td><td>${Number(r.hadir_count||0)}</td><td>${Number(r.terlambat_count||0)}</td><td>${Number(r.izin_count||0)}</td><td>${Number(r.sakit_count||0)}</td><td>${Number(r.alfa_count||0)}</td><td>${Number(r.total_records||0)}</td><td class="pct">${Number(r.attendance_percentage||0).toFixed(2)}%</td></tr>`).join("");
 
-  $("subjectBreakdown").innerHTML=breakdown.length?breakdown.map(x=>`<div class="subject-item"><b>${esc(x.subject_name||"-")}</b>${Number(x.total_records||0)} catatan · Kehadiran ${Number(x.attendance_percentage||0).toFixed(2)}%<br>H ${Number(x.hadir_count||0)} · T ${Number(x.terlambat_count||0)} · I ${Number(x.izin_count||0)} · S ${Number(x.sakit_count||0)} · A ${Number(x.alfa_count||0)}</div>`).join(""):'<div class="empty">Belum ada data mata pelajaran.</div>';
+  const shownBreakdown=$("subjectFilter").value?breakdown.filter(x=>String(x.subject_id)===String($("subjectFilter").value)):breakdown;
+  $("subjectBreakdown").innerHTML=shownBreakdown.length?shownBreakdown.map(x=>`<div class="subject-item"><b>${esc(x.subject_name||"-")}</b>${Number(x.total_records||0)} catatan · Kehadiran ${Number(x.attendance_percentage||0).toFixed(2)}%<br>H ${Number(x.hadir_count||0)} · T ${Number(x.terlambat_count||0)} · I ${Number(x.izin_count||0)} · S ${Number(x.sakit_count||0)} · A ${Number(x.alfa_count||0)}</div>`).join(""):'<div class="empty">Belum ada data mata pelajaran.</div>';
 }
 
 function exportExcel(){
