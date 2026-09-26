@@ -9,7 +9,7 @@ const ALLOWED_MIME=new Set(["application/pdf","image/jpeg","image/png","image/we
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
 function formatRole(r){return (r||"-").replaceAll("_"," ")}
 function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())}
-function routeFor(code){return {DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html"}[code]||"#"}
+function routeFor(code){return {DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU"}[code]||"#"}
 function canCreate(){return !!modulePerm.can_create}
 function canUpdate(){return !!modulePerm.can_update}
 function canDelete(){return !!modulePerm.can_delete}
@@ -27,10 +27,22 @@ async function loadProfile(user){
   return r[0];
 }
 async function loadMenu(){
-  const m=await api.db.rpc("get_my_modules",{});
-  const current=(m||[]).find(x=>x.code==="KEUANGAN");
-  if(current)modulePerm=current;
-  $("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${x.code==="KEUANGAN"?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("");
+  const m=await api.db.rpc("get_my_modules",{})||[];
+  const current=m.find(x=>x.code==="KEUANGAN");
+  if(current){
+    modulePerm=current;
+  }else{
+    const [view,create,update,del]=await Promise.all([
+      api.db.rpc("has_module_permission",{p_module_code:"KEUANGAN",p_action:"view"}),
+      api.db.rpc("has_module_permission",{p_module_code:"KEUANGAN",p_action:"create"}),
+      api.db.rpc("has_module_permission",{p_module_code:"KEUANGAN",p_action:"update"}),
+      api.db.rpc("has_module_permission",{p_module_code:"KEUANGAN",p_action:"delete"})
+    ]);
+    modulePerm={can_view:!!view,can_create:!!create,can_update:!!update,can_delete:!!del};
+  }
+  const fromPkm=new URLSearchParams(location.search).get("from")==="pkm";
+  const menu=fromPkm?m.filter(x=>x.code!=="KEUANGAN"):m;
+  $("sidebarMenu").innerHTML=menu.map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${fromPkm&&x.code==="PKM_BENDAHARA_SARPRAS"?"active":(!fromPkm&&x.code==="KEUANGAN"?"active":"")}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("");
   document.querySelectorAll('.nav-item[href="#"]').forEach(a=>a.onclick=e=>{e.preventDefault();alert(`Modul "${a.textContent.trim()}" akan diaktifkan bertahap.`)});
 }
 async function loadMaster(){
@@ -560,6 +572,9 @@ $("paymentAccountType").addEventListener("change",togglePaymentBank);$("paymentF
     $("sideUserName").textContent=profile.full_name||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||"Pengguna";$("currentDate").textContent=localDateID();
     await loadMenu();if(!modulePerm.can_view)throw new Error("Akun tidak memiliki akses ke modul Keuangan.");
     await loadMaster();await loadData();
+    const params=new URLSearchParams(location.search),requestedTab=params.get("tab");
+    if(["cashbook","studentpay","recap"].includes(requestedTab))setTab(requestedTab);
+    if(params.get("from")==="pkm"&&$("backPkmBtn"))$("backPkmBtn").style.display="inline-flex";
     $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"};
   }catch(err){console.error(err);alert("Modul Keuangan gagal dimuat: "+err.message)}
   finally{$("loading").style.display="none"}
