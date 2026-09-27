@@ -146,7 +146,7 @@ async function loadData(){
     console.warn("Sinkronisasi administrasi:",err);
     integrationSources=new Map();
   }
-  rows = await api.db.select("v_admin_document_status","select=*&academic_year=eq.${encodeURIComponent(activeAcademicYear)}&order=category_order.asc,document_order.asc") || [];
+  rows = await api.db.select("v_admin_document_status",`select=*&academic_year=eq.${encodeURIComponent(activeAcademicYear)}&order=category_order.asc,document_order.asc`) || [];
   try{attentionRows=await api.db.rpc("get_admin_document_attention",{p_academic_year:activeAcademicYear})||[]}catch(err){console.warn("Perlu perhatian:",err);attentionRows=[]}
   if(headManager){
     try{picRecommendations=await api.db.rpc("list_admin_pic_recommendations",{})||[]}catch(err){console.warn("PIC kategori:",err);picRecommendations=[]}
