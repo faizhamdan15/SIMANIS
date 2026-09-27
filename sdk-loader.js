@@ -28,7 +28,7 @@
     "Berita Madrasah": "berita.html",
     "Pengumuman": "pengumuman.html",
     "Agenda Madrasah": "agenda.html",
-    "Keuangan": "keuangan.html",
+    "Keuangan": "unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS&tab=finance",
     "Portal Wali Siswa": "wali-admin.html",
     "Pengaturan": "pengaturan.html",
     "PKM Kurikulum": "unit-kerja.html?unit=PKM_KURIKULUM",
