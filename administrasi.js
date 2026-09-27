@@ -132,10 +132,10 @@ async function loadData(){
   renderStats(); renderVerificationQueue(); renderAttention(); renderCategories(); renderDocs(); await loadAdminNotifications();
 }
 function renderStats(){
-  const total=rows.length, complete=rows.filter(r=>r.status==="LENGKAP").length, draft=rows.filter(r=>r.status==="DRAFT").length, pending=rows.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length, revision=rows.filter(r=>r.status==="PERLU_REVISI").length, missing=rows.filter(r=>r.status==="BELUM_ADA").length;
+  const total=rows.length, complete=rows.filter(r=>r.status==="LENGKAP").length, draft=rows.filter(r=>r.status==="DRAFT").length, pending=rows.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length, revision=rows.filter(r=>r.status==="PERLU_REVISI").length, missing=rows.filter(r=>r.status==="BELUM_ADA").length, manual=rows.filter(r=>!!r.manual_requirement_reason).length;
   const available=Math.max(0,total-missing), pct=total?Math.round(available/total*100):0;
   $("statComplete").textContent=complete; $("statDraft").textContent=draft; $("statPending").textContent=pending; $("statRevision").textContent=revision; $("statMissing").textContent=missing;
-  $("overallText").textContent="Cakupan administrasi: "+available+" / "+total+" ("+pct+"%) · Lengkap terverifikasi: "+complete; $("overallFill").style.width=pct+"%";
+  $("overallText").textContent="Cakupan administrasi: "+available+" / "+total+" ("+pct+"%) · Lengkap terverifikasi: "+complete+" · Butuh bukti aktual: "+manual; $("overallFill").style.width=pct+"%";
 }
 
 function renderVerificationQueue(){
@@ -279,6 +279,7 @@ function renderDocs(){
       ${integrationBadge(r)}
       ${r.file_name?`<span class="doc-file">${esc(r.file_name)} · v${r.version_no||1}</span>`:""}
       ${r.generated_draft_id?`<span class="generated-badge">Draft Otomatis · ${esc(r.generated_draft_kind||"TEMPLATE")} · v${r.generated_draft_version||1}</span>`:""}
+      ${r.manual_requirement_reason?`<span class="manual-badge" title="${esc(r.manual_requirement_reason)}">Butuh Bukti Aktual</span><span class="doc-file">${esc(r.manual_requirement_reason)}</span>`:""}
       ${verificationMeta(r)}
       ${submissionMeta(r)}
       ${r.responsible_name||r.due_date?`<span class="doc-file">PIC: ${esc(r.responsible_name||"-")} · Target: ${r.due_date?esc(new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",year:"numeric"}).format(new Date(r.due_date+"T00:00:00"))):"-"} · ${esc(r.priority||"NORMAL")}</span>`:""}
