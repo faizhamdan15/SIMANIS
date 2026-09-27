@@ -1233,6 +1233,7 @@ $("printAdminReportBtn").onclick=printAdminReport;
   try{api=await window.simanisReady; const session=await api.auth.getSession(); if(!session){location.replace("index.html");return} const user=await api.auth.getUser(); if(!user){location.replace("index.html");return} profile=await loadProfile(user);
     try{headManager=!!(await api.db.rpc("is_admin_head_manager",{}))}catch(_){headManager=false}
     $("picSummaryBtn").style.display=headManager?"inline-flex":"none";
+    $("adminPackageLink").style.display=headManager?"inline-flex":"none";
     $("sideUserName").textContent=profile.full_name||user.email||"Pengguna"; $("sideUserRole").textContent=formatRole(profile.role); $("headerUser").textContent=profile.full_name||user.email||"Pengguna"; $("currentDate").textContent=localDateID();
     try{const x=await api.db.rpc("get_public_system_settings",{});systemSettings=Array.isArray(x)?x[0]:x}catch(_){systemSettings=null}
     await loadMenu(); await loadData(); $("logoutBtn").addEventListener("click",async()=>{await api.auth.signOut();location.replace("index.html");});
