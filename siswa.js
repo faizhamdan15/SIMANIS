@@ -7,6 +7,7 @@ let classes = [];
 let teachingClasses = [];
 let activeSemesterId = null;
 let isTeacherMode = false;
+let privilegedStudentScope = false;
 let activeScope = "ALL";
 let modulePerm = {can_view:false,can_create:false,can_update:false,can_delete:false};
 let page = 1;
@@ -43,6 +44,14 @@ async function loadModulePermission(){
   }
 }
 
+async function loadStudentScope(){
+  const flags=await Promise.all([
+    api.db.rpc("has_staff_position",{p_position_code:"KEPALA_MADRASAH"}),
+    api.db.rpc("has_staff_position",{p_position_code:"KEPALA_TU"}),
+    api.db.rpc("has_staff_position",{p_position_code:"PKM_KESISWAAN"})
+  ]);
+  privilegedStudentScope=flags.some(Boolean);
+}
 async function loadProfile(user){
   const rows=await api.db.select("profiles",`select=id,full_name,role,is_active,teacher_id&id=eq.${encodeURIComponent(user.id)}&limit=1`);
   const p=rows?.[0];if(!p)throw new Error("Profil pengguna tidak ditemukan.");if(!p.is_active)throw new Error("Akun SIMANIS tidak aktif.");return p
@@ -53,7 +62,7 @@ async function loadMenu(){
   document.querySelectorAll(".nav-item[href='#']").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();alert(`Modul "${a.textContent.trim()}" akan diaktifkan pada tahap berikutnya.`)}))
 }
 function applyTeacherUI(){
-  isTeacherMode=["GURU","WALI_KELAS"].includes(String(profile.role||"").toUpperCase());
+  isTeacherMode=["GURU","WALI_KELAS"].includes(String(profile.role||"").toUpperCase())&&!privilegedStudentScope;
   if(!isTeacherMode)return;
   $("pageTitle").textContent="Siswa Kelas Saya";
   $("pageSubtitle").textContent="Lihat siswa pada kelas yang Anda ajar atau walikan.";
@@ -238,7 +247,7 @@ async function boot(){
     const session=await api.auth.getSession();if(!session){location.replace("index.html");return}
     const user=await api.auth.getUser();if(!user){location.replace("index.html");return}
     await loadModulePermission();
-    profile=await loadProfile(user);applyTeacherUI();
+    profile=await loadProfile(user);await loadStudentScope();applyTeacherUI();
     $("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();
     await Promise.all([loadMenu(),loadMaster()]);await loadStudents();
     $("addStudentBtn").style.display=can("create")&&!isTeacherMode?"":"none";
