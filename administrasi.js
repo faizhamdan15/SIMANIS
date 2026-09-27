@@ -15,6 +15,7 @@ let picRecommendations = [];
 let submitTarget = null;
 let adminNotifications = [];
 let adminNotificationUnread = 0;
+let generatedDraftCurrent = null;
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -134,7 +135,7 @@ function renderStats(){
   const total=rows.length, complete=rows.filter(r=>r.status==="LENGKAP").length, draft=rows.filter(r=>r.status==="DRAFT").length, pending=rows.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length, revision=rows.filter(r=>r.status==="PERLU_REVISI").length, missing=rows.filter(r=>r.status==="BELUM_ADA").length;
   const available=Math.max(0,total-missing), pct=total?Math.round(available/total*100):0;
   $("statComplete").textContent=complete; $("statDraft").textContent=draft; $("statPending").textContent=pending; $("statRevision").textContent=revision; $("statMissing").textContent=missing;
-  $("overallText").textContent="Kelengkapan dokumen: "+available+" / "+total+" ("+pct+"%)"; $("overallFill").style.width=pct+"%";
+  $("overallText").textContent="Cakupan administrasi: "+available+" / "+total+" ("+pct+"%) · Lengkap terverifikasi: "+complete; $("overallFill").style.width=pct+"%";
 }
 
 function renderVerificationQueue(){
@@ -277,6 +278,7 @@ function renderDocs(){
       <span class="status-badge status-${r.status}">${statusLabel(r.status)}</span>
       ${integrationBadge(r)}
       ${r.file_name?`<span class="doc-file">${esc(r.file_name)} · v${r.version_no||1}</span>`:""}
+      ${r.generated_draft_id?`<span class="generated-badge">Draft Otomatis · ${esc(r.generated_draft_kind||"TEMPLATE")} · v${r.generated_draft_version||1}</span>`:""}
       ${verificationMeta(r)}
       ${submissionMeta(r)}
       ${r.responsible_name||r.due_date?`<span class="doc-file">PIC: ${esc(r.responsible_name||"-")} · Target: ${r.due_date?esc(new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",year:"numeric"}).format(new Date(r.due_date+"T00:00:00"))):"-"} · ${esc(r.priority||"NORMAL")}</span>`:""}
@@ -287,13 +289,14 @@ function renderDocs(){
       ${!canVerify()&&r.status==="MENUNGGU_VERIFIKASI"?`<button type="button" disabled>Menunggu Kepala</button>`:""}
       ${canVerify()&&r.status!=="BELUM_ADA"?`<button class="primary-small" data-verify="${r.record_id}">${r.status==="LENGKAP"?"Tinjau Ulang":"Verifikasi"}</button>`:""}
       <button data-history="${r.record_id}">Riwayat</button>
-      <button data-note="${r.record_id}">Catatan</button>${integrationButton(r)}${r.storage_path?`<button data-view="${r.record_id}">Lihat File</button>`:""}<button class="primary-small" data-upload="${r.record_id}">Upload</button>
+      <button data-note="${r.record_id}">Catatan</button>${r.generated_draft_id?`<button data-generated="${r.record_id}">Lihat Draft Otomatis</button>`:""}${integrationButton(r)}${r.storage_path?`<button data-view="${r.record_id}">Lihat File</button>`:""}<button class="primary-small" data-upload="${r.record_id}">Upload</button>
     </div></article>`).join("");
   document.querySelectorAll("[data-followup]").forEach(el=>el.addEventListener("click",()=>openFollowup(el.dataset.followup)));
   document.querySelectorAll("[data-submit]").forEach(el=>el.addEventListener("click",()=>openSubmit(el.dataset.submit)));
   document.querySelectorAll("[data-verify]").forEach(el=>el.addEventListener("click",()=>openVerify(el.dataset.verify)));
   document.querySelectorAll("[data-history]").forEach(el=>el.addEventListener("click",()=>openHistory(el.dataset.history)));
   document.querySelectorAll("[data-note]").forEach(el=>el.addEventListener("click",()=>editNote(el.dataset.note)));
+  document.querySelectorAll("[data-generated]").forEach(el=>el.addEventListener("click",()=>openGeneratedDraft(el.dataset.generated)));
   document.querySelectorAll("[data-upload]").forEach(el=>el.addEventListener("click",()=>{uploadTarget=rows.find(r=>r.record_id===el.dataset.upload);$("filePicker").value="";$("filePicker").click();}));
   document.querySelectorAll("[data-view]").forEach(el=>el.addEventListener("click",()=>openFile(el.dataset.view)));
 }
