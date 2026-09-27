@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-let api, profile, schedules=[], classes=[], teachers=[], subjects=[], slots=[], semesterId=null, activeAcademicYear=null, activeSemesterName=null, isTeacherPersonal=false;
+let api, profile, schedules=[], classes=[], teachers=[], subjects=[], slots=[], semesterId=null, activeAcademicYear=null, activeSemesterName=null, isTeacherPersonal=false, canManageSchedule=false, globalScheduleView=false;
 const DAYS=["SENIN","SELASA","RABU","KAMIS","SABTU","AHAD"];
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
 function formatRole(r){return (r||"-").replaceAll("_"," ")}
@@ -9,9 +9,19 @@ function nowMinutes(){const p=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Ja
 function toMinutes(t){if(!t)return -1;const [h,m]=String(t).slice(0,5).split(":").map(Number);return h*60+m}
 function routeFor(code){return {DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS&tab=finance",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"}[code]||"#"}
 async function loadProfile(user){const r=await api.db.select("profiles",`select=id,full_name,role,is_active,teacher_id&id=eq.${encodeURIComponent(user.id)}&limit=1`);if(!r?.[0])throw new Error("Profil pengguna tidak ditemukan.");return r[0]}
+async function loadScheduleAccess(){
+  const [manage,kuri,head]=await Promise.all([
+    api.db.rpc("has_module_permission",{p_module_code:"JADWAL",p_action:"update"}),
+    api.db.rpc("has_staff_position",{p_position_code:"PKM_KURIKULUM"}),
+    api.db.rpc("has_staff_position",{p_position_code:"KEPALA_MADRASAH"})
+  ]);
+  canManageSchedule=!!manage;
+  globalScheduleView=!!kuri||!!head;
+}
 async function loadMenu(){const m=await api.db.rpc("get_my_modules",{});$("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${x.code==="JADWAL"?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("");document.querySelectorAll('.nav-item[href="#"]').forEach(a=>a.onclick=e=>{e.preventDefault();alert(`Modul "${a.textContent.trim()}" akan diaktifkan bertahap.`)})}
 function applyPersonalUI(){
-  isTeacherPersonal=["GURU","WALI_KELAS"].includes(String(profile.role||"").toUpperCase());
+  isTeacherPersonal=["GURU","WALI_KELAS"].includes(String(profile.role||"").toUpperCase())&&!globalScheduleView;
+  $("addBtn").style.display=canManageSchedule?"":"none";
   if(!isTeacherPersonal)return;
   $("pageTitle").textContent="Jadwal Mengajar Saya";
   $("pageSubtitle").textContent="Jadwal personal berdasarkan kelas dan mata pelajaran yang Anda ampu pada semester aktif.";
@@ -92,9 +102,9 @@ function render(){
       const x=rows.find(r=>r.day_of_week===d&&r.time_slot_id===sl.id);
       const state=scheduleState(d,sl);
       if(x){
-        html+=`<div class="schedule-cell ${isTeacherPersonal?"personal":""} ${state}" ${isTeacherPersonal?"":`data-edit="${x.id}"`}><strong>${esc(x.subject_name)}</strong><span class="class-name">${esc(x.class_name)}</span>${x.room?`<span>Ruang ${esc(x.room)}</span>`:""}${state==="current"?'<span class="status-chip">SEDANG BERLANGSUNG</span>':state==="next"?'<span class="status-chip">BERIKUTNYA</span>':""}${!isTeacherPersonal?`<span>${esc(x.teacher_name)}</span>`:""}</div>`
+        html+=`<div class="schedule-cell ${isTeacherPersonal?"personal":""} ${state}" ${canManageSchedule?`data-edit="${x.id}"`:""}><strong>${esc(x.subject_name)}</strong><span class="class-name">${esc(x.class_name)}</span>${x.room?`<span>Ruang ${esc(x.room)}</span>`:""}${state==="current"?'<span class="status-chip">SEDANG BERLANGSUNG</span>':state==="next"?'<span class="status-chip">BERIKUTNYA</span>':""}${!isTeacherPersonal?`<span>${esc(x.teacher_name)}</span>`:""}</div>`
       }else{
-        html+=isTeacherPersonal?`<div class="schedule-cell empty">—</div>`:`<div class="schedule-cell empty" data-new-day="${d}" data-new-slot="${sl.id}">+ Tambah</div>`
+        html+=canManageSchedule?`<div class="schedule-cell empty" data-new-day="${d}" data-new-slot="${sl.id}">+ Tambah</div>`:`<div class="schedule-cell empty">—</div>`
       }
     })
   });
@@ -105,23 +115,23 @@ function render(){
     return `<div class="day-card ${d===todayName()?"today":""}"><h3>${d}${d===todayName()?" · Hari Ini":""}</h3>${slots.map(sl=>{
       const x=dr.find(r=>r.time_slot_id===sl.id);
       const state=scheduleState(d,sl);
-      if(x)return `<div class="mobile-slot ${state}" ${isTeacherPersonal?"":`data-edit="${x.id}"`}><div class="slot-label">${esc(sl.code)}<br>${String(sl.start_time).slice(0,5)}–${String(sl.end_time).slice(0,5)}</div><div><strong>${esc(x.subject_name)}</strong><small>${esc(x.class_name)}${x.room?` · Ruang ${esc(x.room)}`:""}</small></div></div>`;
-      return isTeacherPersonal?`<div class="mobile-slot"><div class="slot-label">${esc(sl.code)}</div><div><small>—</small></div></div>`:`<div class="mobile-slot" data-new-day="${d}" data-new-slot="${sl.id}"><div class="slot-label">${esc(sl.code)}</div><div><small>Belum ada jadwal</small></div></div>`
+      if(x)return `<div class="mobile-slot ${state}" ${canManageSchedule?`data-edit="${x.id}"`:""}><div class="slot-label">${esc(sl.code)}<br>${String(sl.start_time).slice(0,5)}–${String(sl.end_time).slice(0,5)}</div><div><strong>${esc(x.subject_name)}</strong><small>${esc(x.class_name)}${x.room?` · Ruang ${esc(x.room)}`:""}</small></div></div>`;
+      return canManageSchedule?`<div class="mobile-slot" data-new-day="${d}" data-new-slot="${sl.id}"><div class="slot-label">${esc(sl.code)}</div><div><small>Belum ada jadwal</small></div></div>`:`<div class="mobile-slot"><div class="slot-label">${esc(sl.code)}</div><div><small>—</small></div></div>`
     }).join("")}</div>`
   }).join("");
 
-  if(!isTeacherPersonal){
+  if(canManageSchedule){
     document.querySelectorAll("[data-edit]").forEach(el=>el.onclick=()=>openEdit(el.dataset.edit));
     document.querySelectorAll("[data-new-day]").forEach(el=>el.onclick=()=>openAdd(el.dataset.newDay,el.dataset.newSlot));
   }
 }
 function openAdd(day=null,slot=null){
-  if(isTeacherPersonal)return;
+  if(!canManageSchedule)return;
   $("scheduleForm").reset();$("scheduleId").value="";$("modalTitle").textContent="Tambah Jadwal";$("deleteBtn").style.display="none";$("formMessage").textContent="";
   if(day)$("day").value=day;if(slot)$("timeSlot").value=slot;if($("classFilter").value)$("classId").value=$("classFilter").value;$("scheduleModal").classList.remove("hidden")
 }
 function openEdit(id){
-  if(isTeacherPersonal)return;
+  if(!canManageSchedule)return;
   const x=schedules.find(r=>r.id===id);if(!x)return;
   $("scheduleId").value=x.id;$("modalTitle").textContent="Edit Jadwal";$("day").value=x.day_of_week;$("timeSlot").value=x.time_slot_id;$("classId").value=x.class_id;$("subjectId").value=x.subject_id;$("teacherId").value=x.teacher_id;$("room").value=x.room||"";$("note").value=x.note||"";$("deleteBtn").style.display="inline-block";$("formMessage").textContent="";$("scheduleModal").classList.remove("hidden")
 }
@@ -133,7 +143,7 @@ async function write(path,method,body){
   if(!r.ok)throw new Error(data?.message||data?.details||txt||`HTTP ${r.status}`);return data
 }
 async function saveSchedule(e){
-  e.preventDefault();if(isTeacherPersonal)return;
+  e.preventDefault();if(!canManageSchedule)return;
   const id=$("scheduleId").value,p={semester_id:semesterId,class_id:$("classId").value,subject_id:$("subjectId").value,teacher_id:$("teacherId").value,time_slot_id:$("timeSlot").value,day_of_week:$("day").value,room:$("room").value.trim()||null,note:$("note").value.trim()||null};
   $("saveBtn").disabled=true;$("formMessage").textContent="";
   try{if(id)await write(`schedules?id=eq.${encodeURIComponent(id)}`,"PATCH",p);else await write("schedules","POST",p);closeModal();await loadSchedules()}
@@ -141,7 +151,7 @@ async function saveSchedule(e){
   finally{$("saveBtn").disabled=false}
 }
 async function deleteSchedule(){
-  if(isTeacherPersonal)return;
+  if(!canManageSchedule)return;
   const id=$("scheduleId").value;if(!id||!confirm("Hapus jadwal ini?"))return;
   try{await write(`schedules?id=eq.${encodeURIComponent(id)}`,"DELETE");closeModal();await loadSchedules()}catch(err){alert("Gagal menghapus jadwal: "+err.message)}
 }
@@ -161,6 +171,7 @@ $("scheduleModal").onclick=e=>{if(e.target===$("scheduleModal"))closeModal()};
     const sess=await api.auth.getSession();if(!sess){location.replace("index.html");return}
     const user=await api.auth.getUser();if(!user){location.replace("index.html");return}
     profile=await loadProfile(user);
+    await loadScheduleAccess();
     applyPersonalUI();
     $("sideUserName").textContent=profile.full_name||user.email;
     $("sideUserRole").textContent=formatRole(profile.role);
