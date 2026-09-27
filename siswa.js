@@ -48,6 +48,7 @@ async function loadStudentScope(){
   const flags=await Promise.all([
     api.db.rpc("has_staff_position",{p_position_code:"KEPALA_MADRASAH"}),
     api.db.rpc("has_staff_position",{p_position_code:"KEPALA_TU"}),
+    api.db.rpc("has_staff_position",{p_position_code:"PKM_KURIKULUM"}),
     api.db.rpc("has_staff_position",{p_position_code:"PKM_KESISWAAN"})
   ]);
   privilegedStudentScope=flags.some(Boolean);
