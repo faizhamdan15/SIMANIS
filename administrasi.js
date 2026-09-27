@@ -26,6 +26,7 @@ let picTaskExpanded = false;
 let validationReturnAfterVerify = false;
 let attachmentTarget = null;
 let currentFinalDocument = null;
+let picMonitorRows = [];
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -137,7 +138,11 @@ async function loadData(){
   try{attentionRows=await api.db.rpc("get_admin_document_attention",{p_academic_year:"2026/2027"})||[]}catch(err){console.warn("Perlu perhatian:",err);attentionRows=[]}
   if(headManager){
     try{picRecommendations=await api.db.rpc("list_admin_pic_recommendations",{})||[]}catch(err){console.warn("PIC kategori:",err);picRecommendations=[]}
-  }else picRecommendations=[];
+    try{picMonitorRows=await api.db.rpc("get_admin_pic_monitor",{p_academic_year:"2026/2027"})||[]}catch(err){console.warn("Monitoring PIC:",err);picMonitorRows=[]}
+  }else{
+    picRecommendations=[];
+    picMonitorRows=[];
+  }
   try{
     const vr=await Promise.all([
       api.db.rpc("get_admin_document_readiness",{p_academic_year:"2026/2027"}),
@@ -153,7 +158,7 @@ async function loadData(){
   rows.forEach(r=>{ if(!map.has(r.category_id)) map.set(r.category_id,{id:r.category_id,code:r.category_code,name:r.category_name,order:r.category_order,expected:r.expected_documents}); });
   categories=[...map.values()].sort((a,b)=>a.order-b.order);
   if(!selectedCategory && categories.length) selectedCategory=categories[0].id;
-  renderStats(); renderValidationCenter(); renderPicTaskCenter(); renderVerificationQueue(); renderAttention(); renderCategories(); renderDocs(); await loadAdminNotifications();
+  renderStats(); renderValidationCenter(); renderPicMonitoring(); renderPicTaskCenter(); renderVerificationQueue(); renderAttention(); renderCategories(); renderDocs(); await loadAdminNotifications();
 }
 function renderStats(){
   const total=rows.length, complete=rows.filter(r=>r.status==="LENGKAP").length, draft=rows.filter(r=>r.status==="DRAFT").length, pending=rows.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length, revision=rows.filter(r=>r.status==="PERLU_REVISI").length, missing=rows.filter(r=>r.status==="BELUM_ADA").length, manual=rows.filter(r=>!!r.manual_requirement_reason).length;
@@ -264,6 +269,60 @@ function moveValidationReview(step){
   if(next<0||next>=validationRows.length)return;
   validationReviewIndex=next;renderValidationReview();
 }
+function monitorDateText(value){
+  if(!value)return "Belum pernah";
+  return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(value));
+}
+function renderPicMonitoring(){
+  const panel=$("picMonitoringPanel");if(!panel)return;
+  if(!headManager){panel.style.display="none";return}
+  panel.style.display="block";
+  $("picMonitoringSummary").textContent=picMonitorRows.length+" kategori";
+  if(!picMonitorRows.length){
+    $("picMonitoringGrid").innerHTML='<div class="admin-empty">Data monitoring PIC belum tersedia.</div>';
+    return;
+  }
+  $("picMonitoringGrid").innerHTML=picMonitorRows.map(r=>{
+    const total=Number(r.total_count||0),fin=Number(r.final_count||0),pct=total?Math.round(fin/total*100):0;
+    const self=profile?.id===r.recipient_id;
+    const outstanding=Number(r.ready_count||0)+Number(r.needs_work_count||0)+Number(r.revision_count||0)+Number(r.pending_count||0);
+    return '<article class="pic-monitor-card">'+
+      '<div class="pic-monitor-head"><div><h4>'+String(r.category_order).padStart(2,"0")+'. '+esc(r.category_name)+'</h4><p>'+esc(r.recipient_name||"-")+' · '+esc(String(r.position_code||"").replaceAll("_"," "))+'</p></div><div class="pic-monitor-score">'+Number(r.average_readiness||0).toFixed(1)+'%</div></div>'+
+      '<div class="pic-monitor-track"><div style="width:'+pct+'%"></div></div>'+
+      '<div class="pic-monitor-stats">'+
+        '<div class="pic-monitor-stat"><b>'+fin+'/'+total+'</b><span>FINAL</span></div>'+
+        '<div class="pic-monitor-stat"><b>'+Number(r.ready_count||0)+'</b><span>Siap</span></div>'+
+        '<div class="pic-monitor-stat"><b>'+Number(r.needs_work_count||0)+'</b><span>Kurang</span></div>'+
+        '<div class="pic-monitor-stat"><b>'+Number(r.pending_count||0)+'</b><span>Menunggu</span></div>'+
+      '</div>'+
+      '<div class="pic-monitor-foot">Terlambat: <b>'+Number(r.overdue_count||0)+'</b> · Tugas dikirim: '+esc(monitorDateText(r.last_dispatch_at))+' · Pengingat: '+esc(monitorDateText(r.last_reminder_at))+'</div>'+
+      '<div class="pic-monitor-actions"><button type="button" data-monitor-open="'+esc(r.category_code)+'">Buka Kategori</button>'+
+      (!self&&outstanding>0?'<button type="button" class="secondary-btn" data-monitor-remind="'+esc(r.category_code)+'">Kirim Pengingat</button>':'')+
+      '</div></article>';
+  }).join("");
+  document.querySelectorAll("[data-monitor-open]").forEach(b=>b.onclick=()=>openMonitorCategory(b.dataset.monitorOpen));
+  document.querySelectorAll("[data-monitor-remind]").forEach(b=>b.onclick=()=>remindPicCategory(b.dataset.monitorRemind));
+}
+function openMonitorCategory(code){
+  const cat=categories.find(c=>c.code===code);if(!cat)return;
+  selectedCategory=cat.id;
+  $("docSearch").value="";
+  $("statusFilter").value="";
+  renderCategories();renderDocs();
+  setTimeout(()=>document.getElementById("docList")?.scrollIntoView({behavior:"smooth",block:"start"}),60);
+}
+async function remindPicCategory(code){
+  const row=picMonitorRows.find(r=>r.category_code===code);if(!row)return;
+  if(!confirm("Kirim pengingat administrasi "+row.category_name+" kepada "+row.recipient_name+"?"))return;
+  try{
+    await api.db.rpc("remind_admin_pic",{p_category_code:code,p_academic_year:"2026/2027"});
+    alert("Pengingat berhasil dikirim kepada "+row.recipient_name+".");
+    await loadData();
+  }catch(err){
+    alert("Pengingat tidak dikirim: "+(err.message||err));
+  }
+}
+
 function picTaskNextAction(r){
   if(r.status==="MENUNGGU_VERIFIKASI")return "Menunggu verifikasi Kepala Madrasah";
   if(r.status==="PERLU_REVISI")return "Perbaiki sesuai catatan revisi lalu tandai siap";
