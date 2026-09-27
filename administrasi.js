@@ -10,6 +10,8 @@ let systemSettings = null;
 let attentionRows = [];
 let attentionExpanded = false;
 let followupTarget = null;
+let headManager = false;
+let picRecommendations = [];
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -75,7 +77,7 @@ function integrationButton(r){
   return route?'<a href="'+route+'" style="text-decoration:none"><button type="button">Buka Sumber</button></a>':"";
 }
 function canVerify(){
-  return ["SUPER_ADMIN","KEPALA_MADRASAH"].includes(String(profile?.role||"").toUpperCase());
+  return !!headManager;
 }
 function verificationMeta(r){
   if(!r.verified_at)return "";
@@ -111,6 +113,9 @@ async function loadData(){
   }
   rows = await api.db.select("v_admin_document_status","select=*&academic_year=eq.2026/2027&order=category_order.asc,document_order.asc") || [];
   try{attentionRows=await api.db.rpc("get_admin_document_attention",{p_academic_year:"2026/2027"})||[]}catch(err){console.warn("Perlu perhatian:",err);attentionRows=[]}
+  if(headManager){
+    try{picRecommendations=await api.db.rpc("list_admin_pic_recommendations",{})||[]}catch(err){console.warn("PIC kategori:",err);picRecommendations=[]}
+  }else picRecommendations=[];
   const map = new Map();
   rows.forEach(r=>{ if(!map.has(r.category_id)) map.set(r.category_id,{id:r.category_id,code:r.category_code,name:r.category_name,order:r.category_order,expected:r.expected_documents}); });
   categories=[...map.values()].sort((a,b)=>a.order-b.order);
@@ -148,7 +153,7 @@ function renderAttention(){
     '<h4>'+esc(r.document_code.replace("ADM-",""))+' · '+esc(r.title)+'</h4>'+
     '<p>'+esc(r.category_name)+' · '+esc(statusLabel(r.status))+' · <span class="priority '+esc(r.priority||"NORMAL")+'">'+esc(r.priority||"NORMAL")+'</span></p>'+
     '<p>PIC: <b>'+esc(r.responsible_name||"Belum ditentukan")+'</b> · Target: '+dueText(r)+'</p>'+
-    '</div><div><button class="mini-btn" data-attention-followup="'+r.record_id+'">Atur Tindak Lanjut</button></div></div>'
+    '</div><div>'+(canVerify()?'<button class="mini-btn" data-attention-followup="'+r.record_id+'">Atur Tindak Lanjut</button>':'')+'</div></div>'
   ).join("");
   document.querySelectorAll("[data-attention-followup]").forEach(b=>b.onclick=()=>openFollowup(b.dataset.attentionFollowup));
 }
@@ -196,6 +201,32 @@ function renderDocs(){
   document.querySelectorAll("[data-view]").forEach(el=>el.addEventListener("click",()=>openFile(el.dataset.view)));
 }
 
+function renderPicSummary(){
+  const holder=$("picSummaryBody");if(!holder)return;
+  if(!picRecommendations.length){holder.innerHTML='<div class="admin-empty">Belum ada mapping PIC kategori.</div>';return}
+  holder.innerHTML='<div class="table-wrap"><table class="data-table" style="width:100%;border-collapse:collapse"><thead><tr><th>Kategori</th><th>Jabatan PIC</th><th>Nama PIC</th><th>Dokumen</th><th>Terisi</th></tr></thead><tbody>'+picRecommendations.map(x=>'<tr><td><b>'+esc(x.category_name)+'</b></td><td>'+esc(x.position_name)+'</td><td>'+esc(x.responsible_name||"Belum ada pemegang jabatan")+'</td><td>'+Number(x.document_count||0)+'</td><td>'+Number(x.assigned_count||0)+'</td></tr>').join("")+'</tbody></table></div>';
+}
+function openPicSummary(){
+  if(!headManager)return;
+  $("picMessage").textContent="";
+  renderPicSummary();
+  $("picModal").classList.remove("hidden");
+}
+function closePicSummary(){$("picModal").classList.add("hidden")}
+async function applyPicEmpty(){
+  if(!headManager)return;
+  const btn=$("picApplyEmptyBtn");btn.disabled=true;btn.textContent="Menerapkan...";
+  try{
+    const result=await api.db.rpc("apply_admin_pic_recommendations",{p_only_empty:true})||[];
+    const total=result.reduce((n,x)=>n+Number(x.updated_documents||0),0);
+    $("picMessage").style.color="#08733f";$("picMessage").textContent=total?total+" dokumen berhasil diberi PIC.":"Semua dokumen yang tersedia sudah memiliki PIC.";
+    await loadData();renderPicSummary();
+  }catch(err){
+    $("picMessage").style.color="#a13b33";$("picMessage").textContent="Gagal: "+(err.message||err);
+  }finally{
+    btn.disabled=false;btn.textContent="Terapkan ke PIC Kosong";
+  }
+}
 function closeFollowup(){
   $("followupModal").classList.add("hidden");
   followupTarget=null;
@@ -363,6 +394,8 @@ $("docSearch").addEventListener("input",renderDocs);
 $("statusFilter").addEventListener("change",renderDocs);
 $("filePicker").addEventListener("change",e=>uploadFile(e.target.files?.[0]));
 $("attentionToggleBtn").onclick=()=>{attentionExpanded=!attentionExpanded;renderAttention()};
+$("picSummaryBtn").onclick=openPicSummary;$("picClose").onclick=closePicSummary;$("picDone").onclick=closePicSummary;$("picApplyEmptyBtn").onclick=applyPicEmpty;
+$("picModal").onclick=e=>{if(e.target===$("picModal"))closePicSummary()};
 $("followupClose").onclick=closeFollowup;$("followupCancel").onclick=closeFollowup;$("followupSave").onclick=saveFollowup;
 $("followupModal").onclick=e=>{if(e.target===$("followupModal"))closeFollowup()};
 $("verifyClose").onclick=closeVerify;$("verifyCancel").onclick=closeVerify;$("verifySave").onclick=saveVerification;
@@ -373,6 +406,8 @@ $("exportAdminCsvBtn").onclick=exportAdminCsv;
 $("printAdminReportBtn").onclick=printAdminReport;
 (async function boot(){
   try{api=await window.simanisReady; const session=await api.auth.getSession(); if(!session){location.replace("index.html");return} const user=await api.auth.getUser(); if(!user){location.replace("index.html");return} profile=await loadProfile(user);
+    try{headManager=!!(await api.db.rpc("is_admin_head_manager",{}))}catch(_){headManager=false}
+    $("picSummaryBtn").style.display=headManager?"inline-flex":"none";
     $("sideUserName").textContent=profile.full_name||user.email||"Pengguna"; $("sideUserRole").textContent=formatRole(profile.role); $("headerUser").textContent=profile.full_name||user.email||"Pengguna"; $("currentDate").textContent=localDateID();
     try{const x=await api.db.rpc("get_public_system_settings",{});systemSettings=Array.isArray(x)?x[0]:x}catch(_){systemSettings=null}
     await loadMenu(); await loadData(); $("logoutBtn").addEventListener("click",async()=>{await api.auth.signOut();location.replace("index.html");});
