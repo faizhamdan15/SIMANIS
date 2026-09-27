@@ -13,6 +13,8 @@ let followupTarget = null;
 let headManager = false;
 let picRecommendations = [];
 let submitTarget = null;
+let adminNotifications = [];
+let adminNotificationUnread = 0;
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -126,7 +128,7 @@ async function loadData(){
   rows.forEach(r=>{ if(!map.has(r.category_id)) map.set(r.category_id,{id:r.category_id,code:r.category_code,name:r.category_name,order:r.category_order,expected:r.expected_documents}); });
   categories=[...map.values()].sort((a,b)=>a.order-b.order);
   if(!selectedCategory && categories.length) selectedCategory=categories[0].id;
-  renderStats(); renderVerificationQueue(); renderAttention(); renderCategories(); renderDocs();
+  renderStats(); renderVerificationQueue(); renderAttention(); renderCategories(); renderDocs(); await loadAdminNotifications();
 }
 function renderStats(){
   const total=rows.length, complete=rows.filter(r=>r.status==="LENGKAP").length, draft=rows.filter(r=>r.status==="DRAFT").length, pending=rows.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length, revision=rows.filter(r=>r.status==="PERLU_REVISI").length, missing=rows.filter(r=>r.status==="BELUM_ADA").length;
@@ -153,6 +155,71 @@ function renderVerificationQueue(){
   document.querySelectorAll("[data-queue-verify]").forEach(b=>b.onclick=()=>openVerify(b.dataset.queueVerify));
 }
 
+async function loadAdminNotifications(){
+  try{
+    const results=await Promise.all([
+      api.db.rpc("list_my_admin_notifications",{p_limit:30,p_unread_only:false}),
+      api.db.rpc("get_my_admin_notification_count",{})
+    ]);
+    adminNotifications=results[0]||[];
+    adminNotificationUnread=Number(results[1]||0);
+  }catch(err){
+    console.warn("Notifikasi administrasi:",err);
+    adminNotifications=[];
+    adminNotificationUnread=0;
+  }
+  renderAdminNotificationBadge();
+}
+function renderAdminNotificationBadge(){
+  const badge=$("adminNotifBadge");
+  if(!badge)return;
+  badge.textContent=adminNotificationUnread>99?"99+":String(adminNotificationUnread);
+  badge.style.display=adminNotificationUnread>0?"inline-flex":"none";
+}
+function notificationTypeLabel(t){
+  return {SUBMITTED:"Pengajuan",REVISION:"Perlu Revisi",COMPLETED:"Lengkap",INFO:"Informasi"}[t]||t;
+}
+function renderAdminNotifications(){
+  const holder=$("notificationList");
+  if(!holder)return;
+  if(!adminNotifications.length){holder.innerHTML='<div class="admin-empty">Belum ada notifikasi administrasi.</div>';return}
+  holder.innerHTML=adminNotifications.map(n=>{
+    const when=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(n.created_at));
+    return '<article class="notif-item '+(n.is_read?"":"unread")+'" data-notif-id="'+n.id+'" data-notif-record="'+n.record_id+'"><h4>'+esc(n.title)+'</h4><p><b>'+esc(notificationTypeLabel(n.notification_type))+'</b> · '+esc(n.document_code||"")+' · '+esc(n.document_title||"")+'</p>'+(n.message?'<p>'+esc(n.message)+'</p>':'')+'<div class="notif-time">'+esc(when)+' · '+esc(n.category_name||"")+'</div></article>';
+  }).join('');
+  holder.querySelectorAll("[data-notif-id]").forEach(el=>el.onclick=()=>openAdminNotification(Number(el.dataset.notifId),el.dataset.notifRecord));
+}
+async function openAdminNotification(id,recordId){
+  try{await api.db.rpc("mark_admin_notification_read",{p_notification_id:id})}catch(err){console.warn(err)}
+  const n=adminNotifications.find(x=>Number(x.id)===Number(id));
+  if(n)n.is_read=true;
+  adminNotificationUnread=adminNotifications.filter(x=>!x.is_read).length;
+  renderAdminNotificationBadge();
+  renderAdminNotifications();
+  closeAdminNotifications();
+  focusAdminRecord(recordId);
+}
+function openAdminNotifications(){renderAdminNotifications();$("notificationModal").classList.remove("hidden")}
+function closeAdminNotifications(){$("notificationModal").classList.add("hidden")}
+async function markAllAdminNotificationsRead(){
+  try{await api.db.rpc("mark_all_admin_notifications_read",{});adminNotifications.forEach(n=>n.is_read=true);adminNotificationUnread=0;renderAdminNotificationBadge();renderAdminNotifications()}catch(err){alert("Gagal menandai notifikasi: "+err.message)}
+}
+function focusAdminRecord(recordId){
+  const r=rows.find(x=>x.record_id===recordId);
+  if(!r)return;
+  selectedCategory=r.category_id;
+  $("docSearch").value="";
+  $("statusFilter").value="";
+  renderCategories();
+  renderDocs();
+  setTimeout(()=>{
+    const el=document.querySelector('[data-record="'+recordId+'"]');
+    if(!el)return;
+    el.classList.add("doc-highlight");
+    el.scrollIntoView({behavior:"smooth",block:"center"});
+    setTimeout(()=>el.classList.remove("doc-highlight"),2500);
+  },80);
+}
 function dueText(r){
   if(!r.due_date)return "Belum ada target";
   const d=new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",year:"numeric"}).format(new Date(r.due_date+"T00:00:00"));
@@ -204,7 +271,7 @@ function renderDocs(){
   const list=filteredRows(), cat=categories.find(c=>c.id===selectedCategory);
   $("listTitle").textContent=cat?`${String(cat.order).padStart(2,"0")}. ${cat.name}`:"Daftar Dokumen"; $("listCount").textContent=`${list.length} dokumen`;
   if(!list.length){$("docList").innerHTML='<div class="admin-empty">Tidak ada dokumen yang cocok.</div>';return;}
-  $("docList").innerHTML=list.map(r=>`<article class="doc-item">
+  $("docList").innerHTML=list.map(r=>`<article class="doc-item" data-record="${r.record_id}">
     <div class="doc-code">${esc(r.document_code.replace("ADM-",""))}</div>
     <div><div class="doc-title">${esc(r.title)}</div><div class="doc-meta">
       <span class="status-badge status-${r.status}">${statusLabel(r.status)}</span>
@@ -459,6 +526,8 @@ async function openFile(recordId){
 $("docSearch").addEventListener("input",renderDocs);
 $("statusFilter").addEventListener("change",renderDocs);
 $("filePicker").addEventListener("change",e=>uploadFile(e.target.files?.[0]));
+$("adminNotifBtn").onclick=openAdminNotifications;$("notificationClose").onclick=closeAdminNotifications;$("notificationDone").onclick=closeAdminNotifications;$("notificationReadAll").onclick=markAllAdminNotificationsRead;
+$("notificationModal").onclick=e=>{if(e.target===$("notificationModal"))closeAdminNotifications()};
 $("submitClose").onclick=closeSubmit;$("submitCancel").onclick=closeSubmit;$("submitSave").onclick=saveSubmission;
 $("submitModal").onclick=e=>{if(e.target===$("submitModal"))closeSubmit()};
 $("attentionToggleBtn").onclick=()=>{attentionExpanded=!attentionExpanded;renderAttention()};
