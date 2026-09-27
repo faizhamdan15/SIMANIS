@@ -495,7 +495,7 @@ async function updateStatus(recordId,status){
 }
 async function editNote(recordId){
   const row=rows.find(r=>r.record_id===recordId), note=prompt("Catatan dokumen:",row?.note||""); if(note===null)return;
-  try{await restWrite(`admin_document_records?id=eq.${encodeURIComponent(recordId)}`,"PATCH",{note:note.trim()||null});await loadData();}catch(err){alert("Gagal menyimpan catatan: "+err.message)}
+  try{await api.db.rpc("update_admin_document_note",{p_record_id:recordId,p_note:note.trim()||null});await loadData();}catch(err){alert("Gagal menyimpan catatan: "+err.message)}
 }
 function encodePath(path){return path.split("/").map(encodeURIComponent).join("/");}
 async function uploadFile(file){
@@ -504,13 +504,13 @@ async function uploadFile(file){
   try{
     const resp=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/administrasi-kepala/${encodePath(path)}`,{method:"POST",headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":file.type||"application/octet-stream","x-upsert":"false"},body:file});
     const txt=await resp.text(); if(!resp.ok) throw new Error(txt||`HTTP ${resp.status}`);
-    const versions=await api.db.select("admin_document_files",`select=version_no&record_id=eq.${encodeURIComponent(uploadTarget.record_id)}&order=version_no.desc&limit=1`); const nextVersion=(versions?.[0]?.version_no||0)+1;
-    await restWrite(`admin_document_files?record_id=eq.${encodeURIComponent(uploadTarget.record_id)}&is_current=eq.true`,"PATCH",{is_current:false});
-    await restWrite("admin_document_files","POST",{record_id:uploadTarget.record_id,version_no:nextVersion,storage_path:path,file_name:file.name,mime_type:file.type||null,file_size:file.size,is_current:true});
-    const nextStatus=["BELUM_ADA","MENUNGGU_VERIFIKASI"].includes(uploadTarget.status)?"DRAFT":uploadTarget.status;
-    const patch={status:nextStatus};
-    if(uploadTarget.status==="MENUNGGU_VERIFIKASI"){patch.submitted_by=null;patch.submitted_at=null;patch.submission_note=null}
-    await restWrite(`admin_document_records?id=eq.${encodeURIComponent(uploadTarget.record_id)}`,"PATCH",patch);
+    await api.db.rpc("register_admin_document_file",{
+      p_record_id:uploadTarget.record_id,
+      p_storage_path:path,
+      p_file_name:file.name,
+      p_mime_type:file.type||null,
+      p_file_size:file.size
+    });
     await loadData(); alert("File berhasil diupload.");
   }catch(err){alert("Upload gagal: "+err.message)}finally{uploadTarget=null;}
 }
