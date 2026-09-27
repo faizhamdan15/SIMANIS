@@ -218,6 +218,21 @@ function renderValidationReview(){
   $("validationNext").disabled=validationReviewIndex>=validationRows.length-1;
 }
 function closeValidationReview(){$("validationReviewModal").classList.add("hidden")}
+async function dispatchPicTasks(){
+  const btn=$("validationDispatchPicBtn");if(!btn||!headManager)return;
+  btn.disabled=true;btn.textContent="Memeriksa...";
+  try{
+    const result=await api.db.rpc("dispatch_admin_tasks_to_pics",{p_academic_year:"2026/2027",p_force:false});
+    const data=Array.isArray(result)?result[0]:result;
+    const sent=Number(data?.sent_count||0),skipped=Number(data?.skipped_count||0);
+    if(sent>0)alert("Tugas PIC diperbarui untuk "+sent+" kategori. "+skipped+" kategori tidak dikirim ulang karena belum berubah.");
+    else alert("Tidak ada perubahan tugas PIC. Notifikasi duplikat tidak dikirim.");
+  }catch(err){
+    alert("Gagal memperbarui tugas PIC: "+(err.message||err));
+  }finally{
+    btn.disabled=false;btn.textContent="Perbarui Tugas PIC";
+  }
+}
 async function runValidationSmartComplete(){
   const btn=$("validationSmartCompleteBtn");if(!btn||!headManager)return;
   btn.disabled=true;btn.textContent='Memproses...';
@@ -1140,6 +1155,7 @@ $("bulkSubmitClose").onclick=closeBulkSubmitModal;
 $("bulkSubmitCancel").onclick=closeBulkSubmitModal;
 $("bulkSubmitConfirm").onclick=confirmBulkSubmit;
 $("bulkSubmitModal").onclick=e=>{if(e.target===$("bulkSubmitModal"))closeBulkSubmitModal()};
+$("validationDispatchPicBtn").onclick=dispatchPicTasks;
 $("validationSmartCompleteBtn").onclick=runValidationSmartComplete;
 $("validationReviewStartBtn").onclick=startValidationReview;
 $("validationReviewClose").onclick=closeValidationReview;
