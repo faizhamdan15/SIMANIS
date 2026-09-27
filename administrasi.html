@@ -51,6 +51,7 @@
             <p>Kontrol kelengkapan 141 dokumen administrasi MA Nurul Islam dalam satu dashboard.</p>
           </div>
           <div id="adminReportActions" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="picSummaryBtn" class="secondary-btn" type="button" style="display:none">PIC Kategori</button>
             <button id="exportAdminCsvBtn" class="secondary-btn" type="button">Export CSV</button>
             <button id="printAdminReportBtn" class="primary-btn" type="button" style="width:auto">Cetak Rekap / PDF</button>
           </div>
@@ -107,6 +108,21 @@
 
 <input id="filePicker" class="file-hidden" type="file"
   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" />
+
+<div id="picModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-head"><h3>PIC Administrasi per Kategori</h3><button id="picClose" class="modal-close">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:9px;color:#66766e;margin-bottom:10px">Pembagian mengikuti jabatan struktural aktif. Penugasan manual pada dokumen tidak ditimpa.</div>
+      <div id="picSummaryBody"></div>
+      <div id="picMessage" style="font-size:9px;color:#a13b33;margin-top:8px"></div>
+    </div>
+    <div class="modal-actions">
+      <button id="picApplyEmptyBtn" class="secondary-btn" type="button">Terapkan ke PIC Kosong</button>
+      <button id="picDone" class="primary-btn" type="button" style="width:auto">Selesai</button>
+    </div>
+  </div>
+</div>
 
 <div id="verifyModal" class="modal-backdrop hidden">
   <div class="modal" style="max-width:560px">
