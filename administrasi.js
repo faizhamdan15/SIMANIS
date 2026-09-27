@@ -22,6 +22,7 @@ let generatedDraftSaving = false;
 let validationRows = [];
 let validationSummary = null;
 let validationReviewIndex = -1;
+let picTaskExpanded = false;
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -133,27 +134,23 @@ async function loadData(){
   try{attentionRows=await api.db.rpc("get_admin_document_attention",{p_academic_year:"2026/2027"})||[]}catch(err){console.warn("Perlu perhatian:",err);attentionRows=[]}
   if(headManager){
     try{picRecommendations=await api.db.rpc("list_admin_pic_recommendations",{})||[]}catch(err){console.warn("PIC kategori:",err);picRecommendations=[]}
-    try{
-      const vr=await Promise.all([
-        api.db.rpc("get_admin_document_readiness",{p_academic_year:"2026/2027"}),
-        api.db.rpc("get_admin_validation_summary",{p_academic_year:"2026/2027"})
-      ]);
-      validationRows=vr[0]||[];
-      validationSummary=vr[1]||null;
-    }catch(err){
-      console.warn("Pusat validasi:",err);
-      validationRows=[];validationSummary=null;
-    }
-  }else{
-    picRecommendations=[];
-    validationRows=[];
-    validationSummary=null;
+  }else picRecommendations=[];
+  try{
+    const vr=await Promise.all([
+      api.db.rpc("get_admin_document_readiness",{p_academic_year:"2026/2027"}),
+      api.db.rpc("get_admin_validation_summary",{p_academic_year:"2026/2027"})
+    ]);
+    validationRows=vr[0]||[];
+    validationSummary=vr[1]||null;
+  }catch(err){
+    console.warn("Kesiapan administrasi:",err);
+    validationRows=[];validationSummary=null;
   }
   const map = new Map();
   rows.forEach(r=>{ if(!map.has(r.category_id)) map.set(r.category_id,{id:r.category_id,code:r.category_code,name:r.category_name,order:r.category_order,expected:r.expected_documents}); });
   categories=[...map.values()].sort((a,b)=>a.order-b.order);
   if(!selectedCategory && categories.length) selectedCategory=categories[0].id;
-  renderStats(); renderValidationCenter(); renderVerificationQueue(); renderAttention(); renderCategories(); renderDocs(); await loadAdminNotifications();
+  renderStats(); renderValidationCenter(); renderPicTaskCenter(); renderVerificationQueue(); renderAttention(); renderCategories(); renderDocs(); await loadAdminNotifications();
 }
 function renderStats(){
   const total=rows.length, complete=rows.filter(r=>r.status==="LENGKAP").length, draft=rows.filter(r=>r.status==="DRAFT").length, pending=rows.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length, revision=rows.filter(r=>r.status==="PERLU_REVISI").length, missing=rows.filter(r=>r.status==="BELUM_ADA").length, manual=rows.filter(r=>!!r.manual_requirement_reason).length;
@@ -247,6 +244,60 @@ function moveValidationReview(step){
   const next=validationReviewIndex+step;
   if(next<0||next>=validationRows.length)return;
   validationReviewIndex=next;renderValidationReview();
+}
+function picTaskNextAction(r){
+  if(r.status==="MENUNGGU_VERIFIKASI")return "Menunggu verifikasi Kepala Madrasah";
+  if(r.status==="PERLU_REVISI")return "Perbaiki sesuai catatan revisi lalu tandai siap";
+  if(r.ready_to_submit)return "Dokumen siap — ajukan verifikasi";
+  if(!r.check_working_document)return "Buat draft kerja, buka sumber SIMANIS, atau unggah dokumen";
+  if(!r.check_reviewed)return "Buka dan tinjau draft kerja";
+  if(!r.check_no_placeholders)return "Lengkapi placeholder/kolom wajib";
+  if(!r.check_actual_evidence)return "Isi data aktual dan tambahkan bukti pendukung";
+  if(!r.check_ready_state)return "Tandai dokumen Siap Diverifikasi";
+  return "Tinjau dokumen";
+}
+function picTaskActionLabel(r){
+  if(r.status==="MENUNGGU_VERIFIKASI")return "Lihat";
+  if(r.ready_to_submit)return "Ajukan Verifikasi";
+  if(r.has_generated_draft)return "Kerjakan Draft";
+  const main=rows.find(x=>x.record_id===r.record_id);
+  if(main?.integration_key&&integrationRoute(main.integration_key))return "Buka Sumber";
+  return "Buka Dokumen";
+}
+function renderPicTaskCenter(){
+  const panel=$("picTaskCenter");if(!panel)return;
+  if(headManager){panel.style.display="none";return}
+  panel.style.display="block";
+  const tasks=validationRows.filter(r=>r.status!=="LENGKAP");
+  const ready=tasks.filter(r=>r.ready_to_submit).length;
+  const revision=tasks.filter(r=>r.status==="PERLU_REVISI").length;
+  const pending=tasks.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length;
+  const needs=tasks.filter(r=>!r.ready_to_submit&&r.status!=="PERLU_REVISI"&&r.status!=="MENUNGGU_VERIFIKASI").length;
+  $("picTaskReady").textContent=ready;
+  $("picTaskNeedsWork").textContent=needs;
+  $("picTaskRevision").textContent=revision;
+  $("picTaskPending").textContent=pending;
+  const ordered=[...tasks].sort((a,b)=>{
+    const rank=x=>x.status==="PERLU_REVISI"?0:x.ready_to_submit?1:x.status==="MENUNGGU_VERIFIKASI"?3:2;
+    return rank(a)-rank(b)||Number(b.readiness_score||0)-Number(a.readiness_score||0)||Number(a.category_order||0)-Number(b.category_order||0)||Number(a.document_order||0)-Number(b.document_order||0);
+  });
+  const data=picTaskExpanded?ordered:ordered.slice(0,8);
+  $("picTaskToggleBtn").textContent=picTaskExpanded?"Ringkas":"Lihat Semua ("+ordered.length+")";
+  $("picTaskList").innerHTML=data.length?data.map(r=>
+    '<div class="pic-task-row"><div class="pic-task-score">'+Number(r.readiness_score||0)+'%</div><div><h4>'+esc(r.document_code.replace("ADM-",""))+' · '+esc(r.title)+'</h4><p>'+esc(r.category_name)+' · '+esc(statusLabel(r.status))+' · '+esc(readinessLabelText(r.readiness_label))+'</p><div class="task-action-text">'+esc(picTaskNextAction(r))+'</div></div><div><button class="'+(r.ready_to_submit?"primary-small":"secondary-btn")+'" type="button" data-pic-task="'+r.record_id+'">'+esc(picTaskActionLabel(r))+'</button></div></div>'
+  ).join(""):'<div class="admin-empty">Tidak ada tugas administrasi yang perlu ditindaklanjuti.</div>';
+  document.querySelectorAll("[data-pic-task]").forEach(b=>b.onclick=()=>runPicTaskAction(b.dataset.picTask));
+}
+function runPicTaskAction(recordId){
+  const task=validationRows.find(r=>r.record_id===recordId);
+  const main=rows.find(r=>r.record_id===recordId);
+  if(!task||!main)return;
+  if(task.ready_to_submit){openSubmit(recordId);return}
+  if(task.status==="MENUNGGU_VERIFIKASI"){focusAdminRecord(recordId);return}
+  if(main.generated_draft_id){openGeneratedDraft(recordId);return}
+  const route=main.integration_key?integrationRoute(main.integration_key):null;
+  if(route){window.open(route,"_blank");return}
+  focusAdminRecord(recordId);
 }
 function renderVerificationQueue(){
   const panel=$("verificationQueue");if(!panel)return;
@@ -841,6 +892,7 @@ async function openFile(recordId){
     window.open(signed.startsWith("http")?signed:`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1${signed}`,"_blank");
   }catch(err){alert("File gagal dibuka: "+err.message)}
 }
+$("picTaskToggleBtn").onclick=()=>{picTaskExpanded=!picTaskExpanded;renderPicTaskCenter()};
 $("validationSmartCompleteBtn").onclick=runValidationSmartComplete;
 $("validationReviewStartBtn").onclick=startValidationReview;
 $("validationReviewClose").onclick=closeValidationReview;
