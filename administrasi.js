@@ -16,6 +16,9 @@ let submitTarget = null;
 let adminNotifications = [];
 let adminNotificationUnread = 0;
 let generatedDraftCurrent = null;
+let generatedDraftEditing = false;
+let generatedDraftAutosaveTimer = null;
+let generatedDraftSaving = false;
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -79,6 +82,9 @@ function integrationBadge(r){
 function integrationButton(r){
   const route=r.integration_key?integrationRoute(r.integration_key):null;
   return route?'<a href="'+route+'" style="text-decoration:none"><button type="button">Buka Sumber</button></a>':"";
+}
+function generatedDraftStateLabel(state){
+  return {AUTO:"Draft Otomatis",EDITING:"Sedang Diedit",READY:"Siap Diverifikasi"}[state]||"Draft Otomatis";
 }
 function canVerify(){
   return !!headManager;
@@ -278,7 +284,7 @@ function renderDocs(){
       <span class="status-badge status-${r.status}">${statusLabel(r.status)}</span>
       ${integrationBadge(r)}
       ${r.file_name?`<span class="doc-file">${esc(r.file_name)} · v${r.version_no||1}</span>`:""}
-      ${r.generated_draft_id?`<span class="generated-badge">Draft Otomatis · ${esc(r.generated_draft_kind||"TEMPLATE")} · v${r.generated_draft_version||1}</span>`:""}
+      ${r.generated_draft_id?`<span class="generated-badge">${esc(generatedDraftStateLabel(r.generated_draft_edit_state))} · ${esc(r.generated_draft_kind||"TEMPLATE")} · v${r.generated_draft_version||1}</span>`:""}
       ${r.manual_requirement_reason?`<span class="manual-badge" title="${esc(r.manual_requirement_reason)}">Butuh Bukti Aktual</span><span class="doc-file">${esc(r.manual_requirement_reason)}</span>`:""}
       ${verificationMeta(r)}
       ${submissionMeta(r)}
@@ -286,7 +292,7 @@ function renderDocs(){
     </div></div>
     <div class="doc-actions">
       ${canVerify()?`<button data-followup="${r.record_id}">Tindak Lanjut</button>`:""}
-      ${!canVerify()&&["DRAFT","PERLU_REVISI"].includes(r.status)&&(r.file_name||(r.integration_key&&Number(integrationSources.get(r.integration_key)||0)>0))?`<button class="primary-small" data-submit="${r.record_id}">Ajukan Verifikasi</button>`:""}
+      ${!canVerify()&&["DRAFT","PERLU_REVISI"].includes(r.status)&&(r.file_name||(r.generated_draft_id&&r.generated_draft_edit_state==="READY")||(r.integration_key&&Number(integrationSources.get(r.integration_key)||0)>0))?`<button class="primary-small" data-submit="${r.record_id}">Ajukan Verifikasi</button>`:""}
       ${!canVerify()&&r.status==="MENUNGGU_VERIFIKASI"?`<button type="button" disabled>Menunggu Kepala</button>`:""}
       ${canVerify()&&r.status!=="BELUM_ADA"?`<button class="primary-small" data-verify="${r.record_id}">${r.status==="LENGKAP"?"Tinjau Ulang":"Verifikasi"}</button>`:""}
       <button data-history="${r.record_id}">Riwayat</button>
@@ -315,6 +321,7 @@ function openSubmit(recordId){
   $("submitTitle").textContent="Ajukan Verifikasi · "+r.document_code.replace("ADM-","");
   $("submitEvidence").innerHTML="<b>"+esc(r.title)+"</b><br>"+
     (r.file_name?"File: "+esc(r.file_name)+" (v"+(r.version_no||1)+")<br>":"")+
+    (r.generated_draft_id?"Draft kerja: "+esc(generatedDraftStateLabel(r.generated_draft_edit_state))+" · v"+(r.generated_draft_version||1)+"<br>":"")+
     (r.integration_key?"Sumber SIMANIS: "+sourceCount+" data<br>":"")+
     "Setelah diajukan, dokumen akan masuk antrean Kepala Madrasah.";
   $("submitNote").value=r.submission_note||"";
@@ -408,8 +415,9 @@ function openVerify(recordId){
   $("verifyEvidence").innerHTML=
     "<b>Bukti tersedia</b><br>"+
     (r.file_name?"File: "+esc(r.file_name)+" (v"+(r.version_no||1)+")<br>":"")+
+    (r.generated_draft_id?"Draft kerja: "+esc(generatedDraftStateLabel(r.generated_draft_edit_state))+" · v"+(r.generated_draft_version||1)+"<br>":"")+
     (r.integration_key?"Sumber SIMANIS: "+sourceCount+" data<br>":"")+
-    (!r.file_name&&!r.integration_key?"Belum ada bukti file maupun sumber SIMANIS.":"");
+    (!r.file_name&&!r.generated_draft_id&&!r.integration_key?"Belum ada bukti yang dapat diverifikasi.":"");
   $("verifyStatus").value=r.status==="PERLU_REVISI"?"PERLU_REVISI":"LENGKAP";
   $("verifyNote").value=r.verification_note||"";
   $("verifyMessage").textContent="";
