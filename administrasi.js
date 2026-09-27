@@ -485,6 +485,36 @@ function printAdminReport(){
   w.document.close();
 }
 
+function closeGeneratedDraft(){
+  $("generatedDraftModal").classList.add("hidden");
+  generatedDraftCurrent=null;
+}
+async function openGeneratedDraft(recordId){
+  const row=rows.find(x=>x.record_id===recordId);if(!row)return;
+  $("generatedDraftTitle").textContent="Draft Otomatis · "+row.document_code.replace("ADM-","")+" · "+row.title;
+  $("generatedDraftInfo").textContent="Memuat draft...";
+  $("generatedDraftBody").innerHTML="";
+  $("generatedDraftModal").classList.remove("hidden");
+  try{
+    const data=await api.db.rpc("get_admin_document_generated_draft",{p_record_id:recordId})||[];
+    const d=Array.isArray(data)?data[0]:data;
+    if(!d)throw new Error("Draft otomatis tidak ditemukan.");
+    generatedDraftCurrent={...d,row};
+    const when=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(d.generated_at));
+    $("generatedDraftInfo").textContent=(d.generator_kind==="DATA"?"Berbasis data SIMANIS":"Template terstruktur")+" · versi "+d.version_no+" · dibuat "+when;
+    $("generatedDraftBody").innerHTML=d.content_html;
+  }catch(err){
+    $("generatedDraftInfo").textContent="Gagal memuat draft: "+(err.message||err);
+  }
+}
+function printGeneratedDraft(){
+  if(!generatedDraftCurrent)return;
+  const w=window.open("","_blank");if(!w){alert("Popup diblokir browser.");return}
+  const html="<!doctype html><html><head><meta charset=\"utf-8\"><title>Draft Administrasi</title><style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;color:#1d2a24;line-height:1.5}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #bfcac4;padding:6px;font-size:10px}h1{font-size:18px}h2{font-size:16px}h3{font-size:13px}</style></head><body>"+generatedDraftCurrent.content_html+"</body></html>";
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),250);
+}
 async function restWrite(path,method,body,prefer="return=representation"){
   const session=await api.auth.getSession(); if(!session?.access_token) throw new Error("Sesi login tidak ditemukan.");
   const cfg=window.SIMANIS_CONFIG;
@@ -529,6 +559,8 @@ async function openFile(recordId){
 $("docSearch").addEventListener("input",renderDocs);
 $("statusFilter").addEventListener("change",renderDocs);
 $("filePicker").addEventListener("change",e=>uploadFile(e.target.files?.[0]));
+$("generatedDraftClose").onclick=closeGeneratedDraft;$("generatedDraftDone").onclick=closeGeneratedDraft;$("generatedDraftPrint").onclick=printGeneratedDraft;
+$("generatedDraftModal").onclick=e=>{if(e.target===$("generatedDraftModal"))closeGeneratedDraft()};
 $("adminNotifBtn").onclick=openAdminNotifications;$("notificationClose").onclick=closeAdminNotifications;$("notificationDone").onclick=closeAdminNotifications;$("notificationReadAll").onclick=markAllAdminNotificationsRead;
 $("notificationModal").onclick=e=>{if(e.target===$("notificationModal"))closeAdminNotifications()};
 $("submitClose").onclick=closeSubmit;$("submitCancel").onclick=closeSubmit;$("submitSave").onclick=saveSubmission;
