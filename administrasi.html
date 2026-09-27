@@ -8,6 +8,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .attention-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+    .attention-kpi{background:#fff;border:1px solid #e1e9e5;border-radius:14px;padding:12px}
+    .attention-kpi span{font-size:8px;color:#718078}.attention-kpi b{display:block;font-size:18px;color:#0b5f3d;margin-top:4px}
+    .attention-list{display:grid;gap:8px}.attention-row{border:1px solid #e1e9e5;border-radius:11px;padding:10px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+    .attention-row h4{margin:0 0 3px;font-size:10px;color:#173f30}.attention-row p{margin:2px 0;font-size:8px;color:#718078}
+    .priority{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:7px;font-weight:900}.priority.NORMAL{background:#eef3f0;color:#5e6e66}.priority.PENTING{background:#fff0bd;color:#785b00}.priority.MENDESAK{background:#ffe5e0;color:#a13b33}
+    .due-overdue{color:#a13b33;font-weight:900}.due-soon{color:#8a6500;font-weight:900}
+    @media(max-width:850px){.attention-grid{grid-template-columns:1fr 1fr}.attention-row{grid-template-columns:1fr}}
+    @media(max-width:560px){.attention-grid{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
 <div id="loading" class="loading-overlay">Memuat Administrasi Kepala...</div>
@@ -57,6 +68,19 @@
         <article class="stat"><div class="stat-head"><span>Belum Ada</span><span class="stat-icon">!</span></div><div id="statMissing" class="stat-value">141</div><div class="stat-sub">Belum tersedia</div></article>
       </section>
 
+      <section id="attentionPanel" class="card" style="margin-bottom:14px">
+        <div class="card-title">
+          <div><h3>Perlu Perhatian</h3><span>Prioritas tindak lanjut dokumen administrasi</span></div>
+          <button id="attentionToggleBtn" class="secondary-btn" type="button" style="width:auto">Lihat Semua</button>
+        </div>
+        <div class="attention-grid">
+          <div class="attention-kpi"><span>Terlambat</span><b id="attentionOverdue">0</b></div>
+          <div class="attention-kpi"><span>Deadline ≤ 7 Hari</span><b id="attentionSoon">0</b></div>
+          <div class="attention-kpi"><span>Belum Ada PIC</span><b id="attentionUnassigned">0</b></div>
+        </div>
+        <div id="attentionList" class="attention-list"></div>
+      </section>
+
       <section id="categoryGrid" class="admin-category-grid"></section>
 
       <section class="admin-toolbar">
@@ -100,6 +124,23 @@
       <div id="verifyMessage" style="font-size:9px;color:#a13b33;margin-top:8px"></div>
     </div>
     <div class="modal-actions"><button id="verifyCancel" class="secondary-btn" type="button">Batal</button><button id="verifySave" class="primary-btn" type="button" style="width:auto">Simpan Verifikasi</button></div>
+  </div>
+</div>
+
+<div id="followupModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head"><h3 id="followupTitle">Tindak Lanjut Dokumen</h3><button id="followupClose" class="modal-close">✕</button></div>
+    <div class="modal-body">
+      <div id="followupInfo" style="background:#f7faf8;border:1px solid #e1e9e5;border-radius:11px;padding:10px;font-size:9px;margin-bottom:12px"></div>
+      <div class="form-grid">
+        <label><span>Penanggung Jawab / PIC</span><input id="followupPIC" type="text" placeholder="Nama penanggung jawab"></label>
+        <label><span>Target Selesai</span><input id="followupDueDate" type="date"></label>
+        <label><span>Prioritas</span><select id="followupPriority"><option value="NORMAL">Normal</option><option value="PENTING">Penting</option><option value="MENDESAK">Mendesak</option></select></label>
+        <label class="full"><span>Catatan Tindak Lanjut</span><textarea id="followupNote" rows="3" placeholder="Instruksi atau tindak lanjut..."></textarea></label>
+      </div>
+      <div id="followupMessage" style="font-size:9px;color:#a13b33;margin-top:8px"></div>
+    </div>
+    <div class="modal-actions"><button id="followupCancel" class="secondary-btn" type="button">Batal</button><button id="followupSave" class="primary-btn" type="button" style="width:auto">Simpan Tindak Lanjut</button></div>
   </div>
 </div>
 
