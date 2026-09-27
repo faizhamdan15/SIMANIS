@@ -24,6 +24,8 @@ let validationSummary = null;
 let validationReviewIndex = -1;
 let picTaskExpanded = false;
 let validationReturnAfterVerify = false;
+let attachmentTarget = null;
+let currentFinalDocument = null;
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -482,6 +484,8 @@ function renderDocs(){
       ${integrationBadge(r)}
       ${r.file_name?`<span class="doc-file">${esc(r.file_name)} · v${r.version_no||1}</span>`:""}
       ${r.generated_draft_id?`<span class="generated-badge">${esc(generatedDraftStateLabel(r.generated_draft_edit_state))} · ${esc(r.generated_draft_kind==="EVIDENCE"?"FORM BUKTI AKTUAL":r.generated_draft_kind||"TEMPLATE")} · v${r.generated_draft_version||1}</span>`:""}
+      ${Number(r.attachment_count||0)>0?`<span class="attachment-badge">${Number(r.attachment_count)} lampiran</span>`:""}
+      ${r.final_id?`<span class="final-badge">FINAL v${r.final_version||1}</span>`:""}
       ${r.manual_requirement_reason?`<span class="manual-badge" title="${esc(r.manual_requirement_reason)}">Butuh Bukti Aktual</span><span class="doc-file">${esc(r.manual_requirement_reason)}</span>`:""}
       ${verificationMeta(r)}
       ${submissionMeta(r)}
@@ -491,13 +495,19 @@ function renderDocs(){
       ${canVerify()?`<button data-followup="${r.record_id}">Tindak Lanjut</button>`:""}
       ${!canVerify()&&["DRAFT","PERLU_REVISI"].includes(r.status)&&(r.file_name||(r.generated_draft_id&&r.generated_draft_edit_state==="READY")||(r.integration_key&&Number(integrationSources.get(r.integration_key)||0)>0))?`<button class="primary-small" data-submit="${r.record_id}">Ajukan Verifikasi</button>`:""}
       ${!canVerify()&&r.status==="MENUNGGU_VERIFIKASI"?`<button type="button" disabled>Menunggu Kepala</button>`:""}
-      ${canVerify()&&r.status!=="BELUM_ADA"?`<button class="primary-small" data-verify="${r.record_id}">${r.status==="LENGKAP"?"Tinjau Ulang":"Verifikasi"}</button>`:""}
+      ${canVerify()&&r.status!=="BELUM_ADA"&&r.status!=="LENGKAP"?`<button class="primary-small" data-verify="${r.record_id}">Verifikasi</button>`:""}
+      ${canVerify()&&r.status==="LENGKAP"?`<button class="secondary-btn" data-reopen="${r.record_id}">Buka Revisi</button>`:""}
+      ${r.final_id?`<button class="primary-small" data-final="${r.record_id}">Lihat FINAL v${r.final_version||1}</button>`:""}
+      <button data-attachments="${r.record_id}">Lampiran${Number(r.attachment_count||0)>0?" ("+Number(r.attachment_count)+")":""}</button>
       <button data-history="${r.record_id}">Riwayat</button>
-      <button data-note="${r.record_id}">Catatan</button>${r.generated_draft_id?`<button data-generated="${r.record_id}">Buka Draft Kerja</button>`:""}${integrationButton(r)}${r.storage_path?`<button data-view="${r.record_id}">Lihat File</button>`:""}<button class="primary-small" data-upload="${r.record_id}">Upload</button>
+      ${r.status!=="LENGKAP"?`<button data-note="${r.record_id}">Catatan</button>`:""}${r.generated_draft_id?`<button data-generated="${r.record_id}">Buka Draft Kerja</button>`:""}${integrationButton(r)}${r.storage_path?`<button data-view="${r.record_id}">Lihat File</button>`:""}${r.status!=="LENGKAP"?`<button class="primary-small" data-upload="${r.record_id}">Upload</button>`:""}
     </div></article>`).join("");
   document.querySelectorAll("[data-followup]").forEach(el=>el.addEventListener("click",()=>openFollowup(el.dataset.followup)));
   document.querySelectorAll("[data-submit]").forEach(el=>el.addEventListener("click",()=>openSubmit(el.dataset.submit)));
   document.querySelectorAll("[data-verify]").forEach(el=>el.addEventListener("click",()=>openVerify(el.dataset.verify)));
+  document.querySelectorAll("[data-reopen]").forEach(el=>el.addEventListener("click",()=>reopenFinalDocument(el.dataset.reopen)));
+  document.querySelectorAll("[data-final]").forEach(el=>el.addEventListener("click",()=>openFinalDocument(el.dataset.final)));
+  document.querySelectorAll("[data-attachments]").forEach(el=>el.addEventListener("click",()=>openAttachmentModal(el.dataset.attachments)));
   document.querySelectorAll("[data-history]").forEach(el=>el.addEventListener("click",()=>openHistory(el.dataset.history)));
   document.querySelectorAll("[data-note]").forEach(el=>el.addEventListener("click",()=>editNote(el.dataset.note)));
   document.querySelectorAll("[data-generated]").forEach(el=>el.addEventListener("click",()=>openGeneratedDraft(el.dataset.generated)));
@@ -614,7 +624,8 @@ function openVerify(recordId){
     (r.file_name?"File: "+esc(r.file_name)+" (v"+(r.version_no||1)+")<br>":"")+
     (r.generated_draft_id?"Draft kerja: "+esc(generatedDraftStateLabel(r.generated_draft_edit_state))+" · v"+(r.generated_draft_version||1)+"<br>":"")+
     (r.integration_key?"Sumber SIMANIS: "+sourceCount+" data<br>":"")+
-    (!r.file_name&&!r.generated_draft_id&&!r.integration_key?"Belum ada bukti yang dapat diverifikasi.":"");
+    (Number(r.attachment_count||0)>0?"Lampiran bukti: "+Number(r.attachment_count)+" file<br>":"")+
+    (!r.file_name&&!r.generated_draft_id&&!r.integration_key&&!Number(r.attachment_count||0)?"Belum ada bukti yang dapat diverifikasi.":"");
   $("verifyStatus").value=r.status==="PERLU_REVISI"?"PERLU_REVISI":"LENGKAP";
   $("verifyNote").value=r.verification_note||"";
   $("verifyMessage").textContent="";
