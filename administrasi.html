@@ -28,6 +28,11 @@
     .status-MENUNGGU_VERIFIKASI{background:#e8f0ff!important;color:#315ea8!important}
     .notif-wrap{position:relative;display:inline-flex}.notif-badge{position:absolute;right:-5px;top:-7px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#b42318;color:#fff;font-size:7px;font-weight:900;display:none;align-items:center;justify-content:center;border:2px solid #fff}
     .notif-item{border:1px solid #e1e9e5;border-radius:11px;padding:10px;margin-bottom:8px;cursor:pointer;background:#fff}.notif-item.unread{background:#f3faf6;border-color:#b9dcca}.generated-badge{display:inline-flex;padding:3px 7px;border-radius:999px;background:#e9f7ef;color:#08733f;font-size:7px;font-weight:900}
+    .final-badge{display:inline-flex;padding:3px 8px;border-radius:999px;background:#173f30;color:#fff;font-size:7px;font-weight:900;letter-spacing:.4px}
+    .attachment-badge{display:inline-flex;padding:3px 7px;border-radius:999px;background:#eef3ff;color:#315ea8;font-size:7px;font-weight:900}
+    .final-meta-box{background:#f3faf6;border:1px solid #b9dcca;border-radius:11px;padding:10px;font-size:9px;margin-bottom:10px}
+    .checksum{font-family:monospace;font-size:8px;word-break:break-all;background:#f6f7f7;border-radius:7px;padding:6px;margin-top:5px}
+    .attachment-row{display:grid;grid-template-columns:90px 1fr auto;gap:9px;align-items:center;border:1px solid #e1e9e5;border-radius:10px;padding:9px;margin-bottom:7px}.attachment-row h4{margin:0;font-size:9px}.attachment-row p{margin:2px 0;font-size:8px;color:#718078}
     .manual-badge{display:inline-flex;padding:3px 7px;border-radius:999px;background:#fff0e8;color:#a44b1f;font-size:7px;font-weight:900}
     .generated-preview{font-family:Arial,sans-serif;color:#1d2a24;line-height:1.55}.generated-preview table{width:100%;border-collapse:collapse;margin:12px 0}.generated-preview th,.generated-preview td{border:1px solid #ccd8d1;padding:7px;font-size:9px}.generated-preview h1,.generated-preview h2,.generated-preview h3{color:#173f30}
     .draft-editor-toolbar{display:none;gap:5px;flex-wrap:wrap;padding:7px;background:#f5f8f6;border:1px solid #dce6e1;border-radius:10px;margin-bottom:8px;position:sticky;top:0;z-index:2}
@@ -172,6 +177,60 @@
 
 <input id="filePicker" class="file-hidden" type="file"
   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" />
+<input id="attachmentPicker" class="file-hidden" type="file"
+  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" />
+
+<div id="attachmentModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-head"><h3 id="attachmentTitle">Lampiran & Bukti Pendukung</h3><button id="attachmentClose" class="modal-close">✕</button></div>
+    <div class="modal-body">
+      <div id="attachmentLockInfo" style="display:none;background:#eef8f2;border:1px solid #badcc8;border-radius:10px;padding:9px;font-size:9px;margin-bottom:10px"><b>Dokumen FINAL terkunci.</b> Lampiran pada versi final tidak dapat ditambah atau dihapus. Buka revisi jika diperlukan.</div>
+      <div id="attachmentForm" class="form-grid" style="margin-bottom:12px">
+        <label><span>Jenis Lampiran</span>
+          <select id="attachmentType">
+            <option value="BUKTI">Bukti</option>
+            <option value="LAMPIRAN">Lampiran</option>
+            <option value="FOTO">Foto</option>
+            <option value="SERTIFIKAT">Sertifikat</option>
+            <option value="BERITA_ACARA">Berita Acara</option>
+            <option value="NOTA">Nota</option>
+            <option value="DAFTAR_HADIR">Daftar Hadir</option>
+            <option value="LAINNYA">Lainnya</option>
+          </select>
+        </label>
+        <label><span>Keterangan</span><input id="attachmentDescription" type="text" placeholder="Contoh: Daftar hadir rapat 12 September"></label>
+        <div class="full"><button id="attachmentAddBtn" class="primary-btn" type="button" style="width:auto">+ Tambah Lampiran</button></div>
+      </div>
+      <div id="attachmentList"></div>
+      <div id="attachmentMessage" style="font-size:9px;color:#a13b33;margin-top:8px"></div>
+    </div>
+    <div class="modal-actions"><button id="attachmentDone" class="primary-btn" type="button" style="width:auto">Selesai</button></div>
+  </div>
+</div>
+
+<div id="finalDocumentModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:980px">
+    <div class="modal-head"><h3 id="finalDocumentTitle">Dokumen FINAL</h3><button id="finalDocumentClose" class="modal-close">✕</button></div>
+    <div class="modal-body">
+      <div id="finalDocumentMeta" class="final-meta-box"></div>
+      <div id="finalDocumentArtifacts" style="margin-bottom:10px"></div>
+      <div id="finalDocumentBody" class="generated-preview"></div>
+    </div>
+    <div class="modal-actions" style="flex-wrap:wrap">
+      <button id="finalDocumentHistory" class="secondary-btn" type="button">Riwayat FINAL</button>
+      <button id="finalDocumentPrint" class="secondary-btn" type="button">Cetak FINAL / PDF</button>
+      <button id="finalDocumentDone" class="primary-btn" type="button" style="width:auto">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<div id="finalHistoryModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-head"><h3>Riwayat Versi FINAL</h3><button id="finalHistoryClose" class="modal-close">✕</button></div>
+    <div class="modal-body"><div id="finalHistoryList"></div></div>
+    <div class="modal-actions"><button id="finalHistoryDone" class="primary-btn" type="button" style="width:auto">Tutup</button></div>
+  </div>
+</div>
 
 <div id="validationReviewModal" class="modal-backdrop hidden">
   <div class="modal" style="max-width:860px">
@@ -337,6 +396,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="administrasi.js?v=20260927-09"></script>
+<script src="administrasi.js?v=20260928-01"></script>
 </body>
 </html>
