@@ -91,12 +91,20 @@ function renderPackage(){
 
   $("manifestCount").textContent=packageDocs.length+" dokumen";
   $("manifestBody").innerHTML=packageDocs.map(d=>{
-    const final=!!d.final_id;
-    const when=final?new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric"}).format(new Date(d.finalized_at)):"-";
+    const isFinal=!!d.final_id;
+    const when=isFinal?new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric"}).format(new Date(d.finalized_at)):"-";
     const artifacts=artifactCount(d);
-    return "<tr><td class=\"code\">"+esc(d.document_code.replace("ADM-",""))+"</td><td>"+esc(d.category_name)+"</td><td><b>"+esc(d.title)+"</b><div class=\"muted\">PIC: "+esc(d.responsible_name||"-")+"</div></td>"+
-      "<td>"+(final?'<span class="final-chip">FINAL v'+Number(d.final_version)+'</span><div class="muted">'+esc(d.final_source_kind||"")+" · "+esc(when)+"</div>':'<span class="missing-chip">BELUM FINAL</span>')+"</td>"+
-      "<td>"+esc(d.verified_by_name||"-")+"</td><td>"+(final?(artifacts+" file/lampiran"):"-")+"</td></tr>";
+    const statusHtml=isFinal
+      ? '<span class="final-chip">FINAL v'+Number(d.final_version)+'</span><div class="muted">'+esc(d.final_source_kind||"")+' · '+esc(when)+'</div>'
+      : '<span class="missing-chip">BELUM FINAL</span>';
+    return '<tr>'+
+      '<td class="code">'+esc(d.document_code.replace("ADM-",""))+'</td>'+
+      '<td>'+esc(d.category_name)+'</td>'+
+      '<td><b>'+esc(d.title)+'</b><div class="muted">PIC: '+esc(d.responsible_name||"-")+'</div></td>'+
+      '<td>'+statusHtml+'</td>'+
+      '<td>'+esc(d.verified_by_name||"-")+'</td>'+
+      '<td>'+(isFinal?(artifacts+" file/lampiran"):"-")+'</td>'+
+      '</tr>';
   }).join("");
 }
 function schoolAddress(){
