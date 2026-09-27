@@ -17,6 +17,9 @@
     .priority{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:7px;font-weight:900}.priority.NORMAL{background:#eef3f0;color:#5e6e66}.priority.PENTING{background:#fff0bd;color:#785b00}.priority.MENDESAK{background:#ffe5e0;color:#a13b33}
     .due-overdue{color:#a13b33;font-weight:900}.due-soon{color:#8a6500;font-weight:900}
     .status-MENUNGGU_VERIFIKASI{background:#e8f0ff!important;color:#315ea8!important}
+    .notif-wrap{position:relative;display:inline-flex}.notif-badge{position:absolute;right:-5px;top:-7px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#b42318;color:#fff;font-size:7px;font-weight:900;display:none;align-items:center;justify-content:center;border:2px solid #fff}
+    .notif-item{border:1px solid #e1e9e5;border-radius:11px;padding:10px;margin-bottom:8px;cursor:pointer;background:#fff}.notif-item.unread{background:#f3faf6;border-color:#b9dcca}.notif-item h4{margin:0 0 3px;font-size:10px;color:#173f30}.notif-item p{margin:2px 0;font-size:8px;color:#718078}.notif-time{font-size:7px;color:#87958e;margin-top:5px}
+    .doc-item.doc-highlight{outline:2px solid #12a97b;outline-offset:2px;background:#f4fbf7}
     .stats{grid-template-columns:repeat(5,1fr)}
     @media(max-width:1050px){.stats{grid-template-columns:repeat(3,1fr)}}
     @media(max-width:850px){.attention-grid{grid-template-columns:1fr 1fr}.attention-row{grid-template-columns:1fr}}
@@ -54,6 +57,7 @@
             <p>Kontrol kelengkapan 141 dokumen administrasi MA Nurul Islam dalam satu dashboard.</p>
           </div>
           <div id="adminReportActions" style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="notif-wrap"><button id="adminNotifBtn" class="secondary-btn" type="button">Notifikasi</button><span id="adminNotifBadge" class="notif-badge">0</span></span>
             <button id="picSummaryBtn" class="secondary-btn" type="button" style="display:none">PIC Kategori</button>
             <button id="exportAdminCsvBtn" class="secondary-btn" type="button">Export CSV</button>
             <button id="printAdminReportBtn" class="primary-btn" type="button" style="width:auto">Cetak Rekap / PDF</button>
@@ -121,6 +125,17 @@
 
 <input id="filePicker" class="file-hidden" type="file"
   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" />
+
+<div id="notificationModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-head"><h3>Notifikasi Administrasi</h3><button id="notificationClose" class="modal-close">✕</button></div>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button id="notificationReadAll" class="secondary-btn" type="button" style="width:auto">Tandai Semua Dibaca</button></div>
+      <div id="notificationList"></div>
+    </div>
+    <div class="modal-actions"><button id="notificationDone" class="primary-btn" type="button" style="width:auto">Tutup</button></div>
+  </div>
+</div>
 
 <div id="submitModal" class="modal-backdrop hidden">
   <div class="modal" style="max-width:520px">
