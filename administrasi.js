@@ -494,35 +494,207 @@ function printAdminReport(){
   w.document.close();
 }
 
-function closeGeneratedDraft(){
+function cleanGeneratedDraftHtml(html){
+  const tpl=document.createElement("template");
+  tpl.innerHTML=String(html||'');
+  tpl.content.querySelectorAll("script,iframe,object,embed,form,meta,base").forEach(el=>el.remove());
+  tpl.content.querySelectorAll("*").forEach(el=>{
+    [...el.attributes].forEach(a=>{
+      const n=a.name.toLowerCase(),v=String(a.value||"").trim().toLowerCase();
+      if(n.startsWith("on")||v.startsWith("javascript:")||v.startsWith("data:text/html"))el.removeAttribute(a.name);
+    });
+  });
+  return tpl.innerHTML;
+}
+function setGeneratedDraftSaveState(text,state){
+  const el=$("generatedDraftSaveState");if(!el)return;
+  el.textContent=text;
+  el.className="draft-save-state"+(state?" "+state:"");
+}
+function generatedDraftCanEdit(){
+  return !!generatedDraftCurrent?.can_edit && ["DRAFT","PERLU_REVISI"].includes(generatedDraftCurrent?.row?.status);
+}
+function updateGeneratedDraftControls(){
+  if(!generatedDraftCurrent)return;
+  const d=generatedDraftCurrent,row=d.row,canEdit=generatedDraftCanEdit();
+  const kind=d.generator_kind==="DATA"?"Berbasis data SIMANIS":"Template terstruktur";
+  const made=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(d.generated_at));
+  const edited=d.edited_at?new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(d.edited_at)):null;
+  $("generatedDraftInfo").textContent=kind+" · versi "+d.version_no+" · dibuat "+made+(edited?" · terakhir diedit "+edited+(d.edited_by_name?" oleh "+d.edited_by_name:""):"");
+  $("generatedDraftEdit").style.display=canEdit?"inline-flex":"none";
+  $("generatedDraftRegenerate").style.display=canEdit?"inline-flex":"none";
+  $("generatedDraftSaveVersion").style.display=generatedDraftEditing&&canEdit?"inline-flex":"none";
+  $("generatedDraftReady").style.display=generatedDraftEditing&&canEdit?"inline-flex":"none";
+  $("generatedDraftSubmit").style.display=!canVerify()&&d.edit_state==="READY"&&["DRAFT","PERLU_REVISI"].includes(row.status)?"inline-flex":"none";
+  $("generatedDraftEdit").textContent=generatedDraftEditing?"Selesai Edit":"Edit Draft";
+  if(generatedDraftSaving)setGeneratedDraftSaveState('Menyimpan...','saving');
+  else if(d.edit_state==='READY')setGeneratedDraftSaveState('Siap Diverifikasi','saved');
+  else if(d.edit_state==='EDITING')setGeneratedDraftSaveState('Sedang Diedit','saved');
+  else setGeneratedDraftSaveState('Draft Otomatis','');
+}
+function setGeneratedDraftEditing(enabled){
+  if(!generatedDraftCurrent)return;
+  if(enabled&&!generatedDraftCanEdit())return;
+  generatedDraftEditing=!!enabled;
+  const body=$("generatedDraftBody");
+  body.setAttribute("contenteditable",generatedDraftEditing?"true":"false");
+  body.classList.toggle("editing",generatedDraftEditing);
+  $("generatedDraftToolbar").classList.toggle("active",generatedDraftEditing);
+  if(generatedDraftEditing){body.focus();}
+  updateGeneratedDraftControls();
+}
+async function closeGeneratedDraft(){
+  if(generatedDraftEditing){
+    const ok=await flushGeneratedDraftAutosave();
+    if(!ok)return;
+  }
+  clearTimeout(generatedDraftAutosaveTimer);
+  generatedDraftAutosaveTimer=null;
+  generatedDraftEditing=false;
   $("generatedDraftModal").classList.add("hidden");
   generatedDraftCurrent=null;
+  await loadData();
 }
 async function openGeneratedDraft(recordId){
   const row=rows.find(x=>x.record_id===recordId);if(!row)return;
-  $("generatedDraftTitle").textContent="Draft Otomatis · "+row.document_code.replace("ADM-","")+" · "+row.title;
+  $("generatedDraftTitle").textContent="Draft Kerja · "+row.document_code.replace("ADM-","")+" · "+row.title;
   $("generatedDraftInfo").textContent="Memuat draft...";
   $("generatedDraftBody").innerHTML="";
+  generatedDraftEditing=false;
+  $("generatedDraftToolbar").classList.remove("active");
+  $("generatedDraftBody").classList.remove("editing");
+  $("generatedDraftBody").setAttribute("contenteditable","false");
   $("generatedDraftModal").classList.remove("hidden");
   try{
-    const data=await api.db.rpc("get_admin_document_generated_draft",{p_record_id:recordId})||[];
+    const results=await Promise.all([
+      api.db.rpc("get_admin_document_generated_draft",{p_record_id:recordId}),
+      api.db.rpc("has_admin_category_permission",{p_category_id:row.category_id,p_action:"update"}).catch(()=>false)
+    ]);
+    const data=results[0]||[],canEdit=!!results[1];
     const d=Array.isArray(data)?data[0]:data;
     if(!d)throw new Error("Draft otomatis tidak ditemukan.");
-    generatedDraftCurrent={...d,row};
-    const when=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(d.generated_at));
-    $("generatedDraftInfo").textContent=(d.generator_kind==="DATA"?"Berbasis data SIMANIS":"Template terstruktur")+" · versi "+d.version_no+" · dibuat "+when;
+    generatedDraftCurrent={...d,row,can_edit:canEdit};
     $("generatedDraftBody").innerHTML=d.content_html;
+    updateGeneratedDraftControls();
   }catch(err){
     $("generatedDraftInfo").textContent="Gagal memuat draft: "+(err.message||err);
+    setGeneratedDraftSaveState("Gagal memuat","error");
   }
+}
+function scheduleGeneratedDraftAutosave(){
+  if(!generatedDraftEditing||!generatedDraftCurrent)return;
+  clearTimeout(generatedDraftAutosaveTimer);
+  setGeneratedDraftSaveState('Perubahan belum disimpan','saving');
+  generatedDraftAutosaveTimer=setTimeout(()=>saveGeneratedDraft(false,null),1200);
+}
+async function saveGeneratedDraft(createVersion=false,note=null){
+  if(!generatedDraftCurrent||!generatedDraftCanEdit())return false;
+  if(generatedDraftSaving)return false;
+  clearTimeout(generatedDraftAutosaveTimer);generatedDraftAutosaveTimer=null;
+  generatedDraftSaving=true;setGeneratedDraftSaveState('Menyimpan...','saving');
+  try{
+    const html=cleanGeneratedDraftHtml($("generatedDraftBody").innerHTML);
+    $("generatedDraftBody").innerHTML=html;
+    const result=await api.db.rpc("save_admin_document_generated_draft",{p_record_id:generatedDraftCurrent.row.record_id,p_content_html:html,p_create_version:!!createVersion,p_save_note:note||null});
+    generatedDraftCurrent.content_html=html;
+    generatedDraftCurrent.edit_state='EDITING';
+    generatedDraftCurrent.edited_at=new Date().toISOString();
+    generatedDraftCurrent.edited_by_name=profile?.full_name||null;
+    if(result?.version_no){generatedDraftCurrent.version_no=Number(result.version_no);generatedDraftCurrent.row.generated_draft_version=Number(result.version_no);}
+    generatedDraftCurrent.row.generated_draft_edit_state='EDITING';
+    setGeneratedDraftSaveState(createVersion?'Versi baru tersimpan':'Tersimpan otomatis','saved');
+    return true;
+  }catch(err){
+    setGeneratedDraftSaveState("Gagal menyimpan","error");
+    alert("Draft gagal disimpan: "+(err.message||err));
+    return false;
+  }finally{
+    generatedDraftSaving=false;updateGeneratedDraftControls();
+  }
+}
+async function flushGeneratedDraftAutosave(){
+  if(!generatedDraftEditing||!generatedDraftCurrent)return true;
+  if(generatedDraftAutosaveTimer){clearTimeout(generatedDraftAutosaveTimer);generatedDraftAutosaveTimer=null;return await saveGeneratedDraft(false,null);}
+  return true;
+}
+async function saveGeneratedDraftVersion(){
+  const note=prompt('Catatan versi (opsional):','');if(note===null)return;
+  await saveGeneratedDraft(true,note.trim()||null);
+}
+async function markGeneratedDraftReady(){
+  if(!generatedDraftCurrent)return;
+  const ok=await flushGeneratedDraftAutosave();if(!ok)return;
+  try{
+    await api.db.rpc("mark_admin_generated_draft_ready",{p_record_id:generatedDraftCurrent.row.record_id});
+    generatedDraftCurrent.edit_state='READY';
+    generatedDraftCurrent.row.generated_draft_edit_state='READY';
+    generatedDraftEditing=false;
+    $("generatedDraftBody").setAttribute("contenteditable","false");
+    $("generatedDraftBody").classList.remove("editing");
+    $("generatedDraftToolbar").classList.remove("active");
+    updateGeneratedDraftControls();
+  }catch(err){alert('Gagal menandai draft siap: '+(err.message||err));}
+}
+async function openDraftVersionHistory(){
+  if(!generatedDraftCurrent)return;
+  $("draftVersionList").innerHTML='<div class="admin-empty">Memuat riwayat versi...</div>';
+  $("draftVersionModal").classList.remove("hidden");
+  try{
+    const versions=await api.db.rpc("list_admin_document_generated_draft_versions",{p_record_id:generatedDraftCurrent.row.record_id})||[];
+    const canRestore=generatedDraftCanEdit();
+    $("draftVersionList").innerHTML=versions.length?versions.map(v=>{
+      const when=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(v.edited_at||v.generated_at));
+      return '<div class="draft-version-row '+(v.is_current?"current":"")+'"><b>v'+v.version_no+(v.is_current?" · Aktif":"")+'</b><div><div style="font-size:9px;font-weight:800">'+esc(generatedDraftStateLabel(v.edit_state))+'</div><div style="font-size:8px;color:#718078">'+esc(when)+(v.edited_by_name?" · "+esc(v.edited_by_name):v.generated_by_name?" · "+esc(v.generated_by_name):"")+(v.save_note?" · "+esc(v.save_note):"")+'</div></div>'+(!v.is_current&&canRestore?'<button class="secondary-btn" type="button" data-restore-version="'+v.version_no+'">Pulihkan</button>':'')+'</div>';
+    }).join(''):'<div class="admin-empty">Belum ada riwayat versi.</div>';
+    $("draftVersionList").querySelectorAll("[data-restore-version]").forEach(b=>b.onclick=()=>restoreGeneratedDraftVersion(Number(b.dataset.restoreVersion)));
+  }catch(err){
+    $("draftVersionList").innerHTML='<div class="admin-empty">Riwayat versi gagal dimuat: '+esc(err.message||err)+'</div>';
+  }
+}
+function closeDraftVersionHistory(){$("draftVersionModal").classList.add("hidden")}
+async function restoreGeneratedDraftVersion(versionNo){
+  if(!generatedDraftCurrent)return;
+  if(!confirm('Pulihkan versi '+versionNo+'? Sistem akan membuat versi baru dari versi tersebut; versi sekarang tetap tersimpan di riwayat.'))return;
+  const recordId=generatedDraftCurrent.row.record_id;
+  try{
+    await api.db.rpc("restore_admin_document_generated_draft_version",{p_record_id:recordId,p_version_no:versionNo});
+    closeDraftVersionHistory();
+    await loadData();
+    await openGeneratedDraft(recordId);
+  }catch(err){alert('Gagal memulihkan versi: '+(err.message||err));}
+}
+async function regenerateGeneratedDraft(){
+  if(!generatedDraftCurrent||!generatedDraftCanEdit())return;
+  const recordId=generatedDraftCurrent.row.record_id;
+  if(!confirm('Generate ulang dari template/data SIMANIS? Versi edit saat ini tetap disimpan di Riwayat Versi, tetapi hasil generate baru akan menjadi versi aktif.'))return;
+  const ok=await flushGeneratedDraftAutosave();if(!ok)return;
+  try{
+    await api.db.rpc("generate_admin_document_draft",{p_record_id:recordId});
+    await loadData();
+    await openGeneratedDraft(recordId);
+  }catch(err){alert('Generate ulang gagal: '+(err.message||err));}
+}
+function insertGeneratedDraftTable(){
+  if(!generatedDraftEditing)return;
+  const html='<table><tbody><tr><th>Kolom 1</th><th>Kolom 2</th></tr><tr><td>...</td><td>...</td></tr></tbody></table><p><br></p>';
+  document.execCommand("insertHTML",false,html);
+  $("generatedDraftBody").focus();scheduleGeneratedDraftAutosave();
+}
+async function submitGeneratedDraft(){
+  if(!generatedDraftCurrent)return;
+  const recordId=generatedDraftCurrent.row.record_id;
+  const ok=await flushGeneratedDraftAutosave();if(!ok)return;
+  generatedDraftEditing=false;
+  $("generatedDraftModal").classList.add("hidden");
+  generatedDraftCurrent=null;
+  const row=rows.find(r=>r.record_id===recordId);if(row){row.generated_draft_edit_state='READY';openSubmit(recordId);}
 }
 function printGeneratedDraft(){
   if(!generatedDraftCurrent)return;
   const w=window.open("","_blank");if(!w){alert("Popup diblokir browser.");return}
-  const html="<!doctype html><html><head><meta charset=\"utf-8\"><title>Draft Administrasi</title><style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;color:#1d2a24;line-height:1.5}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #bfcac4;padding:6px;font-size:10px}h1{font-size:18px}h2{font-size:16px}h3{font-size:13px}</style></head><body>"+generatedDraftCurrent.content_html+"</body></html>";
-  w.document.write(html);
-  w.document.close();
-  setTimeout(()=>w.print(),250);
+  const content=cleanGeneratedDraftHtml($("generatedDraftBody").innerHTML||generatedDraftCurrent.content_html);
+  const html="<!doctype html><html><head><meta charset=\"utf-8\"><title>Draft Administrasi</title><style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;color:#1d2a24;line-height:1.5}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #bfcac4;padding:6px;font-size:10px}h1{font-size:18px}h2{font-size:16px}h3{font-size:13px}</style></head><body>"+content+"</body></html>";
+  w.document.write(html);w.document.close();setTimeout(()=>w.print(),250);
 }
 async function restWrite(path,method,body,prefer="return=representation"){
   const session=await api.auth.getSession(); if(!session?.access_token) throw new Error("Sesi login tidak ditemukan.");
