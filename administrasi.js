@@ -89,7 +89,7 @@ function integrationBadge(r){
 }
 function integrationButton(r){
   const route=r.integration_key?integrationRoute(r.integration_key):null;
-  return route?'<a href="'+route+'" style="text-decoration:none"><button type="button">Buka Sumber</button></a>':"";
+  return route?'<a href="'+route+'" class="secondary-btn" style="text-decoration:none;display:inline-flex;align-items:center">Buka Sumber</a>':"";
 }
 function generatedDraftStateLabel(state){
   return {AUTO:"Draft Otomatis",EDITING:"Sedang Diedit",READY:"Siap Diverifikasi"}[state]||"Draft Otomatis";
@@ -1166,17 +1166,6 @@ function printGeneratedDraft(){
   const content=cleanGeneratedDraftHtml($("generatedDraftBody").innerHTML||generatedDraftCurrent.content_html);
   const html="<!doctype html><html><head><meta charset=\"utf-8\"><title>Draft Administrasi</title><style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;color:#1d2a24;line-height:1.5}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #bfcac4;padding:6px;font-size:10px}h1{font-size:18px}h2{font-size:16px}h3{font-size:13px}</style></head><body>"+content+"</body></html>";
   w.document.write(html);w.document.close();setTimeout(()=>w.print(),250);
-}
-async function restWrite(path,method,body,prefer="return=representation"){
-  const session=await api.auth.getSession(); if(!session?.access_token) throw new Error("Sesi login tidak ditemukan.");
-  const cfg=window.SIMANIS_CONFIG;
-  const res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/rest/v1/${path}`,{method,headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":"application/json",Prefer:prefer},body:body===undefined?undefined:JSON.stringify(body)});
-  const text=await res.text(); let data=null; try{data=text?JSON.parse(text):null}catch{data=text}
-  if(!res.ok) throw new Error(data?.message||data?.error||text||`HTTP ${res.status}`); return data;
-}
-async function updateStatus(recordId,status){
-  try{await restWrite(`admin_document_records?id=eq.${encodeURIComponent(recordId)}`,"PATCH",{status,completed_at:status==="LENGKAP"?new Date().toISOString():null});await loadData();}
-  catch(err){alert("Gagal mengubah status: "+err.message);await loadData();}
 }
 async function editNote(recordId){
   const row=rows.find(r=>r.record_id===recordId), note=prompt("Catatan dokumen:",row?.note||""); if(note===null)return;
