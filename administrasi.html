@@ -18,6 +18,12 @@
     .pic-task-kpi{border:1px solid #e1e9e5;border-radius:12px;padding:10px;background:#fff}.pic-task-kpi span{display:block;font-size:8px;color:#718078}.pic-task-kpi b{display:block;font-size:17px;color:#0b5f3d;margin-top:3px}
     .pic-task-row{border:1px solid #e1e9e5;border-radius:11px;padding:10px;display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center}
     .pic-task-score{font-size:15px;font-weight:900;color:#0b5f3d}.pic-task-row h4{margin:0 0 3px;font-size:10px;color:#173f30}.pic-task-row p{margin:2px 0;font-size:8px;color:#718078}.task-action-text{font-size:8px;font-weight:800;color:#8a6500}
+    .pic-monitor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .pic-monitor-card{border:1px solid #e1e9e5;border-radius:14px;padding:12px;background:#fff}
+    .pic-monitor-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.pic-monitor-head h4{margin:0;font-size:10px;color:#173f30}.pic-monitor-head p{margin:3px 0 0;font-size:8px;color:#718078}
+    .pic-monitor-score{font-size:16px;font-weight:900;color:#0b5f3d;white-space:nowrap}.pic-monitor-track{height:6px;background:#edf2ef;border-radius:999px;overflow:hidden;margin:9px 0}.pic-monitor-track div{height:100%;background:#12a97b}
+    .pic-monitor-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:8px 0}.pic-monitor-stat{background:#f7faf8;border-radius:8px;padding:6px;text-align:center}.pic-monitor-stat b{display:block;font-size:11px;color:#173f30}.pic-monitor-stat span{font-size:7px;color:#718078}
+    .pic-monitor-foot{font-size:7px;color:#718078;margin:7px 0}.pic-monitor-actions{display:flex;gap:6px;flex-wrap:wrap}.pic-monitor-actions button{width:auto;font-size:8px}
     .attention-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
     .attention-kpi{background:#fff;border:1px solid #e1e9e5;border-radius:14px;padding:12px}
     .attention-kpi span{font-size:8px;color:#718078}.attention-kpi b{display:block;font-size:18px;color:#0b5f3d;margin-top:4px}
@@ -44,9 +50,9 @@
     .notif-item h4{margin:0 0 3px;font-size:10px;color:#173f30}.notif-item p{margin:2px 0;font-size:8px;color:#718078}.notif-time{font-size:7px;color:#87958e;margin-top:5px}
     .doc-item.doc-highlight{outline:2px solid #12a97b;outline-offset:2px;background:#f4fbf7}
     .stats{grid-template-columns:repeat(5,1fr)}
-    @media(max-width:1050px){.stats{grid-template-columns:repeat(3,1fr)}.validation-kpi-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:1050px){.stats{grid-template-columns:repeat(3,1fr)}.validation-kpi-grid{grid-template-columns:repeat(3,1fr)}.pic-monitor-grid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:850px){.attention-grid{grid-template-columns:1fr 1fr}.attention-row{grid-template-columns:1fr}.validation-row{grid-template-columns:60px 1fr}.validation-row>div:last-child{grid-column:1/-1}.validation-checks{grid-template-columns:1fr}.pic-task-grid{grid-template-columns:1fr 1fr}.pic-task-row{grid-template-columns:56px 1fr}.pic-task-row>div:last-child{grid-column:1/-1}}
-    @media(max-width:560px){.attention-grid{grid-template-columns:1fr}}
+    @media(max-width:560px){.attention-grid{grid-template-columns:1fr}.pic-monitor-grid{grid-template-columns:1fr}.pic-monitor-stats{grid-template-columns:repeat(2,1fr)}}
   </style>
 </head>
 <body>
@@ -114,6 +120,14 @@
           <div class="validation-kpi"><span>Lengkap Terverifikasi</span><b id="validationVerified">0</b></div>
         </div>
         <div id="validationPriorityList" class="attention-list"></div>
+      </section>
+
+      <section id="picMonitoringPanel" class="card" style="margin-bottom:14px;display:none">
+        <div class="card-title">
+          <div><h3>Monitoring PIC Administrasi</h3><span>Progres per kategori, kesiapan, FINAL, dan tindak lanjut PIC</span></div>
+          <span id="picMonitoringSummary">0 kategori</span>
+        </div>
+        <div id="picMonitoringGrid" class="pic-monitor-grid"></div>
       </section>
 
       <section id="picTaskCenter" class="card" style="margin-bottom:14px;display:none">
@@ -397,6 +411,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="administrasi.js?v=20260928-04"></script>
+<script src="administrasi.js?v=20260928-05"></script>
 </body>
 </html>
