@@ -65,8 +65,17 @@
       <section class="stats">
         <article class="stat"><div class="stat-head"><span>Lengkap</span><span class="stat-icon">✓</span></div><div id="statComplete" class="stat-value">0</div><div class="stat-sub">Dokumen lengkap</div></article>
         <article class="stat"><div class="stat-head"><span>Draft</span><span class="stat-icon">📝</span></div><div id="statDraft" class="stat-value">0</div><div class="stat-sub">Sedang disiapkan</div></article>
+        <article class="stat"><div class="stat-head"><span>Menunggu Verifikasi</span><span class="stat-icon">⌛</span></div><div id="statPending" class="stat-value">0</div><div class="stat-sub">Menunggu Kepala Madrasah</div></article>
         <article class="stat"><div class="stat-head"><span>Perlu Revisi</span><span class="stat-icon">↻</span></div><div id="statRevision" class="stat-value">0</div><div class="stat-sub">Perlu ditindaklanjuti</div></article>
         <article class="stat"><div class="stat-head"><span>Belum Ada</span><span class="stat-icon">!</span></div><div id="statMissing" class="stat-value">141</div><div class="stat-sub">Belum tersedia</div></article>
+      </section>
+
+      <section id="verificationQueue" class="card" style="margin-bottom:14px;display:none">
+        <div class="card-title">
+          <div><h3>Menunggu Verifikasi</h3><span>Dokumen yang sudah diajukan PIC dan menunggu keputusan Kepala Madrasah</span></div>
+          <span id="verificationQueueCount">0 dokumen</span>
+        </div>
+        <div id="verificationQueueList" class="attention-list"></div>
       </section>
 
       <section id="attentionPanel" class="card" style="margin-bottom:14px">
@@ -90,6 +99,7 @@
           <option value="">Semua Status</option>
           <option value="BELUM_ADA">Belum Ada</option>
           <option value="DRAFT">Draft</option>
+          <option value="MENUNGGU_VERIFIKASI">Menunggu Verifikasi</option>
           <option value="PERLU_REVISI">Perlu Revisi</option>
           <option value="LENGKAP">Lengkap</option>
         </select>
@@ -108,6 +118,18 @@
 
 <input id="filePicker" class="file-hidden" type="file"
   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" />
+
+<div id="submitModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h3 id="submitTitle">Ajukan Verifikasi</h3><button id="submitClose" class="modal-close">✕</button></div>
+    <div class="modal-body">
+      <div id="submitEvidence" style="background:#f7faf8;border:1px solid #e1e9e5;border-radius:11px;padding:10px;font-size:9px;margin-bottom:12px"></div>
+      <label><span>Catatan untuk Kepala Madrasah</span><textarea id="submitNote" rows="4" placeholder="Contoh: Dokumen sudah diperbarui dan siap diperiksa."></textarea></label>
+      <div id="submitMessage" style="font-size:9px;color:#a13b33;margin-top:8px"></div>
+    </div>
+    <div class="modal-actions"><button id="submitCancel" class="secondary-btn" type="button">Batal</button><button id="submitSave" class="primary-btn" type="button" style="width:auto">Ajukan Verifikasi</button></div>
+  </div>
+</div>
 
 <div id="picModal" class="modal-backdrop hidden">
   <div class="modal" style="max-width:760px">
