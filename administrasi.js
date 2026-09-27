@@ -516,6 +516,188 @@ function renderDocs(){
 }
 
 
+
+async function openStoragePath(path){
+  if(!path)return;
+  const session=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG;
+  try{
+    const base=cfg.SUPABASE_URL.replace(/\/$/,"");
+    const res=await fetch(base+"/storage/v1/object/sign/administrasi-kepala/"+encodePath(path),{
+      method:"POST",
+      headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":"application/json"},
+      body:JSON.stringify({expiresIn:3600})
+    });
+    const data=await res.json();
+    if(!res.ok)throw new Error(data?.message||"Gagal membuat link file.");
+    const signed=data.signedURL||data.signedUrl;
+    if(!signed)throw new Error("Signed URL tidak diterima.");
+    window.open(signed.startsWith("http")?signed:base+"/storage/v1"+signed,"_blank");
+  }catch(err){alert("File gagal dibuka: "+(err.message||err))}
+}
+async function openAttachmentModal(recordId){
+  const row=rows.find(r=>r.record_id===recordId);if(!row)return;
+  attachmentTarget=row;
+  $("attachmentTitle").textContent="Lampiran · "+row.document_code.replace("ADM-","")+" · "+row.title;
+  $("attachmentDescription").value="";
+  $("attachmentType").value="BUKTI";
+  $("attachmentMessage").textContent="";
+  const locked=row.status==="LENGKAP";
+  $("attachmentForm").style.display=locked?"none":"grid";
+  $("attachmentLockInfo").style.display=locked?"block":"none";
+  $("attachmentModal").classList.remove("hidden");
+  await loadAttachmentList();
+}
+function closeAttachmentModal(){
+  $("attachmentModal").classList.add("hidden");
+  attachmentTarget=null;
+  $("attachmentMessage").textContent="";
+}
+async function loadAttachmentList(){
+  if(!attachmentTarget)return;
+  $("attachmentList").innerHTML='<div class="admin-empty">Memuat lampiran...</div>';
+  try{
+    const list=await api.db.rpc("list_admin_document_attachments",{p_record_id:attachmentTarget.record_id})||[];
+    const locked=attachmentTarget.status==="LENGKAP";
+    $("attachmentList").innerHTML=list.length?list.map(a=>{
+      const when=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(a.uploaded_at));
+      return '<div class="attachment-row"><span class="attachment-badge">'+esc(String(a.attachment_type||"BUKTI").replaceAll("_"," "))+'</span><div><h4>'+esc(a.file_name)+'</h4><p>'+esc(a.description||"Tanpa keterangan")+' · '+esc(a.uploaded_by_name||"-")+' · '+esc(when)+'</p></div><div style="display:flex;gap:5px;flex-wrap:wrap"><button type="button" data-open-attachment="'+esc(a.storage_path)+'">Buka</button>'+(!locked?'<button type="button" data-remove-attachment="'+a.id+'">Hapus</button>':'')+'</div></div>';
+    }).join(""):'<div class="admin-empty">Belum ada lampiran bukti.</div>';
+    $("attachmentList").querySelectorAll("[data-open-attachment]").forEach(b=>b.onclick=()=>openStoragePath(b.dataset.openAttachment));
+    $("attachmentList").querySelectorAll("[data-remove-attachment]").forEach(b=>b.onclick=()=>removeAttachment(b.dataset.removeAttachment));
+  }catch(err){
+    $("attachmentList").innerHTML='<div class="admin-empty">Lampiran gagal dimuat: '+esc(err.message||err)+'</div>';
+  }
+}
+async function uploadAttachment(file){
+  if(!attachmentTarget||!file)return;
+  if(attachmentTarget.status==="LENGKAP"){alert("Dokumen FINAL terkunci.");return}
+  if(file.size>20*1024*1024){alert("Ukuran file maksimal 20 MB.");return}
+  const recordId=attachmentTarget.record_id;
+  const code=attachmentTarget.document_code;
+  const session=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG;
+  const base=cfg.SUPABASE_URL.replace(/\/$/,"");
+  const safe=file.name.replace(/[^a-zA-Z0-9._-]+/g,"_");
+  const path="2026-2027/"+code+"/attachments/"+Date.now()+"_"+safe;
+  let uploaded=false;
+  try{
+    $("attachmentMessage").style.color="#66766e";
+    $("attachmentMessage").textContent="Mengupload lampiran...";
+    const resp=await fetch(base+"/storage/v1/object/administrasi-kepala/"+encodePath(path),{
+      method:"POST",
+      headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:"Bearer "+session.access_token,"Content-Type":file.type||"application/octet-stream","x-upsert":"false"},
+      body:file
+    });
+    const txt=await resp.text();if(!resp.ok)throw new Error(txt||("HTTP "+resp.status));
+    uploaded=true;
+    await api.db.rpc("register_admin_document_attachment",{
+      p_record_id:recordId,p_storage_path:path,p_file_name:file.name,p_mime_type:file.type||null,p_file_size:file.size,
+      p_attachment_type:$("attachmentType").value,p_description:$("attachmentDescription").value.trim()||null
+    });
+    $("attachmentDescription").value="";
+    $("attachmentMessage").style.color="#08733f";
+    $("attachmentMessage").textContent="Lampiran berhasil ditambahkan.";
+    await loadData();
+    attachmentTarget=rows.find(r=>r.record_id===recordId)||attachmentTarget;
+    await loadAttachmentList();
+  }catch(err){
+    if(uploaded){
+      try{
+        await fetch(base+"/storage/v1/object/administrasi-kepala/"+encodePath(path),{
+          method:"DELETE",
+          headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:"Bearer "+session.access_token}
+        });
+      }catch(_){}
+    }
+    $("attachmentMessage").style.color="#a13b33";
+    $("attachmentMessage").textContent="Upload gagal: "+(err.message||err);
+  }
+}
+async function removeAttachment(id){
+  if(!attachmentTarget||!confirm("Hapus lampiran ini dari dokumen kerja?"))return;
+  const recordId=attachmentTarget.record_id;
+  try{
+    await api.db.rpc("remove_admin_document_attachment",{p_attachment_id:id});
+    await loadData();
+    attachmentTarget=rows.find(r=>r.record_id===recordId)||attachmentTarget;
+    await loadAttachmentList();
+  }catch(err){alert("Lampiran gagal dihapus: "+(err.message||err))}
+}
+function finalArtifactList(data){
+  const files=Array.isArray(data.file_snapshot)?data.file_snapshot:[];
+  const atts=Array.isArray(data.attachments_snapshot)?data.attachments_snapshot:[];
+  const all=[
+    ...files.map(x=>Object.assign({},x,{label:"File Utama"})),
+    ...atts.map(x=>Object.assign({},x,{label:String(x.attachment_type||"Lampiran").replaceAll("_"," ")}))
+  ];
+  if(!all.length)return '<div class="admin-empty">Versi final ini tidak memiliki file tambahan; isi utama tersimpan sebagai snapshot dokumen/data.</div>';
+  return all.map((a,i)=>'<div class="attachment-row"><span class="attachment-badge">'+esc(a.label)+'</span><div><h4>'+esc(a.file_name||("Artefak "+(i+1)))+'</h4><p>'+esc(a.description||a.mime_type||"Arsip FINAL")+'</p></div><div><button type="button" data-final-artifact="'+esc(a.storage_path||"")+'">Buka</button></div></div>').join("");
+}
+async function openFinalDocument(recordId,version=null){
+  const row=rows.find(r=>r.record_id===recordId);if(!row)return;
+  $("finalDocumentTitle").textContent="FINAL · "+row.document_code.replace("ADM-","")+" · "+row.title;
+  $("finalDocumentMeta").innerHTML="Memuat versi final...";
+  $("finalDocumentArtifacts").innerHTML="";
+  $("finalDocumentBody").innerHTML="";
+  $("finalDocumentModal").classList.remove("hidden");
+  try{
+    const result=await api.db.rpc("get_admin_document_final_version",{p_record_id:recordId,p_final_version:version});
+    const data=Array.isArray(result)?result[0]:result;
+    if(!data)throw new Error("Versi FINAL tidak ditemukan.");
+    currentFinalDocument=Object.assign({},data,{record_id:recordId,row});
+    const when=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(data.finalized_at));
+    $("finalDocumentMeta").innerHTML='<b>FINAL v'+Number(data.final_version)+'</b> · '+esc(data.source_kind)+' · '+esc(when)+'<br>Disahkan oleh <b>'+esc(data.verified_by_name||"-")+'</b>'+(data.verification_note?'<br>Catatan: '+esc(data.verification_note):'')+'<div class="checksum"><b>SHA-256:</b> '+esc(data.checksum_sha256)+'</div>';
+    $("finalDocumentArtifacts").innerHTML=finalArtifactList(data);
+    $("finalDocumentBody").innerHTML=data.content_html_snapshot?cleanGeneratedDraftHtml(data.content_html_snapshot):'<div class="admin-empty">Tidak ada snapshot HTML. Dokumen FINAL berbasis file atau sumber data SIMANIS.</div>';
+    $("finalDocumentArtifacts").querySelectorAll("[data-final-artifact]").forEach(b=>b.onclick=()=>openStoragePath(b.dataset.finalArtifact));
+  }catch(err){
+    $("finalDocumentMeta").textContent="FINAL gagal dimuat: "+(err.message||err);
+  }
+}
+function closeFinalDocument(){
+  $("finalDocumentModal").classList.add("hidden");
+  currentFinalDocument=null;
+}
+async function openFinalHistory(){
+  if(!currentFinalDocument)return;
+  $("finalHistoryList").innerHTML='<div class="admin-empty">Memuat riwayat FINAL...</div>';
+  $("finalHistoryModal").classList.remove("hidden");
+  try{
+    const list=await api.db.rpc("list_admin_document_final_versions",{p_record_id:currentFinalDocument.record_id})||[];
+    $("finalHistoryList").innerHTML=list.length?list.map(v=>{
+      const when=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(v.finalized_at));
+      return '<div class="draft-version-row"><b>FINAL v'+v.final_version+'</b><div><div style="font-size:9px;font-weight:800">'+esc(v.source_kind)+'</div><div style="font-size:8px;color:#718078">'+esc(when)+' · '+esc(v.verified_by_name||"-")+'</div></div><button type="button" data-open-final-version="'+v.final_version+'">Buka</button></div>';
+    }).join(""):'<div class="admin-empty">Belum ada riwayat FINAL.</div>';
+    $("finalHistoryList").querySelectorAll("[data-open-final-version]").forEach(b=>b.onclick=async()=>{
+      const recordId=currentFinalDocument.record_id;
+      $("finalHistoryModal").classList.add("hidden");
+      await openFinalDocument(recordId,Number(b.dataset.openFinalVersion));
+    });
+  }catch(err){
+    $("finalHistoryList").innerHTML='<div class="admin-empty">Riwayat FINAL gagal dimuat: '+esc(err.message||err)+'</div>';
+  }
+}
+function closeFinalHistory(){$("finalHistoryModal").classList.add("hidden")}
+function printFinalDocument(){
+  if(!currentFinalDocument)return;
+  const w=window.open("","_blank");if(!w){alert("Popup diblokir browser.");return}
+  const d=currentFinalDocument;
+  const body=d.content_html_snapshot?cleanGeneratedDraftHtml(d.content_html_snapshot):'<h2>Dokumen FINAL berbasis file/data SIMANIS</h2><p>Gunakan artefak final yang tercatat pada SIMANIS.</p>';
+  const html='<!doctype html><html><head><meta charset="utf-8"><title>FINAL v'+d.final_version+'</title><style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;color:#1d2a24;line-height:1.5}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #bfcac4;padding:6px;font-size:10px}.finalmark{border-bottom:2px solid #173f30;padding-bottom:8px;margin-bottom:15px;font-size:10px}.checksum{font-family:monospace;font-size:7px;word-break:break-all}</style></head><body><div class="finalmark"><b>FINAL v'+d.final_version+'</b> · Disahkan '+esc(d.verified_by_name||"-")+'<br><span class="checksum">SHA-256: '+esc(d.checksum_sha256)+'</span></div>'+body+'</body></html>';
+  w.document.write(html);w.document.close();setTimeout(()=>w.print(),250);
+}
+async function reopenFinalDocument(recordId){
+  const row=rows.find(r=>r.record_id===recordId);if(!row||row.status!=="LENGKAP")return;
+  const reason=prompt("Alasan membuka revisi untuk "+row.document_code.replace("ADM-","")+" · "+row.title+":","");
+  if(reason===null)return;
+  if(!reason.trim()){alert("Alasan revisi wajib diisi.");return}
+  if(!confirm("Buka dokumen FINAL untuk revisi? FINAL v"+(row.final_version||1)+" tetap disimpan sebagai arsip dan tidak akan ditimpa."))return;
+  try{
+    await api.db.rpc("reopen_admin_document_for_revision",{p_record_id:recordId,p_reason:reason.trim()});
+    await loadData();
+    alert("Dokumen dibuka untuk revisi. FINAL v"+(row.final_version||1)+" tetap tersimpan.");
+  }catch(err){alert("Gagal membuka revisi: "+(err.message||err))}
+}
+
 function closeSubmit(){
   $("submitModal").classList.add("hidden");
   submitTarget=null;
