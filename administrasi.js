@@ -23,6 +23,7 @@ let validationRows = [];
 let validationSummary = null;
 let validationReviewIndex = -1;
 let picTaskExpanded = false;
+let validationReturnAfterVerify = false;
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -172,6 +173,7 @@ function renderValidationCenter(){
   $("validationPending").textContent=Number(sum.pending_verification||0);
   $("validationRevision").textContent=Number(sum.needs_revision||0);
   $("validationVerified").textContent=Number(sum.verified||0);
+  $("validationReviewStartBtn").textContent=Number(sum.pending_verification||0)>0?"Review Menunggu ("+Number(sum.pending_verification||0)+")":"Mulai Review";
   const priority=validationRows.filter(r=>r.status==='MENUNGGU_VERIFIKASI'||r.ready_to_submit||r.status==='PERLU_REVISI').slice(0,8);
   const fallback=validationRows.filter(r=>r.status!=='LENGKAP').slice(0,8);
   const data=priority.length?priority:fallback;
@@ -277,6 +279,8 @@ function renderPicTaskCenter(){
   $("picTaskNeedsWork").textContent=needs;
   $("picTaskRevision").textContent=revision;
   $("picTaskPending").textContent=pending;
+  $("picTaskSubmitAllBtn").style.display=ready>0?"inline-flex":"none";
+  $("picTaskSubmitAllBtn").textContent=ready>0?("Ajukan Semua Siap ("+ready+")"):"Ajukan Semua Siap";
   const ordered=[...tasks].sort((a,b)=>{
     const rank=x=>x.status==="PERLU_REVISI"?0:x.ready_to_submit?1:x.status==="MENUNGGU_VERIFIKASI"?3:2;
     return rank(a)-rank(b)||Number(b.readiness_score||0)-Number(a.readiness_score||0)||Number(a.category_order||0)-Number(b.category_order||0)||Number(a.document_order||0)-Number(b.document_order||0);
@@ -287,6 +291,44 @@ function renderPicTaskCenter(){
     '<div class="pic-task-row"><div class="pic-task-score">'+Number(r.readiness_score||0)+'%</div><div><h4>'+esc(r.document_code.replace("ADM-",""))+' · '+esc(r.title)+'</h4><p>'+esc(r.category_name)+' · '+esc(statusLabel(r.status))+' · '+esc(readinessLabelText(r.readiness_label))+'</p><div class="task-action-text">'+esc(picTaskNextAction(r))+'</div></div><div><button class="'+(r.ready_to_submit?"primary-small":"secondary-btn")+'" type="button" data-pic-task="'+r.record_id+'">'+esc(picTaskActionLabel(r))+'</button></div></div>'
   ).join(""):'<div class="admin-empty">Tidak ada tugas administrasi yang perlu ditindaklanjuti.</div>';
   document.querySelectorAll("[data-pic-task]").forEach(b=>b.onclick=()=>runPicTaskAction(b.dataset.picTask));
+}
+function openBulkSubmitModal(){
+  const ready=validationRows.filter(r=>r.ready_to_submit&&["DRAFT","PERLU_REVISI"].includes(r.status));
+  if(!ready.length){alert("Belum ada dokumen yang siap diajukan.");return}
+  const categoryMap=new Map();
+  ready.forEach(r=>categoryMap.set(r.category_name,(categoryMap.get(r.category_name)||0)+1));
+  const cats=[...categoryMap.entries()].map(([name,n])=>esc(name)+": <b>"+n+"</b>").join("<br>");
+  $("bulkSubmitSummary").innerHTML="<b>"+ready.length+" dokumen siap diajukan</b><br><br>"+cats+
+    "<br><br>Semua dokumen di atas telah memiliki skor kesiapan 100% pada akun Anda.";
+  $("bulkSubmitNote").value="";
+  $("bulkSubmitMessage").textContent="";
+  $("bulkSubmitModal").classList.remove("hidden");
+}
+function closeBulkSubmitModal(){
+  $("bulkSubmitModal").classList.add("hidden");
+  $("bulkSubmitMessage").textContent="";
+}
+async function confirmBulkSubmit(){
+  const ready=validationRows.filter(r=>r.ready_to_submit&&["DRAFT","PERLU_REVISI"].includes(r.status));
+  if(!ready.length){closeBulkSubmitModal();await loadData();return}
+  const btn=$("bulkSubmitConfirm");
+  btn.disabled=true;btn.textContent="Mengajukan...";
+  $("bulkSubmitMessage").textContent="";
+  try{
+    const result=await api.db.rpc("submit_my_ready_admin_documents",{
+      p_academic_year:"2026/2027",
+      p_note:$("bulkSubmitNote").value.trim()||null
+    });
+    const data=Array.isArray(result)?result[0]:result;
+    const count=Number(data?.submitted_count||0);
+    closeBulkSubmitModal();
+    await loadData();
+    alert(count+" dokumen berhasil diajukan ke Kepala Madrasah untuk diverifikasi.");
+  }catch(err){
+    $("bulkSubmitMessage").textContent="Gagal mengajukan: "+(err.message||err);
+  }finally{
+    btn.disabled=false;btn.textContent="Ya, Ajukan Dokumen Siap";
+  }
 }
 function runPicTaskAction(recordId){
   const task=validationRows.find(r=>r.record_id===recordId);
@@ -585,7 +627,14 @@ async function saveVerification(){
   const btn=$("verifySave");btn.disabled=true;btn.textContent="Menyimpan...";
   try{
     await api.db.rpc("verify_admin_document",{p_record_id:verifyTarget.record_id,p_status:status,p_note:note||null});
-    closeVerify();await loadData();
+    closeVerify();
+    await loadData();
+    if(validationReturnAfterVerify){
+      validationReturnAfterVerify=false;
+      const next=validationRows.find(r=>r.status==="MENUNGGU_VERIFIKASI");
+      if(next)openValidationReview(next.record_id);
+      else alert("Antrean verifikasi yang diajukan saat ini sudah selesai.");
+    }
   }catch(err){
     $("verifyMessage").textContent="Gagal: "+(err.message||err);
   }finally{
@@ -893,6 +942,11 @@ async function openFile(recordId){
   }catch(err){alert("File gagal dibuka: "+err.message)}
 }
 $("picTaskToggleBtn").onclick=()=>{picTaskExpanded=!picTaskExpanded;renderPicTaskCenter()};
+$("picTaskSubmitAllBtn").onclick=openBulkSubmitModal;
+$("bulkSubmitClose").onclick=closeBulkSubmitModal;
+$("bulkSubmitCancel").onclick=closeBulkSubmitModal;
+$("bulkSubmitConfirm").onclick=confirmBulkSubmit;
+$("bulkSubmitModal").onclick=e=>{if(e.target===$("bulkSubmitModal"))closeBulkSubmitModal()};
 $("validationSmartCompleteBtn").onclick=runValidationSmartComplete;
 $("validationReviewStartBtn").onclick=startValidationReview;
 $("validationReviewClose").onclick=closeValidationReview;
@@ -909,7 +963,10 @@ $("validationFollowup").onclick=()=>{
   const r=validationRows[validationReviewIndex];if(!r)return;closeValidationReview();openFollowup(r.record_id);
 };
 $("validationVerify").onclick=()=>{
-  const r=validationRows[validationReviewIndex];if(!r)return;closeValidationReview();openVerify(r.record_id);
+  const r=validationRows[validationReviewIndex];if(!r)return;
+  validationReturnAfterVerify=true;
+  closeValidationReview();
+  openVerify(r.record_id);
 };
 $("docSearch").addEventListener("input",renderDocs);
 $("statusFilter").addEventListener("change",renderDocs);
