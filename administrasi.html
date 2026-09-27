@@ -21,6 +21,12 @@
     .notif-item{border:1px solid #e1e9e5;border-radius:11px;padding:10px;margin-bottom:8px;cursor:pointer;background:#fff}.notif-item.unread{background:#f3faf6;border-color:#b9dcca}.generated-badge{display:inline-flex;padding:3px 7px;border-radius:999px;background:#e9f7ef;color:#08733f;font-size:7px;font-weight:900}
     .manual-badge{display:inline-flex;padding:3px 7px;border-radius:999px;background:#fff0e8;color:#a44b1f;font-size:7px;font-weight:900}
     .generated-preview{font-family:Arial,sans-serif;color:#1d2a24;line-height:1.55}.generated-preview table{width:100%;border-collapse:collapse;margin:12px 0}.generated-preview th,.generated-preview td{border:1px solid #ccd8d1;padding:7px;font-size:9px}.generated-preview h1,.generated-preview h2,.generated-preview h3{color:#173f30}
+    .draft-editor-toolbar{display:none;gap:5px;flex-wrap:wrap;padding:7px;background:#f5f8f6;border:1px solid #dce6e1;border-radius:10px;margin-bottom:8px;position:sticky;top:0;z-index:2}
+    .draft-editor-toolbar.active{display:flex}.draft-editor-toolbar button{min-width:34px;width:auto;padding:6px 9px;font-size:8px}
+    .generated-preview.editing{min-height:420px;border:1px solid #8fc9ae;border-radius:10px;padding:14px;background:#fff;outline:none;box-shadow:inset 0 0 0 2px rgba(18,169,123,.06)}
+    .draft-save-state{display:inline-flex;align-items:center;gap:5px;font-size:8px;padding:4px 8px;border-radius:999px;background:#eef3f0;color:#56675f}
+    .draft-save-state.saving{background:#fff4cf;color:#785b00}.draft-save-state.saved{background:#e9f7ef;color:#08733f}.draft-save-state.error{background:#ffe5e0;color:#a13b33}
+    .draft-version-row{display:grid;grid-template-columns:70px 1fr auto;gap:10px;align-items:center;border:1px solid #e1e9e5;border-radius:10px;padding:9px;margin-bottom:7px}.draft-version-row.current{background:#f3faf6;border-color:#b9dcca}
     .notif-item h4{margin:0 0 3px;font-size:10px;color:#173f30}.notif-item p{margin:2px 0;font-size:8px;color:#718078}.notif-time{font-size:7px;color:#87958e;margin-top:5px}
     .doc-item.doc-highlight{outline:2px solid #12a97b;outline-offset:2px;background:#f4fbf7}
     .stats{grid-template-columns:repeat(5,1fr)}
@@ -130,16 +136,46 @@
   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" />
 
 <div id="generatedDraftModal" class="modal-backdrop hidden">
-  <div class="modal" style="max-width:900px">
+  <div class="modal" style="max-width:980px">
     <div class="modal-head"><h3 id="generatedDraftTitle">Draft Otomatis</h3><button id="generatedDraftClose" class="modal-close">✕</button></div>
     <div class="modal-body">
-      <div id="generatedDraftInfo" style="font-size:9px;color:#66766e;margin-bottom:10px"></div>
-      <div id="generatedDraftBody" class="generated-preview"></div>
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <div id="generatedDraftInfo" style="font-size:9px;color:#66766e"></div>
+        <span id="generatedDraftSaveState" class="draft-save-state">Mode lihat</span>
+      </div>
+      <div id="generatedDraftToolbar" class="draft-editor-toolbar">
+        <button type="button" data-editor-cmd="undo" title="Undo">↶</button>
+        <button type="button" data-editor-cmd="redo" title="Redo">↷</button>
+        <button type="button" data-editor-cmd="bold"><b>B</b></button>
+        <button type="button" data-editor-cmd="italic"><i>I</i></button>
+        <button type="button" data-editor-cmd="underline"><u>U</u></button>
+        <button type="button" data-editor-block="p">Paragraf</button>
+        <button type="button" data-editor-block="h2">Judul</button>
+        <button type="button" data-editor-block="h3">Subjudul</button>
+        <button type="button" data-editor-cmd="insertUnorderedList">• List</button>
+        <button type="button" data-editor-cmd="insertOrderedList">1. List</button>
+        <button id="generatedDraftInsertTable" type="button">+ Tabel</button>
+      </div>
+      <div id="generatedDraftBody" class="generated-preview" contenteditable="false"></div>
     </div>
-    <div class="modal-actions">
+    <div class="modal-actions" style="flex-wrap:wrap">
+      <button id="generatedDraftHistory" class="secondary-btn" type="button">Riwayat Versi</button>
+      <button id="generatedDraftRegenerate" class="secondary-btn" type="button">Generate Ulang</button>
+      <button id="generatedDraftEdit" class="secondary-btn" type="button">Edit Draft</button>
+      <button id="generatedDraftSaveVersion" class="secondary-btn" type="button" style="display:none">Simpan Versi</button>
+      <button id="generatedDraftReady" class="secondary-btn" type="button" style="display:none">Tandai Siap</button>
+      <button id="generatedDraftSubmit" class="primary-btn" type="button" style="display:none;width:auto">Ajukan Verifikasi</button>
       <button id="generatedDraftPrint" class="secondary-btn" type="button">Cetak / PDF</button>
       <button id="generatedDraftDone" class="primary-btn" type="button" style="width:auto">Tutup</button>
     </div>
+  </div>
+</div>
+
+<div id="draftVersionModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-head"><h3>Riwayat Versi Draft</h3><button id="draftVersionClose" class="modal-close">✕</button></div>
+    <div class="modal-body"><div id="draftVersionList"></div></div>
+    <div class="modal-actions"><button id="draftVersionDone" class="primary-btn" type="button" style="width:auto">Tutup</button></div>
   </div>
 </div>
 
@@ -227,6 +263,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="administrasi.js?v=20260927-03"></script>
+<script src="administrasi.js?v=20260927-04"></script>
 </body>
 </html>
