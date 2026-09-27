@@ -19,6 +19,9 @@ let generatedDraftCurrent = null;
 let generatedDraftEditing = false;
 let generatedDraftAutosaveTimer = null;
 let generatedDraftSaving = false;
+let validationRows = [];
+let validationSummary = null;
+let validationReviewIndex = -1;
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -130,12 +133,27 @@ async function loadData(){
   try{attentionRows=await api.db.rpc("get_admin_document_attention",{p_academic_year:"2026/2027"})||[]}catch(err){console.warn("Perlu perhatian:",err);attentionRows=[]}
   if(headManager){
     try{picRecommendations=await api.db.rpc("list_admin_pic_recommendations",{})||[]}catch(err){console.warn("PIC kategori:",err);picRecommendations=[]}
-  }else picRecommendations=[];
+    try{
+      const vr=await Promise.all([
+        api.db.rpc("get_admin_document_readiness",{p_academic_year:"2026/2027"}),
+        api.db.rpc("get_admin_validation_summary",{p_academic_year:"2026/2027"})
+      ]);
+      validationRows=vr[0]||[];
+      validationSummary=vr[1]||null;
+    }catch(err){
+      console.warn("Pusat validasi:",err);
+      validationRows=[];validationSummary=null;
+    }
+  }else{
+    picRecommendations=[];
+    validationRows=[];
+    validationSummary=null;
+  }
   const map = new Map();
   rows.forEach(r=>{ if(!map.has(r.category_id)) map.set(r.category_id,{id:r.category_id,code:r.category_code,name:r.category_name,order:r.category_order,expected:r.expected_documents}); });
   categories=[...map.values()].sort((a,b)=>a.order-b.order);
   if(!selectedCategory && categories.length) selectedCategory=categories[0].id;
-  renderStats(); renderVerificationQueue(); renderAttention(); renderCategories(); renderDocs(); await loadAdminNotifications();
+  renderStats(); renderValidationCenter(); renderVerificationQueue(); renderAttention(); renderCategories(); renderDocs(); await loadAdminNotifications();
 }
 function renderStats(){
   const total=rows.length, complete=rows.filter(r=>r.status==="LENGKAP").length, draft=rows.filter(r=>r.status==="DRAFT").length, pending=rows.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length, revision=rows.filter(r=>r.status==="PERLU_REVISI").length, missing=rows.filter(r=>r.status==="BELUM_ADA").length, manual=rows.filter(r=>!!r.manual_requirement_reason).length;
@@ -144,6 +162,74 @@ function renderStats(){
   $("overallText").textContent="Cakupan administrasi: "+available+" / "+total+" ("+pct+"%) · Lengkap terverifikasi: "+complete+" · Butuh bukti aktual: "+manual; $("overallFill").style.width=pct+"%";
 }
 
+function readinessLabelText(label){
+  return {SIAP:"Siap",HAMPIR_SIAP:"Hampir Siap",PERLU_DILENGKAPI:"Perlu Dilengkapi",BELUM_SIAP:"Belum Siap",TERVERIFIKASI:"Terverifikasi"}[label]||label||"-";
+}
+function renderValidationCenter(){
+  const panel=$("validationCenter");if(!panel)return;
+  if(!headManager){panel.style.display="none";return}
+  panel.style.display="block";
+  const sum=validationSummary||{};
+  $("validationAvg").textContent=Number(sum.average_readiness||0).toFixed(1)+"%";
+  $("validationReady").textContent=Number(sum.ready_to_submit||0);
+  $("validationPending").textContent=Number(sum.pending_verification||0);
+  $("validationRevision").textContent=Number(sum.needs_revision||0);
+  $("validationVerified").textContent=Number(sum.verified||0);
+  const priority=validationRows.filter(r=>r.status==='MENUNGGU_VERIFIKASI'||r.ready_to_submit||r.status==='PERLU_REVISI').slice(0,8);
+  const fallback=validationRows.filter(r=>r.status!=='LENGKAP').slice(0,8);
+  const data=priority.length?priority:fallback;
+  $("validationPriorityList").innerHTML=data.length?data.map(r=>
+    '<div class="validation-row"><strong>'+Number(r.readiness_score||0)+'%</strong><div><h4>'+esc(r.document_code.replace("ADM-",""))+' · '+esc(r.title)+'</h4><p>'+esc(r.category_name)+' · '+esc(statusLabel(r.status))+' · '+esc(readinessLabelText(r.readiness_label))+' · PIC: <b>'+esc(r.responsible_name||"-")+'</b></p></div><div><button class="secondary-btn" type="button" data-validation-review="'+r.record_id+'">Tinjau</button></div></div>'
+  ).join(''):'<div class="admin-empty">Belum ada dokumen untuk ditinjau.</div>';
+  document.querySelectorAll("[data-validation-review]").forEach(b=>b.onclick=()=>openValidationReview(b.dataset.validationReview));
+}
+function validationCheckHtml(ok,label,detail){
+  return '<div class="validation-check '+(ok?"ok":"no")+'"><b>'+(ok?"✓ ":"! ")+esc(label)+'</b>'+(detail?'<div style="margin-top:3px;font-size:8px">'+esc(detail)+'</div>':'')+'</div>';
+}
+function openValidationReview(recordId){
+  if(!validationRows.length)return;
+  validationReviewIndex=validationRows.findIndex(x=>x.record_id===recordId);
+  if(validationReviewIndex<0)validationReviewIndex=0;
+  renderValidationReview();
+  $("validationReviewModal").classList.remove("hidden");
+}
+function renderValidationReview(){
+  const r=validationRows[validationReviewIndex];if(!r)return;
+  const main=rows.find(x=>x.record_id===r.record_id);
+  $("validationReviewTitle").textContent="Review · "+r.document_code.replace("ADM-","")+" · "+r.title;
+  $("validationReviewMeta").textContent=r.category_name+" · Status "+statusLabel(r.status)+" · PIC: "+(r.responsible_name||"-")+" · "+readinessLabelText(r.readiness_label);
+  $("validationReviewScore").textContent=Number(r.readiness_score||0)+"%";
+  $("validationReviewFill").style.width=Math.max(0,Math.min(100,Number(r.readiness_score||0)))+"%";
+  $("validationReviewChecks").innerHTML=[
+    validationCheckHtml(r.check_pic,"PIC ditentukan",r.responsible_name||"Belum ada PIC"),
+    validationCheckHtml(r.check_working_document,"Dokumen kerja tersedia",r.has_file?"Ada file":r.has_generated_draft?"Ada draft kerja":Number(r.source_count||0)>0?"Ada sumber SIMANIS":"Belum ada bukti"),
+    validationCheckHtml(r.check_reviewed,"Sudah ditinjau/diedit",r.generated_draft_edit_state?generatedDraftStateLabel(r.generated_draft_edit_state):"Berbasis file/data"),
+    validationCheckHtml(r.check_no_placeholders,"Placeholder sudah bersih",r.has_placeholders?"Masih ada ... / kolom kosong":"Tidak terdeteksi placeholder"),
+    validationCheckHtml(r.check_actual_evidence,"Bukti aktual terpenuhi",r.manual_requirement_reason?(r.check_actual_evidence?"Bukti aktual tersedia":"Masih membutuhkan bukti aktual"):"Tidak memerlukan bukti khusus"),
+    validationCheckHtml(r.check_ready_state,"Status dokumen siap",r.check_ready_state?"Siap untuk tahap berikutnya":"Belum ditandai siap")
+  ].join("");
+  $("validationReviewReason").textContent=r.manual_requirement_reason?("Catatan bukti aktual: "+r.manual_requirement_reason):"";
+  $("validationOpenDraft").style.display=main?.generated_draft_id?"inline-flex":"none";
+  $("validationOpenSource").style.display=main?.integration_key&&integrationRoute(main.integration_key)?"inline-flex":"none";
+  $("validationFollowup").style.display=headManager?"inline-flex":"none";
+  $("validationVerify").style.display=headManager&&r.status==="MENUNGGU_VERIFIKASI"?"inline-flex":"none";
+  $("validationPrev").disabled=validationReviewIndex<=0;
+  $("validationNext").disabled=validationReviewIndex>=validationRows.length-1;
+}
+function closeValidationReview(){$("validationReviewModal").classList.add("hidden")}
+function startValidationReview(){
+  if(!validationRows.length)return;
+  const idx=validationRows.findIndex(r=>r.status==='MENUNGGU_VERIFIKASI');
+  const idx2=idx>=0?idx:validationRows.findIndex(r=>r.ready_to_submit);
+  validationReviewIndex=idx2>=0?idx2:0;
+  renderValidationReview();
+  $("validationReviewModal").classList.remove("hidden");
+}
+function moveValidationReview(step){
+  const next=validationReviewIndex+step;
+  if(next<0||next>=validationRows.length)return;
+  validationReviewIndex=next;renderValidationReview();
+}
 function renderVerificationQueue(){
   const panel=$("verificationQueue");if(!panel)return;
   if(!headManager){panel.style.display="none";return}
@@ -737,6 +823,23 @@ async function openFile(recordId){
     window.open(signed.startsWith("http")?signed:`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1${signed}`,"_blank");
   }catch(err){alert("File gagal dibuka: "+err.message)}
 }
+$("validationReviewStartBtn").onclick=startValidationReview;
+$("validationReviewClose").onclick=closeValidationReview;
+$("validationReviewModal").onclick=e=>{if(e.target===$("validationReviewModal"))closeValidationReview()};
+$("validationPrev").onclick=()=>moveValidationReview(-1);
+$("validationNext").onclick=()=>moveValidationReview(1);
+$("validationOpenDraft").onclick=()=>{
+  const r=validationRows[validationReviewIndex];if(!r)return;closeValidationReview();openGeneratedDraft(r.record_id);
+};
+$("validationOpenSource").onclick=()=>{
+  const r=validationRows[validationReviewIndex];if(!r)return;const main=rows.find(x=>x.record_id===r.record_id);const route=main?.integration_key?integrationRoute(main.integration_key):null;if(route)window.open(route,"_blank");
+};
+$("validationFollowup").onclick=()=>{
+  const r=validationRows[validationReviewIndex];if(!r)return;closeValidationReview();openFollowup(r.record_id);
+};
+$("validationVerify").onclick=()=>{
+  const r=validationRows[validationReviewIndex];if(!r)return;closeValidationReview();openVerify(r.record_id);
+};
 $("docSearch").addEventListener("input",renderDocs);
 $("statusFilter").addEventListener("change",renderDocs);
 $("filePicker").addEventListener("change",e=>uploadFile(e.target.files?.[0]));
