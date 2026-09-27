@@ -204,7 +204,7 @@ function renderValidationReview(){
     validationCheckHtml(r.check_pic,"PIC ditentukan",r.responsible_name||"Belum ada PIC"),
     validationCheckHtml(r.check_working_document,"Dokumen kerja tersedia",r.has_file?"Ada file":r.has_generated_draft?"Ada draft kerja":Number(r.source_count||0)>0?"Ada sumber SIMANIS":"Belum ada bukti"),
     validationCheckHtml(r.check_reviewed,"Sudah ditinjau/diedit",r.generated_draft_edit_state?generatedDraftStateLabel(r.generated_draft_edit_state):"Berbasis file/data"),
-    validationCheckHtml(r.check_no_placeholders,"Placeholder sudah bersih",r.has_placeholders?"Masih ada ... / kolom kosong":"Tidak terdeteksi placeholder"),
+    validationCheckHtml(r.check_no_placeholders,"Placeholder / form isian",r.has_placeholders?(r.blank_form_allowed?"Form kosong diperbolehkan sebagai format administrasi":"Masih ada ... / kolom yang harus dilengkapi"):"Tidak terdeteksi placeholder"),
     validationCheckHtml(r.check_actual_evidence,"Bukti aktual terpenuhi",r.manual_requirement_reason?(r.check_actual_evidence?"Bukti aktual tersedia":"Masih membutuhkan bukti aktual"):"Tidak memerlukan bukti khusus"),
     validationCheckHtml(r.check_ready_state,"Status dokumen siap",r.check_ready_state?"Siap untuk tahap berikutnya":"Belum ditandai siap")
   ].join("");
@@ -217,6 +217,24 @@ function renderValidationReview(){
   $("validationNext").disabled=validationReviewIndex>=validationRows.length-1;
 }
 function closeValidationReview(){$("validationReviewModal").classList.add("hidden")}
+async function runValidationSmartComplete(){
+  const btn=$("validationSmartCompleteBtn");if(!btn||!headManager)return;
+  btn.disabled=true;btn.textContent='Memproses...';
+  try{
+    const results=await Promise.all([
+      api.db.rpc("auto_ready_structurally_valid_admin_drafts",{}),
+      api.db.rpc("smart_complete_admin_data_drafts",{}),
+      api.db.rpc("smart_complete_admin_plan_drafts",{})
+    ]);
+    const a=Array.isArray(results[0])?results[0][0]:results[0];
+    const b=Array.isArray(results[1])?results[1][0]:results[1];
+    const c=Array.isArray(results[2])?results[2][0]:results[2];
+    await loadData();
+    alert("Smart Complete selesai. Struktur: "+Number(a?.updated_count||0)+" · Data: "+Number(b?.completed_count||0)+" · Rencana/Prosedur: "+Number(c?.completed_count||0));
+  }catch(err){
+    alert("Smart Complete gagal: "+(err.message||err));
+  }finally{btn.disabled=false;btn.textContent='Smart Complete Aman';}
+}
 function startValidationReview(){
   if(!validationRows.length)return;
   const idx=validationRows.findIndex(r=>r.status==='MENUNGGU_VERIFIKASI');
@@ -823,6 +841,7 @@ async function openFile(recordId){
     window.open(signed.startsWith("http")?signed:`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1${signed}`,"_blank");
   }catch(err){alert("File gagal dibuka: "+err.message)}
 }
+$("validationSmartCompleteBtn").onclick=runValidationSmartComplete;
 $("validationReviewStartBtn").onclick=startValidationReview;
 $("validationReviewClose").onclick=closeValidationReview;
 $("validationReviewModal").onclick=e=>{if(e.target===$("validationReviewModal"))closeValidationReview()};
