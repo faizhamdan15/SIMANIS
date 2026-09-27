@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-let api, profile, schedules=[], classes=[], teachers=[], subjects=[], slots=[], semesterId=null, isTeacherPersonal=false;
+let api, profile, schedules=[], classes=[], teachers=[], subjects=[], slots=[], semesterId=null, activeAcademicYear=null, activeSemesterName=null, isTeacherPersonal=false;
 const DAYS=["SENIN","SELASA","RABU","KAMIS","SABTU","AHAD"];
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
 function formatRole(r){return (r||"-").replaceAll("_"," ")}
@@ -7,7 +7,7 @@ function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Ja
 function todayName(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long"}).format(new Date()).toUpperCase()}
 function nowMinutes(){const p=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Jakarta",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(new Date());return Number(p.find(x=>x.type==="hour")?.value||0)*60+Number(p.find(x=>x.type==="minute")?.value||0)}
 function toMinutes(t){if(!t)return -1;const [h,m]=String(t).slice(0,5).split(":").map(Number);return h*60+m}
-function routeFor(code){return {DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"}[code]||"#"}
+function routeFor(code){return {DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS&tab=finance",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"}[code]||"#"}
 async function loadProfile(user){const r=await api.db.select("profiles",`select=id,full_name,role,is_active,teacher_id&id=eq.${encodeURIComponent(user.id)}&limit=1`);if(!r?.[0])throw new Error("Profil pengguna tidak ditemukan.");return r[0]}
 async function loadMenu(){const m=await api.db.rpc("get_my_modules",{});$("sidebarMenu").innerHTML=(m||[]).map(x=>`<a href="${routeFor(x.code)}" class="nav-item ${x.code==="JADWAL"?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("");document.querySelectorAll('.nav-item[href="#"]').forEach(a=>a.onclick=e=>{e.preventDefault();alert(`Modul "${a.textContent.trim()}" akan diaktifkan bertahap.`)})}
 function applyPersonalUI(){
@@ -32,14 +32,16 @@ function applyPersonalUI(){
   $("searchInput").placeholder="Cari mapel atau kelas...";
 }
 async function loadMaster(){
-  const [c,t,s,ts,sm]=await Promise.all([
+  const [c,t,s,ts,sm,ay]=await Promise.all([
     api.db.select("classes","select=id,name&is_active=eq.true&order=grade_level.asc,name.asc"),
     api.db.select("teachers","select=id,teacher_code,full_name&is_active=eq.true&order=teacher_code.asc"),
     api.db.select("subjects","select=id,code,name&is_active=eq.true&order=name.asc"),
     api.db.select("time_slots","select=id,code,sequence_no,start_time,end_time&order=sequence_no.asc"),
-    api.db.select("semesters","select=id,name,is_active&is_active=eq.true&limit=1")
+    api.db.select("semesters","select=id,name,is_active&is_active=eq.true&limit=1"),
+    api.db.select("academic_years","select=id,name,is_active,start_date&is_active=eq.true&order=start_date.desc&limit=1")
   ]);
-  classes=c||[];teachers=t||[];subjects=s||[];slots=ts||[];semesterId=sm?.[0]?.id||null;
+  classes=c||[];teachers=t||[];subjects=s||[];slots=ts||[];semesterId=sm?.[0]?.id||null;activeSemesterName=sm?.[0]?.name||null;activeAcademicYear=ay?.[0]?.name||null;
+  if(!semesterId||!activeAcademicYear||!activeSemesterName)throw new Error("Tahun ajaran atau semester aktif belum ditetapkan.");
 
   const classOpts=classes.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("");
   $("classFilter").innerHTML='<option value="">Semua Kelas Saya</option>'+classOpts;
@@ -55,7 +57,7 @@ async function loadMaster(){
   if(!isTeacherPersonal && classes.length)$("classFilter").value=classes[0].id;
 }
 async function loadSchedules(){
-  schedules=await api.db.select("v_schedule_manage","select=*&academic_year=eq.2026/2027&semester=eq.GANJIL&order=day_of_week.asc,sequence_no.asc,class_name.asc")||[];
+  schedules=await api.db.select("v_schedule_manage",`select=*&academic_year=eq.${encodeURIComponent(activeAcademicYear)}&semester=eq.${encodeURIComponent(activeSemesterName)}&order=day_of_week.asc,sequence_no.asc,class_name.asc`)||[];
   renderStats();render();
 }
 function filtered(){
