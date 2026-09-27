@@ -27,6 +27,7 @@ let validationReturnAfterVerify = false;
 let attachmentTarget = null;
 let currentFinalDocument = null;
 let picMonitorRows = [];
+let activeAcademicYear = null;
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -118,6 +119,17 @@ async function loadProfile(user){
   }
   return p[0];
 }
+async function loadActiveAcademicYear(){
+  const ay=await api.db.select("academic_years","select=id,name,start_date,end_date,is_active&is_active=eq.true&order=start_date.desc&limit=1");
+  if(!ay?.[0]?.name)throw new Error("Tahun ajaran aktif belum ditetapkan.");
+  activeAcademicYear=ay[0].name;
+  const label=$("adminAcademicYearText");if(label)label.textContent=activeAcademicYear;
+  const packageLink=$("adminPackageLink");if(packageLink)packageLink.textContent="Paket Administrasi "+activeAcademicYear;
+  return ay[0];
+}
+function activeAcademicYearFolder(){
+  return String(activeAcademicYear||"").replaceAll("/","-");
+}
 async function loadMenu(){
   const modules = await api.db.rpc("get_my_modules",{});
   $("sidebarMenu").innerHTML=(modules||[]).map(m=>`
@@ -134,19 +146,19 @@ async function loadData(){
     console.warn("Sinkronisasi administrasi:",err);
     integrationSources=new Map();
   }
-  rows = await api.db.select("v_admin_document_status","select=*&academic_year=eq.2026/2027&order=category_order.asc,document_order.asc") || [];
-  try{attentionRows=await api.db.rpc("get_admin_document_attention",{p_academic_year:"2026/2027"})||[]}catch(err){console.warn("Perlu perhatian:",err);attentionRows=[]}
+  rows = await api.db.select("v_admin_document_status","select=*&academic_year=eq.${encodeURIComponent(activeAcademicYear)}&order=category_order.asc,document_order.asc") || [];
+  try{attentionRows=await api.db.rpc("get_admin_document_attention",{p_academic_year:activeAcademicYear})||[]}catch(err){console.warn("Perlu perhatian:",err);attentionRows=[]}
   if(headManager){
     try{picRecommendations=await api.db.rpc("list_admin_pic_recommendations",{})||[]}catch(err){console.warn("PIC kategori:",err);picRecommendations=[]}
-    try{picMonitorRows=await api.db.rpc("get_admin_pic_monitor",{p_academic_year:"2026/2027"})||[]}catch(err){console.warn("Monitoring PIC:",err);picMonitorRows=[]}
+    try{picMonitorRows=await api.db.rpc("get_admin_pic_monitor",{p_academic_year:activeAcademicYear})||[]}catch(err){console.warn("Monitoring PIC:",err);picMonitorRows=[]}
   }else{
     picRecommendations=[];
     picMonitorRows=[];
   }
   try{
     const vr=await Promise.all([
-      api.db.rpc("get_admin_document_readiness",{p_academic_year:"2026/2027"}),
-      api.db.rpc("get_admin_validation_summary",{p_academic_year:"2026/2027"})
+      api.db.rpc("get_admin_document_readiness",{p_academic_year:activeAcademicYear}),
+      api.db.rpc("get_admin_validation_summary",{p_academic_year:activeAcademicYear})
     ]);
     validationRows=vr[0]||[];
     validationSummary=vr[1]||null;
@@ -227,7 +239,7 @@ async function dispatchPicTasks(){
   const btn=$("validationDispatchPicBtn");if(!btn||!headManager)return;
   btn.disabled=true;btn.textContent="Memeriksa...";
   try{
-    const result=await api.db.rpc("dispatch_admin_tasks_to_pics",{p_academic_year:"2026/2027",p_force:false});
+    const result=await api.db.rpc("dispatch_admin_tasks_to_pics",{p_academic_year:activeAcademicYear,p_force:false});
     const data=Array.isArray(result)?result[0]:result;
     const sent=Number(data?.sent_count||0),skipped=Number(data?.skipped_count||0);
     if(sent>0)alert("Tugas PIC diperbarui untuk "+sent+" kategori. "+skipped+" kategori tidak dikirim ulang karena belum berubah.");
@@ -315,7 +327,7 @@ async function remindPicCategory(code){
   const row=picMonitorRows.find(r=>r.category_code===code);if(!row)return;
   if(!confirm("Kirim pengingat administrasi "+row.category_name+" kepada "+row.recipient_name+"?"))return;
   try{
-    await api.db.rpc("remind_admin_pic",{p_category_code:code,p_academic_year:"2026/2027"});
+    await api.db.rpc("remind_admin_pic",{p_category_code:code,p_academic_year:activeAcademicYear});
     alert("Pengingat berhasil dikirim kepada "+row.recipient_name+".");
     await loadData();
   }catch(err){
@@ -392,7 +404,7 @@ async function confirmBulkSubmit(){
   $("bulkSubmitMessage").textContent="";
   try{
     const result=await api.db.rpc("submit_my_ready_admin_documents",{
-      p_academic_year:"2026/2027",
+      p_academic_year:activeAcademicYear,
       p_note:$("bulkSubmitNote").value.trim()||null
     });
     const data=Array.isArray(result)?result[0]:result;
@@ -651,7 +663,7 @@ async function uploadAttachment(file){
   const session=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG;
   const base=cfg.SUPABASE_URL.replace(/\/$/,"");
   const safe=file.name.replace(/[^a-zA-Z0-9._-]+/g,"_");
-  const path="2026-2027/"+code+"/attachments/"+Date.now()+"_"+safe;
+  const path=activeAcademicYearFolder()+"/"+code+"/attachments/"+Date.now()+"_"+safe;
   let uploaded=false;
   try{
     $("attachmentMessage").style.color="#66766e";
@@ -940,7 +952,7 @@ function exportAdminCsv(){
   ]);
   const csv=[header,...body].map(row=>row.map(v=>'"'+String(v??"").replaceAll('"','""')+'"').join(",")).join("\n");
   const url=URL.createObjectURL(new Blob(["\uFEFF",csv],{type:"text/csv;charset=utf-8"}));
-  const a=document.createElement("a");a.href=url;a.download="Administrasi_Kepala_Madrasah_2026-2027.csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
+  const a=document.createElement("a");a.href=url;a.download="Administrasi_Kepala_Madrasah_"+activeAcademicYearFolder()+".csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
 }
 function printAdminReport(){
   const total=rows.length,complete=rows.filter(r=>r.status==="LENGKAP").length,draft=rows.filter(r=>r.status==="DRAFT").length,pending=rows.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length,revision=rows.filter(r=>r.status==="PERLU_REVISI").length,missing=rows.filter(r=>r.status==="BELUM_ADA").length;
@@ -956,7 +968,7 @@ function printAdminReport(){
   const docRows=rows.map(r=>'<tr><td>'+esc(r.document_code.replace("ADM-",""))+'</td><td>'+esc(r.category_name)+'</td><td class="left">'+esc(r.title)+'</td><td>'+esc(statusLabel(r.status))+'</td><td>'+esc(r.priority||"NORMAL")+'</td><td>'+esc(r.responsible_name||"-")+'</td><td>'+esc(r.due_date||"-")+'</td><td>'+esc(r.verified_by_name||"-")+'</td></tr>').join("");
   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Rekap Administrasi Kepala Madrasah</title><style>@page{size:A4 landscape;margin:9mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#17251e;margin:0}.head{display:grid;grid-template-columns:16mm 1fr 16mm;align-items:center;border-bottom:3px double #173f30;padding-bottom:3mm;margin-bottom:4mm}.head img{width:14mm}.school{text-align:center}.school h2{font-size:14pt;margin:0}.school p{font-size:7pt;margin:1mm 0 0;color:#566}h3{text-align:center;font-size:11pt;margin:0 0 4mm}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:2mm;margin-bottom:4mm}.box{border:1px solid #ccd8d1;padding:2.5mm;text-align:center}.box b{display:block;font-size:13pt;color:#075b3a}.box span{font-size:7pt}table{width:100%;border-collapse:collapse;font-size:7pt;margin-bottom:5mm}th,td{border:1px solid #cdd8d2;padding:1.6mm;text-align:center}th{background:#f2f7f4}.left{text-align:left}.pagebreak{page-break-before:always}.sign{display:grid;grid-template-columns:1fr 1fr;gap:30mm;margin-top:8mm;text-align:center;font-size:8pt}.space{height:16mm}</style></head><body>'+
     '<div class="head"><img src="'+logo+'"><div class="school"><h2>'+esc(school)+'</h2><p>'+esc(addr||"Karangcempaka, Bluto, Sumenep")+'</p></div><div></div></div>'+
-    '<h3>REKAP ADMINISTRASI KEPALA MADRASAH · TA 2026/2027</h3>'+
+    '<h3>REKAP ADMINISTRASI KEPALA MADRASAH · TA '+esc(activeAcademicYear)+'</h3>'+
     '<div class="stats"><div class="box"><b>'+total+'</b><span>Total</span></div><div class="box"><b>'+complete+'</b><span>Lengkap</span></div><div class="box"><b>'+draft+'</b><span>Draft</span></div><div class="box"><b>'+pending+'</b><span>Menunggu</span></div><div class="box"><b>'+revision+'</b><span>Perlu Revisi</span></div><div class="box"><b>'+missing+'</b><span>Belum Ada</span></div></div>'+
     '<table><thead><tr><th>Kategori</th><th>Total</th><th>Lengkap</th><th>Draft</th><th>Menunggu</th><th>Revisi</th><th>Belum Ada</th></tr></thead><tbody>'+catRows+'</tbody></table>'+
     '<div class="pagebreak"></div><h3>DAFTAR STATUS 141 DOKUMEN</h3><table><thead><tr><th>Kode</th><th>Kategori</th><th>Dokumen</th><th>Status</th><th>Prioritas</th><th>PIC</th><th>Target</th><th>Verifier</th></tr></thead><tbody>'+docRows+'</tbody></table>'+
@@ -1174,7 +1186,7 @@ async function editNote(recordId){
 function encodePath(path){return path.split("/").map(encodeURIComponent).join("/");}
 async function uploadFile(file){
   if(!uploadTarget||!file)return; if(file.size>20*1024*1024){alert("Ukuran file maksimal 20 MB.");return;}
-  const session=await api.auth.getSession(), cfg=window.SIMANIS_CONFIG, safe=file.name.replace(/[^a-zA-Z0-9._-]+/g,"_"), path=`2026-2027/${uploadTarget.document_code}/${Date.now()}_${safe}`;
+  const session=await api.auth.getSession(), cfg=window.SIMANIS_CONFIG, safe=file.name.replace(/[^a-zA-Z0-9._-]+/g,"_"), path=`${activeAcademicYearFolder()}/${uploadTarget.document_code}/${Date.now()}_${safe}`;
   try{
     const resp=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/administrasi-kepala/${encodePath(path)}`,{method:"POST",headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":file.type||"application/octet-stream","x-upsert":"false"},body:file});
     const txt=await resp.text(); if(!resp.ok) throw new Error(txt||`HTTP ${resp.status}`);
@@ -1300,6 +1312,6 @@ $("printAdminReportBtn").onclick=printAdminReport;
     $("adminPackageLink").style.display=headManager?"inline-flex":"none";
     $("sideUserName").textContent=profile.full_name||user.email||"Pengguna"; $("sideUserRole").textContent=formatRole(profile.role); $("headerUser").textContent=profile.full_name||user.email||"Pengguna"; $("currentDate").textContent=localDateID();
     try{const x=await api.db.rpc("get_public_system_settings",{});systemSettings=Array.isArray(x)?x[0]:x}catch(_){systemSettings=null}
-    await loadMenu(); await loadData(); $("logoutBtn").addEventListener("click",async()=>{await api.auth.signOut();location.replace("index.html");});
+    await loadActiveAcademicYear(); await loadMenu(); await loadData(); $("logoutBtn").addEventListener("click",async()=>{await api.auth.signOut();location.replace("index.html");});
   }catch(err){console.error(err);alert("Administrasi Kepala gagal dimuat: "+(err.message||err));}finally{$("loading").classList.add("hidden");}
 })();
