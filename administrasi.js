@@ -740,8 +740,43 @@ async function openFile(recordId){
 $("docSearch").addEventListener("input",renderDocs);
 $("statusFilter").addEventListener("change",renderDocs);
 $("filePicker").addEventListener("change",e=>uploadFile(e.target.files?.[0]));
-$("generatedDraftClose").onclick=closeGeneratedDraft;$("generatedDraftDone").onclick=closeGeneratedDraft;$("generatedDraftPrint").onclick=printGeneratedDraft;
+$("generatedDraftClose").onclick=()=>closeGeneratedDraft();
+$("generatedDraftDone").onclick=()=>closeGeneratedDraft();
+$("generatedDraftPrint").onclick=printGeneratedDraft;
+$("generatedDraftEdit").onclick=async()=>{
+  if(generatedDraftEditing){
+    const ok=await flushGeneratedDraftAutosave();if(ok)setGeneratedDraftEditing(false);
+  }else setGeneratedDraftEditing(true);
+};
+$("generatedDraftSaveVersion").onclick=saveGeneratedDraftVersion;
+$("generatedDraftReady").onclick=markGeneratedDraftReady;
+$("generatedDraftHistory").onclick=openDraftVersionHistory;
+$("generatedDraftRegenerate").onclick=regenerateGeneratedDraft;
+$("generatedDraftSubmit").onclick=submitGeneratedDraft;
+$("generatedDraftInsertTable").onclick=insertGeneratedDraftTable;
+$("generatedDraftBody").addEventListener("input",scheduleGeneratedDraftAutosave);
+document.querySelectorAll("[data-editor-cmd]").forEach(btn=>{
+  btn.addEventListener("mousedown",e=>{
+    e.preventDefault();
+    if(!generatedDraftEditing)return;
+    document.execCommand(btn.dataset.editorCmd,false,null);
+    $("generatedDraftBody").focus();
+    scheduleGeneratedDraftAutosave();
+  });
+});
+document.querySelectorAll("[data-editor-block]").forEach(btn=>{
+  btn.addEventListener("mousedown",e=>{
+    e.preventDefault();
+    if(!generatedDraftEditing)return;
+    document.execCommand("formatBlock",false,btn.dataset.editorBlock);
+    $("generatedDraftBody").focus();
+    scheduleGeneratedDraftAutosave();
+  });
+});
 $("generatedDraftModal").onclick=e=>{if(e.target===$("generatedDraftModal"))closeGeneratedDraft()};
+$("draftVersionClose").onclick=closeDraftVersionHistory;
+$("draftVersionDone").onclick=closeDraftVersionHistory;
+$("draftVersionModal").onclick=e=>{if(e.target===$("draftVersionModal"))closeDraftVersionHistory()};
 $("adminNotifBtn").onclick=openAdminNotifications;$("notificationClose").onclick=closeAdminNotifications;$("notificationDone").onclick=closeAdminNotifications;$("notificationReadAll").onclick=markAllAdminNotificationsRead;
 $("notificationModal").onclick=e=>{if(e.target===$("notificationModal"))closeAdminNotifications()};
 $("submitClose").onclick=closeSubmit;$("submitCancel").onclick=closeSubmit;$("submitSave").onclick=saveSubmission;
