@@ -284,7 +284,7 @@ function renderDocs(){
       <span class="status-badge status-${r.status}">${statusLabel(r.status)}</span>
       ${integrationBadge(r)}
       ${r.file_name?`<span class="doc-file">${esc(r.file_name)} · v${r.version_no||1}</span>`:""}
-      ${r.generated_draft_id?`<span class="generated-badge">${esc(generatedDraftStateLabel(r.generated_draft_edit_state))} · ${esc(r.generated_draft_kind||"TEMPLATE")} · v${r.generated_draft_version||1}</span>`:""}
+      ${r.generated_draft_id?`<span class="generated-badge">${esc(generatedDraftStateLabel(r.generated_draft_edit_state))} · ${esc(r.generated_draft_kind==="EVIDENCE"?"FORM BUKTI AKTUAL":r.generated_draft_kind||"TEMPLATE")} · v${r.generated_draft_version||1}</span>`:""}
       ${r.manual_requirement_reason?`<span class="manual-badge" title="${esc(r.manual_requirement_reason)}">Butuh Bukti Aktual</span><span class="doc-file">${esc(r.manual_requirement_reason)}</span>`:""}
       ${verificationMeta(r)}
       ${submissionMeta(r)}
@@ -296,7 +296,7 @@ function renderDocs(){
       ${!canVerify()&&r.status==="MENUNGGU_VERIFIKASI"?`<button type="button" disabled>Menunggu Kepala</button>`:""}
       ${canVerify()&&r.status!=="BELUM_ADA"?`<button class="primary-small" data-verify="${r.record_id}">${r.status==="LENGKAP"?"Tinjau Ulang":"Verifikasi"}</button>`:""}
       <button data-history="${r.record_id}">Riwayat</button>
-      <button data-note="${r.record_id}">Catatan</button>${r.generated_draft_id?`<button data-generated="${r.record_id}">Lihat Draft Otomatis</button>`:""}${integrationButton(r)}${r.storage_path?`<button data-view="${r.record_id}">Lihat File</button>`:""}<button class="primary-small" data-upload="${r.record_id}">Upload</button>
+      <button data-note="${r.record_id}">Catatan</button>${r.generated_draft_id?`<button data-generated="${r.record_id}">Buka Draft Kerja</button>`:""}${integrationButton(r)}${r.storage_path?`<button data-view="${r.record_id}">Lihat File</button>`:""}<button class="primary-small" data-upload="${r.record_id}">Upload</button>
     </div></article>`).join("");
   document.querySelectorAll("[data-followup]").forEach(el=>el.addEventListener("click",()=>openFollowup(el.dataset.followup)));
   document.querySelectorAll("[data-submit]").forEach(el=>el.addEventListener("click",()=>openSubmit(el.dataset.submit)));
@@ -517,7 +517,7 @@ function generatedDraftCanEdit(){
 function updateGeneratedDraftControls(){
   if(!generatedDraftCurrent)return;
   const d=generatedDraftCurrent,row=d.row,canEdit=generatedDraftCanEdit();
-  const kind=d.generator_kind==="DATA"?"Berbasis data SIMANIS":"Template terstruktur";
+  const kind=d.generator_kind==="DATA"?"Berbasis data SIMANIS":d.generator_kind==="EVIDENCE"?"Form Bukti Aktual":"Template terstruktur";
   const made=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(d.generated_at));
   const edited=d.edited_at?new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(d.edited_at)):null;
   $("generatedDraftInfo").textContent=kind+" · versi "+d.version_no+" · dibuat "+made+(edited?" · terakhir diedit "+edited+(d.edited_by_name?" oleh "+d.edited_by_name:""):"");
