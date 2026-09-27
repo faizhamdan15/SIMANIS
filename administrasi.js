@@ -5,6 +5,8 @@ let categories = [];
 let selectedCategory = null;
 let uploadTarget = null;
 let integrationSources = new Map();
+let verifyTarget = null;
+let systemSettings = null;
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -14,11 +16,32 @@ function localDateID(){
   return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date());
 }
 function routeFor(code){
-  if(code==="DASHBOARD") return "dashboard.html";
-  if(code==="ADMINISTRASI_KEPALA") return "administrasi.html";
-  if(code==="DATA_SISWA") return "siswa.html";
-  if(code==="DATA_GURU") return "guru.html";
-  return "#";
+  return {
+    DASHBOARD:"dashboard.html",
+    ADMINISTRASI_KEPALA:"administrasi.html",
+    DATA_SISWA:"siswa.html",
+    DATA_GURU:"guru.html",
+    KELAS:"kelas.html",
+    MATA_PELAJARAN:"mapel.html",
+    JADWAL:"jadwal.html",
+    ABSENSI_GURU:"absensi-guru.html",
+    ABSENSI_SISWA:"absensi-siswa.html",
+    NILAI:"nilai.html",
+    PRESTASI:"prestasi.html",
+    BERITA:"berita.html",
+    PENGUMUMAN:"pengumuman.html",
+    AGENDA:"agenda.html",
+    KEUANGAN:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS&tab=finance",
+    PORTAL_WALI:"wali-admin.html",
+    PENGATURAN:"pengaturan.html",
+    PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",
+    PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",
+    PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",
+    PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",
+    KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",
+    KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",
+    KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"
+  }[code]||"#";
 }
 function statusLabel(s){
   return {BELUM_ADA:"Belum Ada",DRAFT:"Draft",PERLU_REVISI:"Perlu Revisi",LENGKAP:"Lengkap"}[s] || s;
@@ -47,6 +70,14 @@ function integrationBadge(r){
 function integrationButton(r){
   const route=r.integration_key?integrationRoute(r.integration_key):null;
   return route?'<a href="'+route+'" style="text-decoration:none"><button type="button">Buka Sumber</button></a>':"";
+}
+function canVerify(){
+  return ["SUPER_ADMIN","KEPALA_MADRASAH"].includes(String(profile?.role||"").toUpperCase());
+}
+function verificationMeta(r){
+  if(!r.verified_at)return "";
+  const when=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(r.verified_at));
+  return '<span class="doc-file">Diverifikasi '+esc(r.verified_by_name||"-")+' · '+esc(when)+'</span>';
 }
 async function loadProfile(user){
   const p = await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
@@ -115,16 +146,109 @@ function renderDocs(){
       <span class="status-badge status-${r.status}">${statusLabel(r.status)}</span>
       ${integrationBadge(r)}
       ${r.file_name?`<span class="doc-file">${esc(r.file_name)} · v${r.version_no||1}</span>`:""}
+      ${verificationMeta(r)}
     </div></div>
     <div class="doc-actions">
-      <select data-status="${r.record_id}">${["BELUM_ADA","DRAFT","PERLU_REVISI","LENGKAP"].map(s=>`<option value="${s}" ${r.status===s?"selected":""}>${statusLabel(s)}</option>`).join("")}</select>
+      ${canVerify()&&r.status!=="BELUM_ADA"?`<button class="primary-small" data-verify="${r.record_id}">${r.status==="LENGKAP"?"Tinjau Ulang":"Verifikasi"}</button>`:""}
+      <button data-history="${r.record_id}">Riwayat</button>
       <button data-note="${r.record_id}">Catatan</button>${integrationButton(r)}${r.storage_path?`<button data-view="${r.record_id}">Lihat File</button>`:""}<button class="primary-small" data-upload="${r.record_id}">Upload</button>
     </div></article>`).join("");
-  document.querySelectorAll("[data-status]").forEach(el=>el.addEventListener("change",()=>updateStatus(el.dataset.status,el.value)));
+  document.querySelectorAll("[data-verify]").forEach(el=>el.addEventListener("click",()=>openVerify(el.dataset.verify)));
+  document.querySelectorAll("[data-history]").forEach(el=>el.addEventListener("click",()=>openHistory(el.dataset.history)));
   document.querySelectorAll("[data-note]").forEach(el=>el.addEventListener("click",()=>editNote(el.dataset.note)));
   document.querySelectorAll("[data-upload]").forEach(el=>el.addEventListener("click",()=>{uploadTarget=rows.find(r=>r.record_id===el.dataset.upload);$("filePicker").value="";$("filePicker").click();}));
   document.querySelectorAll("[data-view]").forEach(el=>el.addEventListener("click",()=>openFile(el.dataset.view)));
 }
+
+function closeVerify(){
+  $("verifyModal").classList.add("hidden");
+  verifyTarget=null;
+  $("verifyMessage").textContent="";
+}
+function openVerify(recordId){
+  const r=rows.find(x=>x.record_id===recordId);if(!r)return;
+  verifyTarget=r;
+  $("verifyTitle").textContent="Verifikasi · "+r.document_code.replace("ADM-","")+" · "+r.title;
+  const sourceCount=r.integration_key?(integrationSources.get(r.integration_key)||0):0;
+  $("verifyEvidence").innerHTML=
+    "<b>Bukti tersedia</b><br>"+
+    (r.file_name?"File: "+esc(r.file_name)+" (v"+(r.version_no||1)+")<br>":"")+
+    (r.integration_key?"Sumber SIMANIS: "+sourceCount+" data<br>":"")+
+    (!r.file_name&&!r.integration_key?"Belum ada bukti file maupun sumber SIMANIS.":"");
+  $("verifyStatus").value=r.status==="PERLU_REVISI"?"PERLU_REVISI":"LENGKAP";
+  $("verifyNote").value=r.verification_note||"";
+  $("verifyMessage").textContent="";
+  $("verifyModal").classList.remove("hidden");
+}
+async function saveVerification(){
+  if(!verifyTarget)return;
+  const status=$("verifyStatus").value,note=$("verifyNote").value.trim();
+  if(status==="PERLU_REVISI"&&!note){$("verifyMessage").textContent="Catatan revisi wajib diisi.";return}
+  const btn=$("verifySave");btn.disabled=true;btn.textContent="Menyimpan...";
+  try{
+    await api.db.rpc("verify_admin_document",{p_record_id:verifyTarget.record_id,p_status:status,p_note:note||null});
+    closeVerify();await loadData();
+  }catch(err){
+    $("verifyMessage").textContent="Gagal: "+(err.message||err);
+  }finally{
+    btn.disabled=false;btn.textContent="Simpan Verifikasi";
+  }
+}
+async function openHistory(recordId){
+  const r=rows.find(x=>x.record_id===recordId);if(!r)return;
+  $("historyTitle").textContent="Riwayat · "+r.document_code.replace("ADM-","")+" · "+r.title;
+  $("historyBody").innerHTML='<div class="admin-empty">Memuat riwayat...</div>';
+  $("historyModal").classList.remove("hidden");
+  try{
+    const logs=await api.db.rpc("list_admin_document_verification_logs",{p_record_id:recordId})||[];
+    $("historyBody").innerHTML=logs.length?logs.map(l=>{
+      const dt=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(l.created_at));
+      return '<div style="border:1px solid #e1e9e5;border-radius:11px;padding:10px;margin-bottom:8px">'+
+        '<b style="font-size:10px">'+esc(statusLabel(l.old_status||"-"))+' → '+esc(statusLabel(l.new_status))+'</b>'+
+        '<div style="font-size:8px;color:#718078;margin-top:3px">'+esc(l.changed_by_name||"-")+' · '+esc(dt)+'</div>'+
+        (l.verification_note?'<div style="font-size:9px;margin-top:6px">'+esc(l.verification_note)+'</div>':'')+
+      '</div>';
+    }).join(""):'<div class="admin-empty">Belum ada riwayat verifikasi.</div>';
+  }catch(err){
+    $("historyBody").innerHTML='<div class="admin-empty">Riwayat gagal dimuat: '+esc(err.message||err)+'</div>';
+  }
+}
+function closeHistory(){$("historyModal").classList.add("hidden")}
+function exportAdminCsv(){
+  const header=["Kode","Kategori","Dokumen","Status","Sumber SIMANIS","File","Versi","Penanggung Jawab","Verifier","Waktu Verifikasi","Catatan Verifikasi","Catatan Dokumen"];
+  const body=rows.map(r=>[
+    r.document_code,r.category_name,r.title,statusLabel(r.status),
+    r.integration_key?(integrationSources.get(r.integration_key)||0):"",
+    r.file_name||"",r.version_no||"",r.responsible_name||"",
+    r.verified_by_name||"",r.verified_at||"",r.verification_note||"",r.note||""
+  ]);
+  const csv=[header,...body].map(row=>row.map(v=>'"'+String(v??"").replaceAll('"','""')+'"').join(",")).join("\n");
+  const url=URL.createObjectURL(new Blob(["\uFEFF",csv],{type:"text/csv;charset=utf-8"}));
+  const a=document.createElement("a");a.href=url;a.download="Administrasi_Kepala_Madrasah_2026-2027.csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
+}
+function printAdminReport(){
+  const total=rows.length,complete=rows.filter(r=>r.status==="LENGKAP").length,draft=rows.filter(r=>r.status==="DRAFT").length,revision=rows.filter(r=>r.status==="PERLU_REVISI").length,missing=rows.filter(r=>r.status==="BELUM_ADA").length;
+  const w=window.open("","_blank");if(!w){alert("Popup diblokir browser.");return}
+  const school=(systemSettings?.school_name||"MA Nurul Islam").toUpperCase();
+  const addr=[systemSettings?.address,systemSettings?.village,systemSettings?.district,systemSettings?.regency,systemSettings?.province].filter(Boolean).join(", ");
+  const logo=new URL("logo.png",location.href).href;
+  const catRows=categories.map(c=>{
+    const rr=rows.filter(r=>r.category_id===c.id);
+    const c1=rr.filter(r=>r.status==="LENGKAP").length,c2=rr.filter(r=>r.status==="DRAFT").length,c3=rr.filter(r=>r.status==="PERLU_REVISI").length,c4=rr.filter(r=>r.status==="BELUM_ADA").length;
+    return '<tr><td>'+String(c.order).padStart(2,"0")+'. '+esc(c.name)+'</td><td>'+rr.length+'</td><td>'+c1+'</td><td>'+c2+'</td><td>'+c3+'</td><td>'+c4+'</td></tr>';
+  }).join("");
+  const docRows=rows.map(r=>'<tr><td>'+esc(r.document_code.replace("ADM-",""))+'</td><td>'+esc(r.category_name)+'</td><td class="left">'+esc(r.title)+'</td><td>'+esc(statusLabel(r.status))+'</td><td>'+esc(r.verified_by_name||"-")+'</td></tr>').join("");
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Rekap Administrasi Kepala Madrasah</title><style>@page{size:A4 landscape;margin:9mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#17251e;margin:0}.head{display:grid;grid-template-columns:16mm 1fr 16mm;align-items:center;border-bottom:3px double #173f30;padding-bottom:3mm;margin-bottom:4mm}.head img{width:14mm}.school{text-align:center}.school h2{font-size:14pt;margin:0}.school p{font-size:7pt;margin:1mm 0 0;color:#566}h3{text-align:center;font-size:11pt;margin:0 0 4mm}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:2mm;margin-bottom:4mm}.box{border:1px solid #ccd8d1;padding:2.5mm;text-align:center}.box b{display:block;font-size:13pt;color:#075b3a}.box span{font-size:7pt}table{width:100%;border-collapse:collapse;font-size:7pt;margin-bottom:5mm}th,td{border:1px solid #cdd8d2;padding:1.6mm;text-align:center}th{background:#f2f7f4}.left{text-align:left}.pagebreak{page-break-before:always}.sign{display:grid;grid-template-columns:1fr 1fr;gap:30mm;margin-top:8mm;text-align:center;font-size:8pt}.space{height:16mm}</style></head><body>'+
+    '<div class="head"><img src="'+logo+'"><div class="school"><h2>'+esc(school)+'</h2><p>'+esc(addr||"Karangcempaka, Bluto, Sumenep")+'</p></div><div></div></div>'+
+    '<h3>REKAP ADMINISTRASI KEPALA MADRASAH · TA 2026/2027</h3>'+
+    '<div class="stats"><div class="box"><b>'+total+'</b><span>Total</span></div><div class="box"><b>'+complete+'</b><span>Lengkap</span></div><div class="box"><b>'+draft+'</b><span>Draft</span></div><div class="box"><b>'+revision+'</b><span>Perlu Revisi</span></div><div class="box"><b>'+missing+'</b><span>Belum Ada</span></div></div>'+
+    '<table><thead><tr><th>Kategori</th><th>Total</th><th>Lengkap</th><th>Draft</th><th>Revisi</th><th>Belum Ada</th></tr></thead><tbody>'+catRows+'</tbody></table>'+
+    '<div class="pagebreak"></div><h3>DAFTAR STATUS 141 DOKUMEN</h3><table><thead><tr><th>Kode</th><th>Kategori</th><th>Dokumen</th><th>Status</th><th>Verifier</th></tr></thead><tbody>'+docRows+'</tbody></table>'+
+    '<div class="sign"><div>Mengetahui,<br>Kepala Madrasah<div class="space"></div><b>'+esc(systemSettings?.headmaster_name||"Kepala Madrasah")+'</b></div><div>Dicetak oleh<div class="space"></div><b>'+esc(profile?.full_name||"-")+'</b></div></div>'+
+    '<script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>');
+  w.document.close();
+}
+
 async function restWrite(path,method,body,prefer="return=representation"){
   const session=await api.auth.getSession(); if(!session?.access_token) throw new Error("Sesi login tidak ditemukan.");
   const cfg=window.SIMANIS_CONFIG;
@@ -163,10 +287,19 @@ async function openFile(recordId){
     window.open(signed.startsWith("http")?signed:`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1${signed}`,"_blank");
   }catch(err){alert("File gagal dibuka: "+err.message)}
 }
-$("docSearch").addEventListener("input",renderDocs); $("statusFilter").addEventListener("change",renderDocs); $("filePicker").addEventListener("change",e=>uploadFile(e.target.files?.[0]));
+$("docSearch").addEventListener("input",renderDocs);
+$("statusFilter").addEventListener("change",renderDocs);
+$("filePicker").addEventListener("change",e=>uploadFile(e.target.files?.[0]));
+$("verifyClose").onclick=closeVerify;$("verifyCancel").onclick=closeVerify;$("verifySave").onclick=saveVerification;
+$("verifyModal").onclick=e=>{if(e.target===$("verifyModal"))closeVerify()};
+$("historyClose").onclick=closeHistory;$("historyDone").onclick=closeHistory;
+$("historyModal").onclick=e=>{if(e.target===$("historyModal"))closeHistory()};
+$("exportAdminCsvBtn").onclick=exportAdminCsv;
+$("printAdminReportBtn").onclick=printAdminReport;
 (async function boot(){
   try{api=await window.simanisReady; const session=await api.auth.getSession(); if(!session){location.replace("index.html");return} const user=await api.auth.getUser(); if(!user){location.replace("index.html");return} profile=await loadProfile(user);
     $("sideUserName").textContent=profile.full_name||user.email||"Pengguna"; $("sideUserRole").textContent=formatRole(profile.role); $("headerUser").textContent=profile.full_name||user.email||"Pengguna"; $("currentDate").textContent=localDateID();
+    try{const x=await api.db.rpc("get_public_system_settings",{});systemSettings=Array.isArray(x)?x[0]:x}catch(_){systemSettings=null}
     await loadMenu(); await loadData(); $("logoutBtn").addEventListener("click",async()=>{await api.auth.signOut();location.replace("index.html");});
   }catch(err){console.error(err);alert("Administrasi Kepala gagal dimuat: "+(err.message||err));}finally{$("loading").classList.add("hidden");}
 })();
