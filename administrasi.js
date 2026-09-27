@@ -12,6 +12,7 @@ let attentionExpanded = false;
 let followupTarget = null;
 let headManager = false;
 let picRecommendations = [];
+let submitTarget = null;
 
 function esc(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -49,7 +50,7 @@ function routeFor(code){
   }[code]||"#";
 }
 function statusLabel(s){
-  return {BELUM_ADA:"Belum Ada",DRAFT:"Draft",PERLU_REVISI:"Perlu Revisi",LENGKAP:"Lengkap"}[s] || s;
+  return {BELUM_ADA:"Belum Ada",DRAFT:"Draft",MENUNGGU_VERIFIKASI:"Menunggu Verifikasi",PERLU_REVISI:"Perlu Revisi",LENGKAP:"Lengkap"}[s] || s;
 }
 function integrationRoute(key){
   return {
@@ -83,6 +84,11 @@ function verificationMeta(r){
   if(!r.verified_at)return "";
   const when=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(r.verified_at));
   return '<span class="doc-file">Diverifikasi '+esc(r.verified_by_name||"-")+' · '+esc(when)+'</span>';
+}
+function submissionMeta(r){
+  if(!r.submitted_at)return "";
+  const when=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(r.submitted_at));
+  return '<span class="doc-file">Diajukan '+esc(r.submitted_by_name||"-")+' · '+esc(when)+'</span>';
 }
 async function loadProfile(user){
   const p = await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);
@@ -120,14 +126,33 @@ async function loadData(){
   rows.forEach(r=>{ if(!map.has(r.category_id)) map.set(r.category_id,{id:r.category_id,code:r.category_code,name:r.category_name,order:r.category_order,expected:r.expected_documents}); });
   categories=[...map.values()].sort((a,b)=>a.order-b.order);
   if(!selectedCategory && categories.length) selectedCategory=categories[0].id;
-  renderStats(); renderAttention(); renderCategories(); renderDocs();
+  renderStats(); renderVerificationQueue(); renderAttention(); renderCategories(); renderDocs();
 }
 function renderStats(){
-  const total=rows.length, complete=rows.filter(r=>r.status==="LENGKAP").length, draft=rows.filter(r=>r.status==="DRAFT").length, revision=rows.filter(r=>r.status==="PERLU_REVISI").length, missing=rows.filter(r=>r.status==="BELUM_ADA").length;
+  const total=rows.length, complete=rows.filter(r=>r.status==="LENGKAP").length, draft=rows.filter(r=>r.status==="DRAFT").length, pending=rows.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length, revision=rows.filter(r=>r.status==="PERLU_REVISI").length, missing=rows.filter(r=>r.status==="BELUM_ADA").length;
   const available=Math.max(0,total-missing), pct=total?Math.round(available/total*100):0;
-  $("statComplete").textContent=complete; $("statDraft").textContent=draft; $("statRevision").textContent=revision; $("statMissing").textContent=missing;
+  $("statComplete").textContent=complete; $("statDraft").textContent=draft; $("statPending").textContent=pending; $("statRevision").textContent=revision; $("statMissing").textContent=missing;
   $("overallText").textContent=available+" / "+total+" punya progres ("+pct+"%)"; $("overallFill").style.width=pct+"%";
 }
+
+function renderVerificationQueue(){
+  const panel=$("verificationQueue");if(!panel)return;
+  if(!headManager){panel.style.display="none";return}
+  const pending=rows.filter(r=>r.status==="MENUNGGU_VERIFIKASI");
+  $("verificationQueueCount").textContent=pending.length+" dokumen";
+  panel.style.display=pending.length?"block":"none";
+  if(!pending.length){$("verificationQueueList").innerHTML="";return}
+  $("verificationQueueList").innerHTML=pending.map(r=>{
+    const evidence=[r.file_name?("File: "+r.file_name):"",r.integration_key?(String(integrationSources.get(r.integration_key)||0)+" data SIMANIS"):""].filter(Boolean).join(" · ");
+    return '<div class="attention-row"><div><h4>'+esc(r.document_code.replace("ADM-",""))+' · '+esc(r.title)+'</h4>'+
+      '<p>'+esc(r.category_name)+' · PIC: <b>'+esc(r.responsible_name||"-")+'</b></p>'+
+      '<p>'+esc(r.submitted_by_name||"-")+' mengajukan'+(r.submitted_at?' · '+esc(new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(r.submitted_at))):'')+
+      (evidence?' · '+esc(evidence):'')+'</p></div>'+
+      '<div><button class="primary-small" data-queue-verify="'+r.record_id+'">Verifikasi</button></div></div>';
+  }).join("");
+  document.querySelectorAll("[data-queue-verify]").forEach(b=>b.onclick=()=>openVerify(b.dataset.queueVerify));
+}
+
 function dueText(r){
   if(!r.due_date)return "Belum ada target";
   const d=new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",year:"numeric"}).format(new Date(r.due_date+"T00:00:00"));
@@ -162,11 +187,12 @@ function renderCategories(){
     const rr=rows.filter(r=>r.category_id===c.id);
     const done=rr.filter(r=>r.status==="LENGKAP").length;
     const draft=rr.filter(r=>r.status==="DRAFT").length;
+    const pending=rr.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length;
     const revision=rr.filter(r=>r.status==="PERLU_REVISI").length;
-    const available=done+draft+revision, pct=rr.length?Math.round(available/rr.length*100):0;
+    const available=done+draft+pending+revision, pct=rr.length?Math.round(available/rr.length*100):0;
     return `<article class="admin-cat ${selectedCategory===c.id?"active":""}" data-cat="${c.id}">
       <div class="admin-cat-top"><h4>${String(c.order).padStart(2,"0")}. ${esc(c.name)}</h4><span class="count">${available}/${rr.length}</span></div>
-      <small>${available} tersedia · ${done} lengkap · ${draft} draft</small><div class="cat-track"><div class="cat-fill" style="width:${pct}%"></div></div></article>`;
+      <small>${available} tersedia · ${done} lengkap · ${pending} menunggu · ${draft} draft</small><div class="cat-track"><div class="cat-fill" style="width:${pct}%"></div></div></article>`;
   }).join("");
   document.querySelectorAll("[data-cat]").forEach(el=>el.addEventListener("click",()=>{selectedCategory=el.dataset.cat;renderCategories();renderDocs();}));
 }
@@ -185,20 +211,56 @@ function renderDocs(){
       ${integrationBadge(r)}
       ${r.file_name?`<span class="doc-file">${esc(r.file_name)} · v${r.version_no||1}</span>`:""}
       ${verificationMeta(r)}
+      ${submissionMeta(r)}
       ${r.responsible_name||r.due_date?`<span class="doc-file">PIC: ${esc(r.responsible_name||"-")} · Target: ${r.due_date?esc(new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",year:"numeric"}).format(new Date(r.due_date+"T00:00:00"))):"-"} · ${esc(r.priority||"NORMAL")}</span>`:""}
     </div></div>
     <div class="doc-actions">
       ${canVerify()?`<button data-followup="${r.record_id}">Tindak Lanjut</button>`:""}
+      ${!canVerify()&&["DRAFT","PERLU_REVISI"].includes(r.status)&&(r.file_name||(r.integration_key&&Number(integrationSources.get(r.integration_key)||0)>0))?`<button class="primary-small" data-submit="${r.record_id}">Ajukan Verifikasi</button>`:""}
+      ${!canVerify()&&r.status==="MENUNGGU_VERIFIKASI"?`<button type="button" disabled>Menunggu Kepala</button>`:""}
       ${canVerify()&&r.status!=="BELUM_ADA"?`<button class="primary-small" data-verify="${r.record_id}">${r.status==="LENGKAP"?"Tinjau Ulang":"Verifikasi"}</button>`:""}
       <button data-history="${r.record_id}">Riwayat</button>
       <button data-note="${r.record_id}">Catatan</button>${integrationButton(r)}${r.storage_path?`<button data-view="${r.record_id}">Lihat File</button>`:""}<button class="primary-small" data-upload="${r.record_id}">Upload</button>
     </div></article>`).join("");
   document.querySelectorAll("[data-followup]").forEach(el=>el.addEventListener("click",()=>openFollowup(el.dataset.followup)));
+  document.querySelectorAll("[data-submit]").forEach(el=>el.addEventListener("click",()=>openSubmit(el.dataset.submit)));
   document.querySelectorAll("[data-verify]").forEach(el=>el.addEventListener("click",()=>openVerify(el.dataset.verify)));
   document.querySelectorAll("[data-history]").forEach(el=>el.addEventListener("click",()=>openHistory(el.dataset.history)));
   document.querySelectorAll("[data-note]").forEach(el=>el.addEventListener("click",()=>editNote(el.dataset.note)));
   document.querySelectorAll("[data-upload]").forEach(el=>el.addEventListener("click",()=>{uploadTarget=rows.find(r=>r.record_id===el.dataset.upload);$("filePicker").value="";$("filePicker").click();}));
   document.querySelectorAll("[data-view]").forEach(el=>el.addEventListener("click",()=>openFile(el.dataset.view)));
+}
+
+
+function closeSubmit(){
+  $("submitModal").classList.add("hidden");
+  submitTarget=null;
+  $("submitMessage").textContent="";
+}
+function openSubmit(recordId){
+  const r=rows.find(x=>x.record_id===recordId);if(!r)return;
+  submitTarget=r;
+  const sourceCount=r.integration_key?(integrationSources.get(r.integration_key)||0):0;
+  $("submitTitle").textContent="Ajukan Verifikasi · "+r.document_code.replace("ADM-","");
+  $("submitEvidence").innerHTML="<b>"+esc(r.title)+"</b><br>"+
+    (r.file_name?"File: "+esc(r.file_name)+" (v"+(r.version_no||1)+")<br>":"")+
+    (r.integration_key?"Sumber SIMANIS: "+sourceCount+" data<br>":"")+
+    "Setelah diajukan, dokumen akan masuk antrean Kepala Madrasah.";
+  $("submitNote").value=r.submission_note||"";
+  $("submitMessage").textContent="";
+  $("submitModal").classList.remove("hidden");
+}
+async function saveSubmission(){
+  if(!submitTarget)return;
+  const btn=$("submitSave");btn.disabled=true;btn.textContent="Mengajukan...";
+  try{
+    await api.db.rpc("submit_admin_document_for_verification",{p_record_id:submitTarget.record_id,p_note:$("submitNote").value.trim()||null});
+    closeSubmit();await loadData();
+  }catch(err){
+    $("submitMessage").textContent="Gagal: "+(err.message||err);
+  }finally{
+    btn.disabled=false;btn.textContent="Ajukan Verifikasi";
+  }
 }
 
 function renderPicSummary(){
@@ -317,10 +379,11 @@ async function openHistory(recordId){
 }
 function closeHistory(){$("historyModal").classList.add("hidden")}
 function exportAdminCsv(){
-  const header=["Kode","Kategori","Dokumen","Status","Prioritas","Penanggung Jawab","Target Selesai","Sumber SIMANIS","File","Versi","Verifier","Waktu Verifikasi","Catatan Verifikasi","Catatan Dokumen"];
+  const header=["Kode","Kategori","Dokumen","Status","Prioritas","Penanggung Jawab","Target Selesai","Pengaju","Waktu Pengajuan","Catatan Pengajuan","Sumber SIMANIS","File","Versi","Verifier","Waktu Verifikasi","Catatan Verifikasi","Catatan Dokumen"];
   const body=rows.map(r=>[
     r.document_code,r.category_name,r.title,statusLabel(r.status),
     r.priority||"NORMAL",r.responsible_name||"",r.due_date||"",
+    r.submitted_by_name||"",r.submitted_at||"",r.submission_note||"",
     r.integration_key?(integrationSources.get(r.integration_key)||0):"",
     r.file_name||"",r.version_no||"",
     r.verified_by_name||"",r.verified_at||"",r.verification_note||"",r.note||""
@@ -330,22 +393,22 @@ function exportAdminCsv(){
   const a=document.createElement("a");a.href=url;a.download="Administrasi_Kepala_Madrasah_2026-2027.csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
 }
 function printAdminReport(){
-  const total=rows.length,complete=rows.filter(r=>r.status==="LENGKAP").length,draft=rows.filter(r=>r.status==="DRAFT").length,revision=rows.filter(r=>r.status==="PERLU_REVISI").length,missing=rows.filter(r=>r.status==="BELUM_ADA").length;
+  const total=rows.length,complete=rows.filter(r=>r.status==="LENGKAP").length,draft=rows.filter(r=>r.status==="DRAFT").length,pending=rows.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length,revision=rows.filter(r=>r.status==="PERLU_REVISI").length,missing=rows.filter(r=>r.status==="BELUM_ADA").length;
   const w=window.open("","_blank");if(!w){alert("Popup diblokir browser.");return}
   const school=(systemSettings?.school_name||"MA Nurul Islam").toUpperCase();
   const addr=[systemSettings?.address,systemSettings?.village,systemSettings?.district,systemSettings?.regency,systemSettings?.province].filter(Boolean).join(", ");
   const logo=new URL("logo.png",location.href).href;
   const catRows=categories.map(c=>{
     const rr=rows.filter(r=>r.category_id===c.id);
-    const c1=rr.filter(r=>r.status==="LENGKAP").length,c2=rr.filter(r=>r.status==="DRAFT").length,c3=rr.filter(r=>r.status==="PERLU_REVISI").length,c4=rr.filter(r=>r.status==="BELUM_ADA").length;
-    return '<tr><td>'+String(c.order).padStart(2,"0")+'. '+esc(c.name)+'</td><td>'+rr.length+'</td><td>'+c1+'</td><td>'+c2+'</td><td>'+c3+'</td><td>'+c4+'</td></tr>';
+    const c1=rr.filter(r=>r.status==="LENGKAP").length,c2=rr.filter(r=>r.status==="DRAFT").length,c3=rr.filter(r=>r.status==="MENUNGGU_VERIFIKASI").length,c4=rr.filter(r=>r.status==="PERLU_REVISI").length,c5=rr.filter(r=>r.status==="BELUM_ADA").length;
+    return '<tr><td>'+String(c.order).padStart(2,"0")+'. '+esc(c.name)+'</td><td>'+rr.length+'</td><td>'+c1+'</td><td>'+c2+'</td><td>'+c3+'</td><td>'+c4+'</td><td>'+c5+'</td></tr>';
   }).join("");
   const docRows=rows.map(r=>'<tr><td>'+esc(r.document_code.replace("ADM-",""))+'</td><td>'+esc(r.category_name)+'</td><td class="left">'+esc(r.title)+'</td><td>'+esc(statusLabel(r.status))+'</td><td>'+esc(r.priority||"NORMAL")+'</td><td>'+esc(r.responsible_name||"-")+'</td><td>'+esc(r.due_date||"-")+'</td><td>'+esc(r.verified_by_name||"-")+'</td></tr>').join("");
   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Rekap Administrasi Kepala Madrasah</title><style>@page{size:A4 landscape;margin:9mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#17251e;margin:0}.head{display:grid;grid-template-columns:16mm 1fr 16mm;align-items:center;border-bottom:3px double #173f30;padding-bottom:3mm;margin-bottom:4mm}.head img{width:14mm}.school{text-align:center}.school h2{font-size:14pt;margin:0}.school p{font-size:7pt;margin:1mm 0 0;color:#566}h3{text-align:center;font-size:11pt;margin:0 0 4mm}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:2mm;margin-bottom:4mm}.box{border:1px solid #ccd8d1;padding:2.5mm;text-align:center}.box b{display:block;font-size:13pt;color:#075b3a}.box span{font-size:7pt}table{width:100%;border-collapse:collapse;font-size:7pt;margin-bottom:5mm}th,td{border:1px solid #cdd8d2;padding:1.6mm;text-align:center}th{background:#f2f7f4}.left{text-align:left}.pagebreak{page-break-before:always}.sign{display:grid;grid-template-columns:1fr 1fr;gap:30mm;margin-top:8mm;text-align:center;font-size:8pt}.space{height:16mm}</style></head><body>'+
     '<div class="head"><img src="'+logo+'"><div class="school"><h2>'+esc(school)+'</h2><p>'+esc(addr||"Karangcempaka, Bluto, Sumenep")+'</p></div><div></div></div>'+
     '<h3>REKAP ADMINISTRASI KEPALA MADRASAH · TA 2026/2027</h3>'+
-    '<div class="stats"><div class="box"><b>'+total+'</b><span>Total</span></div><div class="box"><b>'+complete+'</b><span>Lengkap</span></div><div class="box"><b>'+draft+'</b><span>Draft</span></div><div class="box"><b>'+revision+'</b><span>Perlu Revisi</span></div><div class="box"><b>'+missing+'</b><span>Belum Ada</span></div></div>'+
-    '<table><thead><tr><th>Kategori</th><th>Total</th><th>Lengkap</th><th>Draft</th><th>Revisi</th><th>Belum Ada</th></tr></thead><tbody>'+catRows+'</tbody></table>'+
+    '<div class="stats"><div class="box"><b>'+total+'</b><span>Total</span></div><div class="box"><b>'+complete+'</b><span>Lengkap</span></div><div class="box"><b>'+draft+'</b><span>Draft</span></div><div class="box"><b>'+pending+'</b><span>Menunggu</span></div><div class="box"><b>'+revision+'</b><span>Perlu Revisi</span></div><div class="box"><b>'+missing+'</b><span>Belum Ada</span></div></div>'+
+    '<table><thead><tr><th>Kategori</th><th>Total</th><th>Lengkap</th><th>Draft</th><th>Menunggu</th><th>Revisi</th><th>Belum Ada</th></tr></thead><tbody>'+catRows+'</tbody></table>'+
     '<div class="pagebreak"></div><h3>DAFTAR STATUS 141 DOKUMEN</h3><table><thead><tr><th>Kode</th><th>Kategori</th><th>Dokumen</th><th>Status</th><th>Prioritas</th><th>PIC</th><th>Target</th><th>Verifier</th></tr></thead><tbody>'+docRows+'</tbody></table>'+
     '<div class="sign"><div>Mengetahui,<br>Kepala Madrasah<div class="space"></div><b>'+esc(systemSettings?.headmaster_name||"Kepala Madrasah")+'</b></div><div>Dicetak oleh<div class="space"></div><b>'+esc(profile?.full_name||"-")+'</b></div></div>'+
     '<script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>');
@@ -377,7 +440,10 @@ async function uploadFile(file){
     const versions=await api.db.select("admin_document_files",`select=version_no&record_id=eq.${encodeURIComponent(uploadTarget.record_id)}&order=version_no.desc&limit=1`); const nextVersion=(versions?.[0]?.version_no||0)+1;
     await restWrite(`admin_document_files?record_id=eq.${encodeURIComponent(uploadTarget.record_id)}&is_current=eq.true`,"PATCH",{is_current:false});
     await restWrite("admin_document_files","POST",{record_id:uploadTarget.record_id,version_no:nextVersion,storage_path:path,file_name:file.name,mime_type:file.type||null,file_size:file.size,is_current:true});
-    await restWrite(`admin_document_records?id=eq.${encodeURIComponent(uploadTarget.record_id)}`,"PATCH",{status:uploadTarget.status==="BELUM_ADA"?"DRAFT":uploadTarget.status});
+    const nextStatus=["BELUM_ADA","MENUNGGU_VERIFIKASI"].includes(uploadTarget.status)?"DRAFT":uploadTarget.status;
+    const patch={status:nextStatus};
+    if(uploadTarget.status==="MENUNGGU_VERIFIKASI"){patch.submitted_by=null;patch.submitted_at=null;patch.submission_note=null}
+    await restWrite(`admin_document_records?id=eq.${encodeURIComponent(uploadTarget.record_id)}`,"PATCH",patch);
     await loadData(); alert("File berhasil diupload.");
   }catch(err){alert("Upload gagal: "+err.message)}finally{uploadTarget=null;}
 }
@@ -393,6 +459,8 @@ async function openFile(recordId){
 $("docSearch").addEventListener("input",renderDocs);
 $("statusFilter").addEventListener("change",renderDocs);
 $("filePicker").addEventListener("change",e=>uploadFile(e.target.files?.[0]));
+$("submitClose").onclick=closeSubmit;$("submitCancel").onclick=closeSubmit;$("submitSave").onclick=saveSubmission;
+$("submitModal").onclick=e=>{if(e.target===$("submitModal"))closeSubmit()};
 $("attentionToggleBtn").onclick=()=>{attentionExpanded=!attentionExpanded;renderAttention()};
 $("picSummaryBtn").onclick=openPicSummary;$("picClose").onclick=closePicSummary;$("picDone").onclick=closePicSummary;$("picApplyEmptyBtn").onclick=applyPicEmpty;
 $("picModal").onclick=e=>{if(e.target===$("picModal"))closePicSummary()};
