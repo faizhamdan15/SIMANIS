@@ -18,7 +18,9 @@
     .due-overdue{color:#a13b33;font-weight:900}.due-soon{color:#8a6500;font-weight:900}
     .status-MENUNGGU_VERIFIKASI{background:#e8f0ff!important;color:#315ea8!important}
     .notif-wrap{position:relative;display:inline-flex}.notif-badge{position:absolute;right:-5px;top:-7px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#b42318;color:#fff;font-size:7px;font-weight:900;display:none;align-items:center;justify-content:center;border:2px solid #fff}
-    .notif-item{border:1px solid #e1e9e5;border-radius:11px;padding:10px;margin-bottom:8px;cursor:pointer;background:#fff}.notif-item.unread{background:#f3faf6;border-color:#b9dcca}.notif-item h4{margin:0 0 3px;font-size:10px;color:#173f30}.notif-item p{margin:2px 0;font-size:8px;color:#718078}.notif-time{font-size:7px;color:#87958e;margin-top:5px}
+    .notif-item{border:1px solid #e1e9e5;border-radius:11px;padding:10px;margin-bottom:8px;cursor:pointer;background:#fff}.notif-item.unread{background:#f3faf6;border-color:#b9dcca}.generated-badge{display:inline-flex;padding:3px 7px;border-radius:999px;background:#e9f7ef;color:#08733f;font-size:7px;font-weight:900}
+    .generated-preview{font-family:Arial,sans-serif;color:#1d2a24;line-height:1.55}.generated-preview table{width:100%;border-collapse:collapse;margin:12px 0}.generated-preview th,.generated-preview td{border:1px solid #ccd8d1;padding:7px;font-size:9px}.generated-preview h1,.generated-preview h2,.generated-preview h3{color:#173f30}
+    .notif-item h4{margin:0 0 3px;font-size:10px;color:#173f30}.notif-item p{margin:2px 0;font-size:8px;color:#718078}.notif-time{font-size:7px;color:#87958e;margin-top:5px}
     .doc-item.doc-highlight{outline:2px solid #12a97b;outline-offset:2px;background:#f4fbf7}
     .stats{grid-template-columns:repeat(5,1fr)}
     @media(max-width:1050px){.stats{grid-template-columns:repeat(3,1fr)}}
@@ -126,6 +128,20 @@
 <input id="filePicker" class="file-hidden" type="file"
   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" />
 
+<div id="generatedDraftModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-head"><h3 id="generatedDraftTitle">Draft Otomatis</h3><button id="generatedDraftClose" class="modal-close">✕</button></div>
+    <div class="modal-body">
+      <div id="generatedDraftInfo" style="font-size:9px;color:#66766e;margin-bottom:10px"></div>
+      <div id="generatedDraftBody" class="generated-preview"></div>
+    </div>
+    <div class="modal-actions">
+      <button id="generatedDraftPrint" class="secondary-btn" type="button">Cetak / PDF</button>
+      <button id="generatedDraftDone" class="primary-btn" type="button" style="width:auto">Tutup</button>
+    </div>
+  </div>
+</div>
+
 <div id="notificationModal" class="modal-backdrop hidden">
   <div class="modal" style="max-width:680px">
     <div class="modal-head"><h3>Notifikasi Administrasi</h3><button id="notificationClose" class="modal-close">✕</button></div>
@@ -210,6 +226,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="administrasi.js?v=20260927-01"></script>
+<script src="administrasi.js?v=20260927-02"></script>
 </body>
 </html>
