@@ -34,8 +34,16 @@
 
     <main class="main">
       <section class="admin-hero">
-        <h2>Administrasi Kepala Madrasah</h2>
-        <p>Kontrol kelengkapan 141 dokumen administrasi MA Nurul Islam dalam satu dashboard.</p>
+        <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap">
+          <div>
+            <h2>Administrasi Kepala Madrasah</h2>
+            <p>Kontrol kelengkapan 141 dokumen administrasi MA Nurul Islam dalam satu dashboard.</p>
+          </div>
+          <div id="adminReportActions" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="exportAdminCsvBtn" class="secondary-btn" type="button">Export CSV</button>
+            <button id="printAdminReportBtn" class="primary-btn" type="button" style="width:auto">Cetak Rekap / PDF</button>
+          </div>
+        </div>
         <div class="progress-row">
           <div class="progress-track"><div id="overallFill" class="progress-fill"></div></div>
           <div id="overallText" class="progress-number">0 / 141</div>
@@ -75,6 +83,33 @@
 
 <input id="filePicker" class="file-hidden" type="file"
   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" />
+
+<div id="verifyModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head"><h3 id="verifyTitle">Verifikasi Dokumen</h3><button id="verifyClose" class="modal-close">✕</button></div>
+    <div class="modal-body">
+      <div id="verifyEvidence" style="background:#f7faf8;border:1px solid #e1e9e5;border-radius:11px;padding:10px;font-size:9px;margin-bottom:12px"></div>
+      <label><span>Status Verifikasi</span>
+        <select id="verifyStatus">
+          <option value="LENGKAP">Lengkap</option>
+          <option value="PERLU_REVISI">Perlu Revisi</option>
+          <option value="DRAFT">Kembalikan ke Draft</option>
+        </select>
+      </label>
+      <label style="margin-top:10px"><span>Catatan Verifikasi</span><textarea id="verifyNote" rows="4" placeholder="Catatan opsional. Wajib jika memilih Perlu Revisi."></textarea></label>
+      <div id="verifyMessage" style="font-size:9px;color:#a13b33;margin-top:8px"></div>
+    </div>
+    <div class="modal-actions"><button id="verifyCancel" class="secondary-btn" type="button">Batal</button><button id="verifySave" class="primary-btn" type="button" style="width:auto">Simpan Verifikasi</button></div>
+  </div>
+</div>
+
+<div id="historyModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:650px">
+    <div class="modal-head"><h3 id="historyTitle">Riwayat Verifikasi</h3><button id="historyClose" class="modal-close">✕</button></div>
+    <div id="historyBody" class="modal-body"></div>
+    <div class="modal-actions"><button id="historyDone" class="secondary-btn" type="button">Tutup</button></div>
+  </div>
+</div>
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
