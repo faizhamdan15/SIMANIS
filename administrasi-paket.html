@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Paket Administrasi Kepala 2026/2027 — SIMANIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .package-hero{background:linear-gradient(135deg,#0b5f3d,#173f30);color:#fff;border-radius:20px;padding:22px;margin-bottom:14px}
+    .package-hero h2{margin:0 0 5px;font-size:20px}.package-hero p{margin:0;color:#d8efe4;font-size:9px}
+    .package-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .package-actions button,.package-actions a{width:auto}
+    .package-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+    .package-kpi{background:#fff;border:1px solid #e1e9e5;border-radius:14px;padding:13px}
+    .package-kpi span{font-size:8px;color:#718078}.package-kpi b{display:block;font-size:19px;color:#0b5f3d;margin-top:4px}
+    .package-progress{height:9px;background:#e5eee9;border-radius:999px;overflow:hidden;margin-top:8px}.package-progress>div{height:100%;background:#12a97b;width:0}
+    .package-alert{border-radius:12px;padding:11px 13px;font-size:9px;margin-bottom:14px;background:#fff7d6;border:1px solid #ead58b;color:#745c0b}
+    .package-alert.complete{background:#eef8f2;border-color:#badcc8;color:#08733f}
+    .package-categories{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+    .package-category{background:#fff;border:1px solid #e1e9e5;border-radius:14px;padding:13px}
+    .package-category h4{margin:0 0 4px;font-size:10px;color:#173f30}.package-category p{margin:0;font-size:8px;color:#718078}
+    .package-category .bar{height:6px;background:#edf2ef;border-radius:999px;overflow:hidden;margin:9px 0}.package-category .bar div{height:100%;background:#12a97b}
+    .package-category-actions{display:flex;gap:6px;flex-wrap:wrap}.package-category-actions button{width:auto;font-size:8px}
+    .package-table-wrap{overflow:auto}.package-table{width:100%;border-collapse:collapse;font-size:9px}
+    .package-table th,.package-table td{border-bottom:1px solid #e5ece8;padding:9px;text-align:left;vertical-align:top}.package-table th{font-size:8px;color:#66766e;background:#f7faf8;position:sticky;top:0}
+    .package-table .code{font-weight:800;color:#0b5f3d;white-space:nowrap}.package-table .muted{font-size:8px;color:#718078}
+    .final-chip{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:7px;font-weight:900;background:#173f30;color:#fff}.missing-chip{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:7px;font-weight:900;background:#fff0e8;color:#a44b1f}
+    .checksum{font-family:monospace;font-size:8px;word-break:break-all;background:#f5f7f6;padding:8px;border-radius:9px}
+    @media(max-width:980px){.package-summary{grid-template-columns:repeat(2,1fr)}.package-categories{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:620px){.package-summary,.package-categories{grid-template-columns:1fr}.package-table{min-width:760px}}
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Memuat Paket Administrasi...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div>
+    <nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer">
+      <div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div>
+      <button id="logoutBtn" class="logout-btn">Keluar</button>
+    </div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar">
+      <div><h1>SIMANIS</h1><p>Paket Administrasi Kepala Madrasah · TA 2026/2027</p></div>
+      <div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div>
+    </header>
+
+    <main class="main">
+      <section class="package-hero">
+        <h2>Paket Administrasi Kepala 2026/2027</h2>
+        <p>Arsip terstruktur dari versi FINAL yang telah disahkan Kepala Madrasah.</p>
+        <div class="package-actions">
+          <a href="administrasi.html" class="secondary-btn" style="text-decoration:none">← Administrasi Kepala</a>
+          <button id="previewStructureBtn" class="secondary-btn" type="button">Preview Struktur 141 Dokumen</button>
+          <button id="printFinalPackageBtn" class="primary-btn" type="button">Cetak / PDF Paket FINAL</button>
+        </div>
+      </section>
+
+      <section id="packageAlert" class="package-alert">Memeriksa kesiapan paket...</section>
+
+      <section class="package-summary">
+        <div class="package-kpi"><span>Total Dokumen</span><b id="totalDocs">0</b></div>
+        <div class="package-kpi"><span>FINAL</span><b id="finalDocs">0</b></div>
+        <div class="package-kpi"><span>Belum FINAL</span><b id="missingDocs">0</b></div>
+        <div class="package-kpi"><span>Kelengkapan Paket</span><b id="packagePercent">0%</b><div class="package-progress"><div id="packageProgress"></div></div></div>
+      </section>
+
+      <section class="card" style="margin-bottom:14px">
+        <div class="card-title"><div><h3>Sidik Jari Paket</h3><span>SHA-256 dihitung dari checksum versi FINAL terbaru dalam urutan paket</span></div></div>
+        <div id="packageChecksum" class="checksum">Belum tersedia karena belum ada dokumen FINAL.</div>
+      </section>
+
+      <section class="card" style="margin-bottom:14px">
+        <div class="card-title"><div><h3>9 Kategori Administrasi</h3><span>Progres FINAL per kategori</span></div></div>
+        <div id="categoryGrid" class="package-categories"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">
+          <div><h3>Manifest Paket</h3><span>Daftar 141 dokumen dan versi FINAL terbaru</span></div>
+          <span id="manifestCount">0 dokumen</span>
+        </div>
+        <div class="package-table-wrap">
+          <table class="package-table">
+            <thead><tr><th>Kode</th><th>Kategori</th><th>Dokumen</th><th>Status Paket</th><th>Verifier</th><th>Artefak</th></tr></thead>
+            <tbody id="manifestBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script src="administrasi-paket.js?v=20260928-01"></script>
+</body>
+</html>
