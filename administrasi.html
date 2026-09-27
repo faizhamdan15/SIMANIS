@@ -113,7 +113,7 @@
       <section id="picTaskCenter" class="card" style="margin-bottom:14px;display:none">
         <div class="card-title">
           <div><h3>Tugas Administrasi Saya</h3><span>Dokumen yang menjadi tanggung jawab Anda dan langkah berikutnya</span></div>
-          <button id="picTaskToggleBtn" class="secondary-btn" type="button" style="width:auto">Lihat Semua</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="picTaskSubmitAllBtn" class="primary-btn" type="button" style="display:none;width:auto">Ajukan Semua Siap</button><button id="picTaskToggleBtn" class="secondary-btn" type="button" style="width:auto">Lihat Semua</button></div>
         </div>
         <div class="pic-task-grid">
           <div class="pic-task-kpi"><span>Siap Diajukan</span><b id="picTaskReady">0</b></div>
@@ -248,6 +248,22 @@
   </div>
 </div>
 
+<div id="bulkSubmitModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head"><h3>Ajukan Semua Dokumen Siap</h3><button id="bulkSubmitClose" class="modal-close">✕</button></div>
+    <div class="modal-body">
+      <div id="bulkSubmitSummary" style="background:#f7faf8;border:1px solid #e1e9e5;border-radius:11px;padding:11px;font-size:9px;margin-bottom:12px"></div>
+      <div style="padding:10px 12px;background:#fff7d6;border:1px solid #ead58b;border-radius:10px;font-size:9px;margin-bottom:12px"><b>Konfirmasi diperlukan.</b><br>Hanya dokumen dengan skor kesiapan 100% yang akan diajukan. Dokumen lain tetap Draft.</div>
+      <label><span>Catatan untuk Kepala Madrasah</span><textarea id="bulkSubmitNote" rows="4" placeholder="Contoh: Dokumen yang sudah siap mohon diverifikasi."></textarea></label>
+      <div id="bulkSubmitMessage" style="font-size:9px;color:#a13b33;margin-top:8px"></div>
+    </div>
+    <div class="modal-actions">
+      <button id="bulkSubmitCancel" class="secondary-btn" type="button">Batal</button>
+      <button id="bulkSubmitConfirm" class="primary-btn" type="button" style="width:auto">Ya, Ajukan Dokumen Siap</button>
+    </div>
+  </div>
+</div>
+
 <div id="submitModal" class="modal-backdrop hidden">
   <div class="modal" style="max-width:520px">
     <div class="modal-head"><h3 id="submitTitle">Ajukan Verifikasi</h3><button id="submitClose" class="modal-close">✕</button></div>
@@ -321,6 +337,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="administrasi.js?v=20260927-08"></script>
+<script src="administrasi.js?v=20260927-09"></script>
 </body>
 </html>
