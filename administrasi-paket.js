@@ -1,5 +1,6 @@
 const $=id=>document.getElementById(id);
 let api,profile,systemSettings=null,packageSummary=null,packageDocs=[],headManager=false;
+let activeAcademicYear=null;
 
 function esc(s){
   return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -41,6 +42,16 @@ async function loadProfile(user){
   if(!p?.[0]||!p[0].is_active)throw new Error("Profil pengguna tidak aktif.");
   return p[0];
 }
+async function loadActiveAcademicYear(){
+  const ay=await api.db.select("academic_years","select=id,name,start_date,end_date,is_active&is_active=eq.true&order=start_date.desc&limit=1");
+  if(!ay?.[0]?.name)throw new Error("Tahun ajaran aktif belum ditetapkan.");
+  activeAcademicYear=ay[0].name;
+  document.title="Paket Administrasi Kepala "+activeAcademicYear+" — SIMANIS";
+  const top=$("packageAcademicYearText");if(top)top.textContent=activeAcademicYear;
+  const hero=$("packageHeroTitle");if(hero)hero.textContent="Paket Administrasi Kepala "+activeAcademicYear;
+  return ay[0];
+}
+function activeAcademicYearFolder(){return String(activeAcademicYear||"").replaceAll("/","-")}
 async function loadMenu(){
   const modules=await api.db.rpc("get_my_modules",{});
   $("sidebarMenu").innerHTML=(modules||[]).map(m=>
@@ -50,8 +61,8 @@ async function loadMenu(){
 }
 async function loadPackage(){
   const results=await Promise.all([
-    api.db.rpc("get_admin_final_package_summary",{p_academic_year:"2026/2027"}),
-    api.db.rpc("get_admin_final_package_documents",{p_academic_year:"2026/2027",p_category_code:null})
+    api.db.rpc("get_admin_final_package_summary",{p_academic_year:activeAcademicYear}),
+    api.db.rpc("get_admin_final_package_documents",{p_academic_year:activeAcademicYear,p_category_code:null})
   ]);
   packageSummary=asObject(results[0])||{};
   packageDocs=results[1]||[];
@@ -72,7 +83,7 @@ function renderPackage(){
   const alert=$("packageAlert");
   if(packageSummary.is_complete){
     alert.className="package-alert complete";
-    alert.innerHTML="<b>Paket lengkap.</b> Seluruh "+total+" dokumen sudah FINAL dan siap dicetak sebagai arsip resmi TA 2026/2027.";
+    alert.innerHTML="<b>Paket lengkap.</b> Seluruh "+total+" dokumen sudah FINAL dan siap dicetak sebagai arsip resmi TA "+activeAcademicYear+".";
   }else{
     alert.className="package-alert";
     alert.innerHTML="<b>Paket belum lengkap.</b> "+finals+" dari "+total+" dokumen sudah FINAL. Masih ada <b>"+missing+"</b> dokumen yang belum disahkan. Preview struktur tetap dapat digunakan; cetak paket akan memuat FINAL yang tersedia.";
@@ -165,7 +176,7 @@ function buildPackageHtml(categoryCode=null,previewAll=false){
   const body=groups.map(g=>'<section class="category-cover"><div class="cat-no">'+String(g.order).padStart(2,"0")+'</div><h2>'+esc(g.name)+'</h2><p>'+g.docs.filter(d=>d.final_id).length+' dari '+g.docs.length+' dokumen FINAL</p></section>'+
     g.docs.map(d=>finalDocHtml(d,++seq,docs.length)).join("")).join("");
 
-  return '<!doctype html><html><head><meta charset="utf-8"><title>Paket Administrasi Kepala 2026-2027</title><style>'+
+  return '<!doctype html><html><head><meta charset="utf-8"><title>Paket Administrasi Kepala '+activeAcademicYearFolder()+'</title><style>'+
     '@page{size:A4;margin:17mm 15mm 18mm;@bottom-center{content:"SIMANIS · Administrasi Kepala · Halaman " counter(page) " dari " counter(pages);font:8pt Arial;color:#6b7871}}'+
     '@page cover{margin:0;@bottom-center{content:none}}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#17251e;margin:0;font-size:10pt;line-height:1.5}'+
     '.cover{page:cover;height:297mm;padding:30mm 23mm;display:flex;flex-direction:column;justify-content:space-between;background:#0b5f3d;color:#fff;page-break-after:always}.cover img{width:28mm;height:28mm;object-fit:contain;background:#fff;border-radius:50%;padding:3mm}.cover h1{font-size:28pt;line-height:1.08;margin:10mm 0 4mm}.cover h2{font-size:15pt;margin:0;color:#d5efe2}.cover .year{font-size:24pt;font-weight:800;margin-top:5mm}.cover-foot{font-size:9pt;color:#d8efe4}.cover-status{display:inline-block;margin-top:10mm;padding:3mm 5mm;border:1px solid rgba(255,255,255,.45);border-radius:99px;font-weight:bold;font-size:9pt}'+
@@ -174,8 +185,8 @@ function buildPackageHtml(categoryCode=null,previewAll=false){
     '.category-cover{page-break-before:always;page-break-after:always;min-height:245mm;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;border:2px solid #0b5f3d}.category-cover .cat-no{font-size:54pt;font-weight:800;color:#12a97b}.category-cover h2{font-size:24pt;color:#173f30;margin:3mm 10mm}.category-cover p{color:#68776f}'+
     '.final-document{page-break-before:always;position:relative}.final-head{display:flex;justify-content:space-between;gap:8mm;border-bottom:2px solid #173f30;padding-bottom:3mm;margin-bottom:3mm}.final-head b{display:block;font-size:11pt}.final-head span{font-size:8pt;color:#6a7971}.final-tag{background:#173f30;color:#fff;border-radius:99px;padding:2mm 4mm;height:max-content;font-size:8pt;font-weight:bold;white-space:nowrap}.final-audit{font-size:8pt;background:#f1f8f4;border:1px solid #c8dfd1;padding:3mm;margin-bottom:5mm}.final-document table{width:100%;border-collapse:collapse;margin:3mm 0}.final-document th,.final-document td{border:1px solid #bcc9c2;padding:2mm;font-size:8pt;vertical-align:top}.final-document h1{font-size:16pt}.final-document h2{font-size:14pt}.final-document h3{font-size:11pt}.artifact-box{page-break-inside:avoid;margin-top:6mm;border-top:1px solid #ccd8d1;padding-top:3mm}.doc-seq{text-align:right;font-size:7pt;color:#78857e;margin-top:5mm}.file-only{padding:6mm;border:1px dashed #9aaca2;background:#fafcfb}.missing-final{page-break-before:always;min-height:220mm;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;border:2px dashed #d7a485;padding:15mm}.missing-final h2{font-size:20pt}.missing-stamp{font-size:11pt;font-weight:bold;color:#a44b1f;background:#fff0e8;padding:3mm 6mm;border-radius:99px;margin:5mm}.package-code{font-size:9pt;color:#67766e}'+
     '</style></head><body>'+
-    '<section class="cover"><div><img src="'+logo+'"><h1>PAKET<br>'+esc(title)+'</h1><h2>'+esc(school)+'</h2><div class="year">TA 2026/2027</div><div class="cover-status">'+esc(statusText)+'</div></div><div class="cover-foot">'+esc(schoolAddress())+'<br>'+esc(short)+' · SIMANIS</div></section>'+
-    '<section class="cert"><h1>LEMBAR KENDALI PAKET</h1><div class="cert-box"><table><tr><td><b>Satuan Pendidikan</b></td><td>'+esc(school)+'</td></tr><tr><td><b>Tahun Ajaran</b></td><td>2026/2027</td></tr><tr><td><b>Dokumen dalam struktur</b></td><td>'+all.length+'</td></tr><tr><td><b>Dokumen FINAL dalam cetakan</b></td><td>'+docs.filter(d=>d.final_id).length+'</td></tr><tr><td><b>Dibuat</b></td><td>'+esc(generated)+'</td></tr></table><div class="hash"><b>Checksum Paket SHA-256</b><br>'+esc(checksum)+'</div></div><p>Paket ini disusun dari versi FINAL terbaru yang tersimpan pada SIMANIS. Setiap dokumen FINAL memiliki checksum individual dan riwayat verifikasi.</p><div class="sign">Mengetahui,<br>Kepala Madrasah<div class="sign-space"></div><b>'+esc(head)+'</b></div></section>'+
+    '<section class="cover"><div><img src="'+logo+'"><h1>PAKET<br>'+esc(title)+'</h1><h2>'+esc(school)+'</h2><div class="year">TA '+esc(activeAcademicYear)+'</div><div class="cover-status">'+esc(statusText)+'</div></div><div class="cover-foot">'+esc(schoolAddress())+'<br>'+esc(short)+' · SIMANIS</div></section>'+
+    '<section class="cert"><h1>LEMBAR KENDALI PAKET</h1><div class="cert-box"><table><tr><td><b>Satuan Pendidikan</b></td><td>'+esc(school)+'</td></tr><tr><td><b>Tahun Ajaran</b></td><td>'+esc(activeAcademicYear)+'</td></tr><tr><td><b>Dokumen dalam struktur</b></td><td>'+all.length+'</td></tr><tr><td><b>Dokumen FINAL dalam cetakan</b></td><td>'+docs.filter(d=>d.final_id).length+'</td></tr><tr><td><b>Dibuat</b></td><td>'+esc(generated)+'</td></tr></table><div class="hash"><b>Checksum Paket SHA-256</b><br>'+esc(checksum)+'</div></div><p>Paket ini disusun dari versi FINAL terbaru yang tersimpan pada SIMANIS. Setiap dokumen FINAL memiliki checksum individual dan riwayat verifikasi.</p><div class="sign">Mengetahui,<br>Kepala Madrasah<div class="sign-space"></div><b>'+esc(head)+'</b></div></section>'+
     '<section class="toc"><h1>DAFTAR ISI / MANIFEST DOKUMEN</h1>'+toc+'</section>'+body+
     '</body></html>';
 }
@@ -208,6 +219,7 @@ $("printFinalPackageBtn").onclick=()=>openPackageWindow(null,false,true);
     $("headerUser").textContent=profile.full_name||user.email||"Pengguna";
     $("currentDate").textContent=localDateID();
     try{const x=await api.db.rpc("get_public_system_settings",{});systemSettings=asObject(x)}catch(_){systemSettings=null}
+    await loadActiveAcademicYear();
     await loadMenu();
     await loadPackage();
     $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")};
