@@ -16,7 +16,7 @@ function routeFor(code){return {
   PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",
   PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",
   KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"
-}[code]||"#";}[code]||"#"}
+}[code]||"#";}
 function canCreate(){return !!modulePerm.can_create}
 function canUpdate(){return !!modulePerm.can_update}
 function canDelete(){return !!modulePerm.can_delete}
