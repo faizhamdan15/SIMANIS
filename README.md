@@ -1,41 +1,85 @@
-# SIMANIS Web V1
+# SIMANIS
 
-Versi awal frontend **SIMANIS — Sistem Informasi MA Nurul Islam**.
+**SIMANIS — Sistem Informasi MA Nurul Islam** adalah platform web terintegrasi untuk administrasi madrasah, data akademik, kehadiran, nilai, unit kerja, keuangan, publikasi, Portal Wali, dan Administrasi Kepala Madrasah.
 
-## Sudah berfungsi
-- Login Supabase Auth
-- Session login
-- Profil & role
-- Sidebar dinamis dari `get_my_modules()`
-- Dashboard realtime
-- Total siswa, guru, kelas, mapel, jadwal
-- Jadwal hari ini
-- Ringkasan absensi siswa
-- Grafik kehadiran 7 hari
-- Logout
-- Responsive desktop/mobile
+Website publik: **https://www.manuriska.sch.id**
 
-## File
-- `index.html` — Login
-- `dashboard.html` — Dashboard
-- `styles.css` — Tampilan SIMANIS
-- `config.js` — Project URL + publishable key Supabase
-- `login.js` — Proses login
-- `dashboard.js` — Data dashboard
-- `assets/logo.png` — Logo MA Nurul Islam
+## Status
 
-## Deploy cepat ke GitHub + Vercel
-1. Buat repository GitHub baru, misalnya `simanis`.
-2. Upload seluruh isi folder ini ke root repository.
-3. Di Vercel pilih **Add New > Project**.
-4. Import repository `simanis`.
-5. Framework Preset: `Other`.
-6. Build Command: kosong.
-7. Output Directory: kosong.
-8. Klik Deploy.
+SIMANIS saat ini berada pada tahap **Release Candidate**.
 
-Halaman awal otomatis memakai `index.html`.
+Audit finalisasi mencakup:
+- role dan permission lintas jabatan,
+- RLS dan SECURITY DEFINER RPC,
+- Administrasi Kepala 141 dokumen,
+- workflow FINAL dan Paket Administrasi,
+- Nilai, Jadwal, Absensi, Keuangan,
+- Portal Wali,
+- halaman publik dan PWA,
+- regression syntax frontend,
+- Supabase Security & Performance Advisor.
 
-## Catatan keamanan
-`sb_publishable_...` boleh berada di frontend. Jangan pernah memasukkan Service Role Key atau database password ke file frontend.
-Trigger deployment V2
+Detail lengkap: [RELEASE_CANDIDATE_CHECKLIST.md](RELEASE_CANDIDATE_CHECKLIST.md)
+
+## Modul Utama
+
+- Dashboard
+- Administrasi Kepala Madrasah
+- PKM Kurikulum
+- PKM Kesiswaan
+- PKM Bendahara & Sarpras
+- PKM Humasy
+- Kepala TU
+- Kepala Laboratorium IPA
+- Kepala Laboratorium Bisnis
+- Data Siswa
+- Data Guru
+- Kelas
+- Mata Pelajaran
+- Jadwal
+- Absensi Guru
+- Absensi Siswa
+- Nilai
+- Prestasi
+- Berita
+- Pengumuman
+- Agenda
+- Keuangan
+- Portal Wali
+- Pengaturan
+
+## Arsitektur
+
+- Frontend: static web application
+- Backend/Auth/Database/Storage: Supabase
+- Repository: GitHub
+- Deployment: Vercel
+- PWA: service worker + web manifest
+
+## Administrasi Kepala
+
+Administrasi Kepala memiliki alur:
+
+**Draft -> Readiness -> Tugas PIC -> Monitoring PIC -> Pengajuan -> Verifikasi -> FINAL -> Paket Administrasi**
+
+Setiap FINAL menyimpan snapshot, metadata verifier, versi, lampiran, dan checksum SHA-256.
+
+## Keamanan
+
+- RLS aktif pada tabel sensitif.
+- Akses modul mengikuti role dan jabatan struktural.
+- Storage Administrasi Kepala private dan category-aware.
+- Perubahan status dokumen Administrasi Kepala dipaksa melalui RPC ber-audit.
+- Security Advisor Supabase saat audit terakhir: **0 ERROR**.
+
+Catatan: Leaked Password Protection Supabase Auth masih perlu diaktifkan dari pengaturan Auth sebelum status final production-ready.
+
+## Deploy
+
+Vercel terhubung ke branch utama repository. Status commit terbaru saat audit finalisasi: **SUCCESS**.
+
+Framework preset: Other/static.
+
+## Catatan
+
+Jangan pernah menaruh Service Role Key, database password, atau secret server-side di frontend. Publishable key Supabase memang dapat digunakan di browser bersama RLS dan permission backend yang benar.
