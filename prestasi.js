@@ -16,7 +16,7 @@ function routeFor(code){return {
   PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",
   PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",
   KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"
-}[code]||"#";}[code]||"#"}
+}[code]||"#";}
 function canCreate(){return ["SUPER_ADMIN","TU","WAKA_KESISWAAN","GURU","WALI_KELAS"].includes(profile?.role)}
 function canEdit(r){return ["SUPER_ADMIN","TU","WAKA_KESISWAAN"].includes(profile?.role)||r.created_by===profile?.id}
 function canDelete(r){return ["SUPER_ADMIN","WAKA_KESISWAAN"].includes(profile?.role)||(["GURU","WALI_KELAS"].includes(profile?.role)&&r.created_by===profile?.id)}
