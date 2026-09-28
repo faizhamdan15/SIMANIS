@@ -7,14 +7,16 @@ let activeAcademicYearId = null;
 function esc(s){return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");}
 function formatRole(role){return (role || "-").replaceAll("_"," ");}
 function localDateID(){return new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date());}
-function routeFor(code){
-  if(code==="DASHBOARD") return "dashboard.html";
-  if(code==="ADMINISTRASI_KEPALA") return "administrasi.html";
-  if(code==="DATA_SISWA") return "siswa.html";
-  if(code==="DATA_GURU") return "guru.html";
-  if(code==="KELAS") return "kelas.html";
-  return "#";
-}
+function routeFor(code){return {
+  DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",
+  KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",
+  ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",
+  PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS&tab=finance",
+  PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",
+  PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",
+  PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",
+  KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"
+}[code]||"#";}
 async function loadProfile(user){const rows=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);const p=rows?.[0];if(!p) throw new Error("Profil pengguna tidak ditemukan.");if(!p.is_active) throw new Error("Akun SIMANIS tidak aktif.");return p;}
 async function loadMenu(){const modules=await api.db.rpc("get_my_modules",{});$("sidebarMenu").innerHTML=(modules||[]).map(m=>`<a href="${routeFor(m.code)}" class="nav-item ${m.code==="KELAS"?"active":""}"><span class="nav-dot"></span><span>${esc(m.name)}</span></a>`).join("");document.querySelectorAll('.nav-item[href="#"]').forEach(a=>a.addEventListener("click",e=>{e.preventDefault();alert(`Modul "${a.textContent.trim()}" akan diaktifkan bertahap.`);}));}
 async function loadMaster(){const [teacherRows,yearRows]=await Promise.all([api.db.select("teachers","select=id,full_name,is_active&is_active=eq.true&order=full_name.asc"),api.db.select("academic_years","select=id,name,is_active&is_active=eq.true&limit=1")]);teachers=teacherRows||[];activeAcademicYearId=yearRows?.[0]?.id||null;$("homeroomTeacher").insertAdjacentHTML("beforeend",teachers.map(t=>`<option value="${esc(t.id)}">${esc(t.full_name)}</option>`).join(""));}
