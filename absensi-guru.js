@@ -16,7 +16,7 @@ function routeFor(code){return {
   PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",
   PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",
   KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"
-}[code]||"#";}[code]||"#"}
+}[code]||"#";}
 function statusLabel(s){return {HADIR:"Hadir",TERLAMBAT:"Terlambat",IZIN:"Izin",SAKIT:"Sakit",DINAS:"Dinas",ALFA:"Alfa",BELUM_ABSEN:"Belum Absen",TIDAK_ADA_JADWAL:"Tidak Ada Jadwal"}[s]||s}
 function isAdmin(){return ADMIN_ROLES.includes(profile?.role)}
 
