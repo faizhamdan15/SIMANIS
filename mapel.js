@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 
 let api, profile;
+let activeAcademicYear=null, activeSemesterName=null;
 let subjects = [];
 
 function esc(s) {
@@ -25,15 +26,16 @@ function localDateID() {
   }).format(new Date());
 }
 
-function routeFor(code) {
-  if (code === "DASHBOARD") return "dashboard.html";
-  if (code === "ADMINISTRASI_KEPALA") return "administrasi.html";
-  if (code === "DATA_SISWA") return "siswa.html";
-  if (code === "DATA_GURU") return "guru.html";
-  if (code === "KELAS") return "kelas.html";
-  if (code === "MATA_PELAJARAN") return "mapel.html";
-  return "#";
-}
+function routeFor(code){return {
+  DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",
+  KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",
+  ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",
+  PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",
+  PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",
+  PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",
+  PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",
+  KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"
+}[code]||"#";}
 
 function dayOrder(day) {
   return { SENIN: 1, SELASA: 2, RABU: 3, KAMIS: 4, SABTU: 5, AHAD: 6 }[day] || 99;
@@ -50,6 +52,15 @@ async function loadProfile(user) {
   return p;
 }
 
+async function loadActivePeriod(){
+  const [ay,sm]=await Promise.all([
+    api.db.select("academic_years","select=id,name,is_active,start_date&is_active=eq.true&order=start_date.desc&limit=1"),
+    api.db.select("semesters","select=id,name,is_active&is_active=eq.true&limit=1")
+  ]);
+  if(!ay?.[0]?.name||!sm?.[0]?.name)throw new Error("Tahun ajaran atau semester aktif belum ditetapkan.");
+  activeAcademicYear=ay[0].name;
+  activeSemesterName=sm[0].name;
+}
 async function loadMenu() {
   const modules = await api.db.rpc("get_my_modules", {});
   $("sidebarMenu").innerHTML = (modules || []).map(m => `
@@ -266,7 +277,7 @@ async function openDetail(id) {
   try {
     const data = await api.db.select(
       "v_schedule_detail",
-      `select=hari,jam,start_time,end_time,kelas,guru,urutan_jam&kode_mapel=eq.${encodeURIComponent(s.code)}&tahun_pelajaran=eq.2026/2027&semester=eq.GANJIL`
+      `select=hari,jam,start_time,end_time,kelas,guru,urutan_jam&kode_mapel=eq.${encodeURIComponent(s.code)}&tahun_pelajaran=eq.${encodeURIComponent(activeAcademicYear)}&semester=eq.${encodeURIComponent(activeSemesterName)}`
     ) || [];
 
     data.sort((a, b) =>
@@ -326,6 +337,7 @@ $("detailModal").addEventListener("click", e => { if (e.target === $("detailModa
     $("headerUser").textContent = profile.full_name || user.email || "Pengguna";
     $("currentDate").textContent = localDateID();
 
+    await loadActivePeriod();
     await loadMenu();
     await loadSubjects();
 
