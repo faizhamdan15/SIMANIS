@@ -52,7 +52,7 @@ function routeFor(code){
     BERITA:"berita.html",
     PENGUMUMAN:"pengumuman.html",
     AGENDA:"agenda.html",
-    KEUANGAN:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS&tab=finance",
+    KEUANGAN:"keuangan.html",
     PORTAL_WALI:"wali-admin.html",
     PENGATURAN:"pengaturan.html",
     PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",
