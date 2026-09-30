@@ -53,7 +53,7 @@
   <div class="status-strip">
     <span class="status-pill"><span id="netDot" class="status-dot"></span><span id="netText">Online</span></span>
     <span class="status-pill">Anti scan ganda aktif</span>
-    <span class="status-pill">Jeda pulang 2 menit</span>
+    <span class="status-pill">Pulang mengikuti jadwal terakhir</span>
   </div>
   <div id="kioskUser" class="footer">Menyiapkan kiosk...</div>
 </div>
@@ -95,6 +95,13 @@ function refocus(){setTimeout(()=>$("tokenInput").focus(),100)}
 function msSince(ts){
   const t=new Date(ts).getTime();
   return Number.isFinite(t)?Date.now()-t:Infinity;
+}
+
+function scheduledTimeTodayMs(timeValue){
+  const raw=String(timeValue||"").trim();
+  if(!raw)return NaN;
+  const hhmmss=raw.length===5?`${raw}:00`:raw.slice(0,8);
+  return new Date(`${todayYMD()}T${hhmmss}+07:00`).getTime();
 }
 
 function secondsLeft(ms){
@@ -423,22 +430,43 @@ async function processScan(explicitRawToken=null){
 
     if(!row.check_out){
       const sinceCheckIn=msSince(row.check_in);
+      const scheduledEndMs=scheduledTimeTodayMs(row.scheduled_end);
+      const beforeScheduledEnd=Number.isFinite(scheduledEndMs) && Date.now()<scheduledEndMs;
 
-      if(sinceCheckIn<MIN_CHECKOUT_AFTER_CHECKIN_MS){
+      if(beforeScheduledEnd){
+        const remainingMinutes=Math.max(1,Math.ceil((scheduledEndMs-Date.now())/60000));
+        await safeLogScan({
+          eventType:"CHECKOUT_BEFORE_SCHEDULE_END",outcome:"WARNING",teacherId,
+          teacherName:row.teacher_name,teacherCode:row.teacher_code,inputKind,
+          inputLength:rawToken.length,normalizedLength:token.length,
+          message:`Absen pulang ditahan. Jadwal terakhir berakhir pukul ${String(row.scheduled_end).slice(0,5)}.`,
+          detail:{check_in:row.check_in||null,scheduled_end:row.scheduled_end||null,remaining_minutes:remainingMinutes}
+        });
+        show(
+          "warning",
+          "BELUM BISA ABSEN PULANG",
+          row.teacher_name||"",
+          `Jadwal mengajar terakhir belum selesai. Sekitar ${remainingMinutes} menit lagi.`,
+          `Jam masuk ${fmtTime(row.check_in)} · Jadwal terakhir selesai ${String(row.scheduled_end).slice(0,5)} WIB`
+        );
+        return;
+      }
+
+      if(!Number.isFinite(scheduledEndMs) && sinceCheckIn<MIN_CHECKOUT_AFTER_CHECKIN_MS){
         const remain=secondsLeft(MIN_CHECKOUT_AFTER_CHECKIN_MS-sinceCheckIn);
         await safeLogScan({
           eventType:"CHECKOUT_TOO_SOON",outcome:"WARNING",teacherId,
           teacherName:row.teacher_name,teacherCode:row.teacher_code,inputKind,
           inputLength:rawToken.length,normalizedLength:token.length,
-          message:`Absen pulang ditahan. Sisa jeda ${remain} detik.`,
+          message:`Absen pulang ditahan. Sisa jeda pengaman ${remain} detik.`,
           detail:{check_in:row.check_in||null,remaining_seconds:remain}
         });
         show(
           "warning",
           "BELUM BISA ABSEN PULANG",
           row.teacher_name||"",
-          `Absen masuk baru saja tercatat. Tunggu sekitar ${remain} detik.`,
-          `Jam masuk ${fmtTime(row.check_in)} · Proteksi scan ganda 2 menit`
+          `Data akhir jadwal tidak tersedia. Tunggu sekitar ${remain} detik.`,
+          `Jam masuk ${fmtTime(row.check_in)} · Jeda pengaman 2 menit`
         );
         return;
       }
@@ -556,7 +584,7 @@ document.addEventListener("click",e=>{
     if(!session){location.replace("index.html");return}
     const user=await api.auth.getUser();
     profile=await loadProfile(user);
-    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Kiosk Audit V8`;
+    $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Kiosk Jadwal V9`;
     requestWakeLock();
     refocus();
   }catch(err){
