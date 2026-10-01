@@ -40,6 +40,11 @@
     <p>Scanner USB/2D bekerja seperti keyboard. Setelah QR terbaca dan Enter terkirim, SIMANIS memproses absensi otomatis.</p>
 
     <input id="tokenInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Scan kartu di sini">
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px">
+      <button id="serialConnectBtn" type="button" style="border:0;border-radius:11px;padding:10px 14px;background:#075b3a;color:#fff;font-size:11px;font-weight:800;cursor:pointer">Hubungkan Scanner USB-COM</button>
+      <button id="serialDisconnectBtn" type="button" style="display:none;border:1px solid #cfdad4;border-radius:11px;padding:10px 14px;background:#fff;color:#075b3a;font-size:11px;font-weight:800;cursor:pointer">Putuskan</button>
+    </div>
+    <p id="serialStatus" class="hint">Mode saat ini: HID Keyboard. Untuk scan saat pindah tab, gunakan USB-COM.</p>
     <p class="hint">Kiosk harus login menggunakan akun pengelola Absensi Guru SIMANIS.</p>
 
     <div id="result" class="result">
@@ -128,6 +133,180 @@ function tone(kind="success"){
     osc.stop(ctx.currentTime+0.18);
     osc.onended=()=>ctx.close();
   }catch(_){}
+}
+
+
+// ============================================================
+// SCANNER USB-COM / WEB SERIAL
+// HC-T58 mendukung USB-COM selain USB-HID. Pada mode USB-COM,
+// browser membaca data langsung dari perangkat sehingga halaman
+// tidak bergantung pada fokus keyboard/tab.
+// ============================================================
+let serialPort=null;
+let serialReader=null;
+let serialKeepReading=false;
+let serialTextBuffer="";
+let serialFlushTimer=null;
+
+function setSerialStatus(text,ok=false){
+  const el=$("serialStatus");
+  if(!el)return;
+  el.textContent=text;
+  el.style.color=ok?"#166534":"#718078";
+}
+
+function serialSupported(){
+  return "serial" in navigator;
+}
+
+async function consumeSerialChunk(value){
+  if(!value)return;
+  serialTextBuffer+=value;
+
+  // HC-T58 biasanya mengirim suffix CR/LF. Proses setiap record.
+  const parts=serialTextBuffer.split(/[\\r\\n\\t]+/);
+  serialTextBuffer=parts.pop()||"";
+
+  for(const part of parts){
+    const raw=part.trim();
+    if(raw) await processScan(raw);
+  }
+
+  // Fallback jika scanner tidak memakai suffix: proses setelah jeda singkat.
+  clearTimeout(serialFlushTimer);
+  if(serialTextBuffer.trim()){
+    serialFlushTimer=setTimeout(async()=>{
+      const raw=serialTextBuffer.trim();
+      serialTextBuffer="";
+      if(raw) await processScan(raw);
+    },180);
+  }
+}
+
+async function readSerialPort(){
+  if(!serialPort?.readable)return;
+
+  const decoder=new TextDecoder();
+  serialKeepReading=true;
+  serialTextBuffer="";
+
+  while(serialPort.readable && serialKeepReading){
+    serialReader=serialPort.readable.getReader();
+    try{
+      while(serialKeepReading){
+        const {value,done}=await serialReader.read();
+        if(done)break;
+        if(value) await consumeSerialChunk(decoder.decode(value,{stream:true}));
+      }
+    }catch(err){
+      console.warn("USB-COM scanner read:",err);
+      if(serialKeepReading){
+        setSerialStatus("Scanner USB-COM terputus. Coba hubungkan kembali.",false);
+      }
+    }finally{
+      try{serialReader.releaseLock()}catch(_){}
+      serialReader=null;
+    }
+  }
+}
+
+async function connectSerialPort(port){
+  if(!port)return false;
+
+  try{
+    if(serialPort && serialPort!==port){
+      serialKeepReading=false;
+      try{serialReader?.cancel()}catch(_){}
+      try{await serialPort.close()}catch(_){}
+    }
+
+    serialPort=port;
+
+    if(!serialPort.readable){
+      // Baud rate umum untuk scanner USB-COM. USB CDC sering mengabaikan
+      // parameter ini, tetapi 9600/8N1 aman untuk perangkat serial scanner.
+      await serialPort.open({baudRate:9600,dataBits:8,stopBits:1,parity:"none",flowControl:"none"});
+    }
+
+    $("serialConnectBtn").style.display="none";
+    $("serialDisconnectBtn").style.display="inline-block";
+    setSerialStatus("Scanner USB-COM terhubung ✓ Scan tetap diterima meskipun pindah tab.",true);
+
+    readSerialPort().catch(err=>{
+      console.error("Serial reader berhenti:",err);
+      setSerialStatus("Pembacaan USB-COM berhenti. Hubungkan kembali scanner.",false);
+    });
+    return true;
+  }catch(err){
+    console.error(err);
+    setSerialStatus("Gagal menghubungkan USB-COM: "+(err.message||err),false);
+    try{await port.close()}catch(_){}
+    serialPort=null;
+    return false;
+  }
+}
+
+async function connectSerialFromUser(){
+  if(!serialSupported()){
+    setSerialStatus("Browser ini belum mendukung Web Serial. Gunakan Chrome/Edge di komputer kiosk.",false);
+    return;
+  }
+
+  try{
+    const port=await navigator.serial.requestPort({});
+    await connectSerialPort(port);
+  }catch(err){
+    if(err?.name!=="NotFoundError"){
+      console.error("Pilih scanner USB-COM:",err);
+      setSerialStatus("Scanner belum terhubung atau izin USB-COM dibatalkan.",false);
+    }
+  }
+}
+
+async function disconnectSerialPort(){
+  serialKeepReading=false;
+  clearTimeout(serialFlushTimer);
+  try{await serialReader?.cancel()}catch(_){}
+  try{await serialPort?.close()}catch(_){}
+  serialReader=null;
+  serialPort=null;
+  $("serialConnectBtn").style.display="inline-block";
+  $("serialDisconnectBtn").style.display="none";
+  setSerialStatus("Mode HID Keyboard aktif. Untuk scan saat pindah tab, hubungkan USB-COM.",false);
+}
+
+async function restoreGrantedSerialPort(){
+  if(!serialSupported())return;
+
+  try{
+    const ports=await navigator.serial.getPorts();
+    if(ports.length===1){
+      await connectSerialPort(ports[0]);
+    }else if(ports.length>1){
+      setSerialStatus("Scanner USB-COM tersedia. Klik “Hubungkan Scanner USB-COM” untuk memilih perangkat.",false);
+    }
+  }catch(err){
+    console.warn("Restore USB-COM:",err);
+  }
+}
+
+if(serialSupported()){
+  $("serialConnectBtn").addEventListener("click",connectSerialFromUser);
+  $("serialDisconnectBtn").addEventListener("click",disconnectSerialPort);
+
+  navigator.serial.addEventListener("connect",event=>{
+    if(!serialPort) connectSerialPort(event.target).catch(()=>{});
+  });
+
+  navigator.serial.addEventListener("disconnect",event=>{
+    if(serialPort===event.target){
+      serialKeepReading=false;
+      serialPort=null;
+      $("serialConnectBtn").style.display="inline-block";
+      $("serialDisconnectBtn").style.display="none";
+      setSerialStatus("Scanner USB-COM terputus. Periksa kabel scanner.",false);
+    }
+  });
 }
 
 function updateNetworkStatus(){
@@ -587,6 +766,7 @@ document.addEventListener("click",e=>{
     $("kioskUser").textContent=`Kiosk aktif sebagai ${profile.full_name} · Kiosk Jadwal V9`;
     requestWakeLock();
     refocus();
+    restoreGrantedSerialPort();
   }catch(err){
     alert("Kiosk tidak dapat dibuka: "+(err.message||err));
     location.replace("absensi-guru.html");
