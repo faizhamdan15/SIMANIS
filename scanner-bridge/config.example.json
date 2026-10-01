@@ -1,0 +1,9 @@
+{
+  "api_url": "https://zevdqmrlcrnwkeqejbxm.supabase.co/functions/v1/scanner-bridge",
+  "device_token": "ISI_DEVICE_TOKEN_DI_SINI",
+  "device_name": "SIMANIS Scanner Bridge - Kiosk Utama",
+  "scanner_port": "auto",
+  "baud_rate": 9600,
+  "reconnect_seconds": 3,
+  "http_timeout_seconds": 10
+}
