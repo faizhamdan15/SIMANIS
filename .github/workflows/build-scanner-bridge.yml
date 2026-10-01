@@ -1,0 +1,33 @@
+name: Build SIMANIS Scanner Bridge
+
+on:
+  push:
+    paths:
+      - "scanner-bridge/**"
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: scanner-bridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pyinstaller
+      - run: pyinstaller --onefile --clean --name SIMANIS-Scanner-Bridge bridge.py
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          Copy-Item dist\SIMANIS-Scanner-Bridge.exe package\
+          Copy-Item install.ps1 package\
+          Copy-Item uninstall.ps1 package\
+          Copy-Item config.example.json package\
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SIMANIS-Scanner-Bridge-Windows
+          path: scanner-bridge/package/
