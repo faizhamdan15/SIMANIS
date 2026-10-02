@@ -1,5 +1,15 @@
 const $=id=>document.getElementById(id);
 let api,profile,context=null,report={students:[],class_teachers:[],submissions:[],records:[]};
+let gradeLedger=[],gradeSubjects=[];
+function gradeObj(r){const x=r?.subject_scores;return x&&typeof x==="object"&&!Array.isArray(x)?x:{}}
+function gradeKeys(){const m=new Map();gradeLedger.forEach(r=>Object.keys(gradeObj(r)).forEach(k=>m.set(k,k)));return [...m.keys()]}
+function gradeVal(r,k){return gradeObj(r)[k]??null}
+function gradeFmt(v){return v===null||v===undefined||v===""?"-":Number(v).toLocaleString("id-ID",{maximumFractionDigits:2})}
+function renderGradeLedger(){const h=$("gradeHead"),b=$("gradeBody"),s=$("gradeSummary");if(!gradeLedger.length){h.innerHTML="";b.innerHTML='<tr><td><div class="wk-grade-empty">Belum ada data nilai untuk kelas ini.</div></td></tr>';s.innerHTML="";return}gradeSubjects=gradeKeys();h.innerHTML='<tr><th>No</th><th class="student">Siswa</th>'+gradeSubjects.map(k=>'<th>'+esc(k)+'</th>').join("")+'<th>Rata-rata</th><th>Kelengkapan</th></tr>';b.innerHTML=gradeLedger.map((r,i)=>{const complete=Number(r.complete_subjects||0),pct=gradeSubjects.length?Math.round(complete/gradeSubjects.length*100):0;return '<tr><td>'+(r.roll_number??i+1)+'</td><td class="student"><b>'+esc(r.full_name||"-")+'</b><span>NIS '+esc(r.nis||"-")+' · NISN '+esc(r.nisn||"-")+'</span></td>'+gradeSubjects.map(k=>{const v=gradeVal(r,k);return '<td class="wk-grade-score '+(v==null?"empty":"")+'">'+gradeFmt(v)+'</td>'}).join("")+'<td class="wk-grade-avg">'+gradeFmt(r.overall_average)+'</td><td><span class="'+(pct>=100?"wk-grade-complete":"wk-grade-incomplete")+'">'+complete+'/'+gradeSubjects.length+' · '+pct+'%</span></td></tr>'}).join("");const completeStudents=gradeLedger.filter(r=>gradeSubjects.length&&Number(r.complete_subjects||0)>=gradeSubjects.length).length;s.innerHTML='<span>'+gradeLedger.length+' siswa</span><span>'+gradeSubjects.length+' mata pelajaran</span><span>'+gradeLedger.filter(r=>Number(r.complete_subjects||0)>0).length+' siswa sudah punya nilai</span><span>'+completeStudents+' lengkap semua mapel</span>';$("gradeInfo").textContent=gradeSubjects.length+' mata pelajaran · nilai guru mapel tampil otomatis · '+gradeLedger.length+' siswa'}
+async function loadGradeLedger(){try{gradeLedger=await api.db.rpc("get_grade_class_ledger",{p_class_id:context.class_id})||[];renderGradeLedger()}catch(e){console.error(e);$("gradeInfo").textContent="Rekap nilai gagal dimuat";$("gradeBody").innerHTML='<tr><td><div class="wk-grade-empty">'+esc(e.message||e)+'</div></td></tr>'}}
+function exportGradeExcel(){if(!gradeLedger.length){alert("Belum ada data nilai.");return}const rows=gradeLedger.map((r,i)=>'<tr><td>'+(r.roll_number??i+1)+'</td><td>'+esc(r.full_name||"")+'</td><td>'+esc(r.nis||"")+'</td><td>'+esc(r.nisn||"")+'</td>'+gradeSubjects.map(k=>{const v=gradeVal(r,k);return '<td>'+(v==null?"":Number(v))+'</td>'}).join("")+'<td>'+(r.overall_average==null?"":Number(r.overall_average))+'</td><td>'+Number(r.complete_subjects||0)+'/'+gradeSubjects.length+'</td></tr>').join(""),doc='<!doctype html><html><body><table><tr><th colspan="'+(6+gradeSubjects.length)+'">MA NURUL ISLAM KARANGCEMPAKA — REKAP NILAI KELAS</th></tr><tr><td colspan="'+(6+gradeSubjects.length)+'">Kelas: '+esc(context.class_name||"-")+'</td></tr><tr><th>No</th><th>Nama Siswa</th><th>NIS</th><th>NISN</th>'+gradeSubjects.map(k=>'<th>'+esc(k)+'</th>').join("")+'<th>Rata-rata</th><th>Kelengkapan</th></tr>'+rows+'</table></body></html>',u=URL.createObjectURL(new Blob(["\uFEFF",doc],{type:"application/vnd.ms-excel"})),a=document.createElement("a");a.href=u;a.download="Rekap_Nilai_"+safeName(context.class_name)+".xls";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),500)}
+function printGradeLedger(){if(!gradeLedger.length){alert("Belum ada data nilai.");return}const w=window.open("","_blank");if(!w){alert("Popup diblokir browser.");return}const rows=gradeLedger.map((r,i)=>'<tr><td>'+(r.roll_number??i+1)+'</td><td>'+esc(r.full_name||"-")+'</td>'+gradeSubjects.map(k=>'<td>'+gradeFmt(gradeVal(r,k))+'</td>').join("")+'<td>'+gradeFmt(r.overall_average)+'</td><td>'+Number(r.complete_subjects||0)+'/'+gradeSubjects.length+'</td></tr>').join("");w.document.write('<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial;padding:10mm}h2{text-align:center;font-size:15pt}p{text-align:center;font-size:9pt}table{width:100%;border-collapse:collapse;font-size:7.5pt}th,td{border:1px solid #bbb;padding:2mm;text-align:center}th{background:#f2f7f4}@page{size:A4 landscape;margin:8mm}</style></head><body><h2>REKAP NILAI KELAS</h2><p>MA Nurul Islam Karangcempaka · '+esc(context.class_name||"-")+' · Wali Kelas: '+esc(context.teacher_name||profile.full_name||"-")+'</p><table><thead><tr><th>No</th><th>Siswa</th>'+gradeSubjects.map(k=>'<th>'+esc(k)+'</th>').join("")+'<th>Rata-rata</th><th>Lengkap</th></tr></thead><tbody>'+rows+'</tbody></table><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>');w.document.close()}
+
 
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
 function formatRole(r){return(r||"-").replaceAll("_"," ")}
@@ -111,7 +121,7 @@ $("loadBtn").onclick=loadReport;
 $("teacherFilter").onchange=renderAll;
 $("downloadDetailBtn").onclick=downloadDetail;
 $("downloadSummaryBtn").onclick=downloadSummary;
-$("printBtn").onclick=()=>window.print();
+$("printBtn").onclick=()=>window.print();$("downloadGradeExcelBtn").onclick=exportGradeExcel;$("printGradeBtn").onclick=printGradeLedger;
 
 (async()=>{
   try{
@@ -132,6 +142,7 @@ $("printBtn").onclick=()=>window.print();
     $("heroText").textContent=`${context.teacher_name||profile.full_name} · pantau absensi yang dikirim seluruh guru di kelas wali Anda.`;
     $("classChip").textContent=`${context.class_name} · ${Number(context.student_count||0)} siswa`;
     await loadReport();
+    await loadGradeLedger();
 
     $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}
   }catch(err){
