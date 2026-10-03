@@ -101,6 +101,11 @@ def scan(token):
     if not token:
         return
     sid = str(uuid.uuid4())
+    # Diagnostic metadata only: never log the full card token.
+    safe = token.replace("\\r", "").replace("\\n", "")
+    preview = safe[:4] + ("..." if len(safe) > 8 else "") + (safe[-4:] if len(safe) > 8 else "")
+    logging.info("SCAN READ len=%s preview=%s", len(safe), preview)
+    print("[READ] len=", len(safe), "preview=", preview, flush=True)
     try:
         y = send(sid, token)
         logging.info("SCAN OK %s action=%s teacher=%s", sid, y.get("action"), y.get("teacher_name"))
