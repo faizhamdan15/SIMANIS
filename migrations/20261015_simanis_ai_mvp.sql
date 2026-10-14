@@ -67,13 +67,35 @@ using (owner_id = (select auth.uid()));
 drop policy if exists teacher_ai_documents_owner_insert on public.teacher_ai_documents;
 create policy teacher_ai_documents_owner_insert
 on public.teacher_ai_documents for insert to authenticated
-with check (owner_id = (select auth.uid()));
+with check (
+  owner_id = (select auth.uid())
+  and (
+    cp_source_id is null
+    or exists (
+      select 1 from public.curriculum_cp_sources cp
+      where cp.id = cp_source_id
+        and cp.is_verified = true
+        and cp.subject_id = teacher_ai_documents.subject_id
+    )
+  )
+);
 
 drop policy if exists teacher_ai_documents_owner_update on public.teacher_ai_documents;
 create policy teacher_ai_documents_owner_update
 on public.teacher_ai_documents for update to authenticated
 using (owner_id = (select auth.uid()))
-with check (owner_id = (select auth.uid()));
+with check (
+  owner_id = (select auth.uid())
+  and (
+    cp_source_id is null
+    or exists (
+      select 1 from public.curriculum_cp_sources cp
+      where cp.id = cp_source_id
+        and cp.is_verified = true
+        and cp.subject_id = teacher_ai_documents.subject_id
+    )
+  )
+);
 
 drop policy if exists teacher_ai_documents_owner_delete on public.teacher_ai_documents;
 create policy teacher_ai_documents_owner_delete
