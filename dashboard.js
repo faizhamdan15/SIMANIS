@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id);
 let api,profile,summary={},teacherPersonal={teacher_linked:false,stats:{},contexts:[],today_schedule:[],attendance_tasks:[],grade_tasks:[],positions:[]},teacherOperational={teacher_linked:false,homeroom:null,notifications:[],quick_actions:[]},myModules=[];
 
-const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"};
+const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",SIMANIS_AI:"simanis-ai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html",PKM_KURIKULUM:"unit-kerja.html?unit=PKM_KURIKULUM",PKM_KESISWAAN:"unit-kerja.html?unit=PKM_KESISWAAN",PKM_BENDAHARA_SARPRAS:"unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS",PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"};
 const ICONS={
   DASHBOARD:"layout-dashboard",
   ADMINISTRASI_KEPALA:"folder-kanban",
@@ -13,6 +13,7 @@ const ICONS={
   ABSENSI_GURU:"clipboard-check",
   ABSENSI_SISWA:"badge-check",
   NILAI:"file-pen",
+  SIMANIS_AI:"star",
   PRESTASI:"trophy",
   BERITA:"newspaper",
   PENGUMUMAN:"megaphone",
@@ -96,7 +97,7 @@ function greeting(){
  return h<11?"Selamat Pagi":h<15?"Selamat Siang":h<18?"Selamat Sore":"Selamat Malam";
 }
 function renderQuick(){
- const preferred=["DATA_SISWA","JADWAL","ABSENSI_GURU","ABSENSI_SISWA","NILAI","AGENDA","KEUANGAN","PRESTASI","PENGUMUMAN","PORTAL_WALI","PENGATURAN"];
+ const preferred=["DATA_SISWA","JADWAL","ABSENSI_GURU","ABSENSI_SISWA","NILAI","SIMANIS_AI","AGENDA","KEUANGAN","PRESTASI","PENGUMUMAN","PORTAL_WALI","PENGATURAN"];
  const list=preferred.map(code=>myModules.find(m=>m.code===code)).filter(Boolean).slice(0,8);
  $("quickGrid").innerHTML=list.length?list.map(m=>`<a class="quick" href="${ROUTES[m.code]||"#"}"><div class="quick-icon">${icon(ICONS[m.code]||"layout-dashboard")}</div><b>${esc(m.name)}</b></a>`).join(""):'<div class="empty-v2">Tidak ada akses cepat.</div>';
 }
