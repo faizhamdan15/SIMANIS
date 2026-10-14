@@ -130,6 +130,7 @@ async function loadCP(){
     cpSources=found||[];
     $("cp").innerHTML='<option value="">Tempel CP manual dari dokumen resmi</option>'
       +cpSources.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.source_title+" • Fase "+x.phase+" • "+x.revision)+'</option>').join("");
+    if(cpSources.length)$("cp").value=cpSources[0].id;
     if(!cpSources.length)status("Belum tersedia CP Fase "+phase+" terverifikasi. Tempel CP dari sumber resmi atau buat prompt yang meminta CP dahulu.");
     else status("Ada "+cpSources.length+" CP terverifikasi. Pilih salah satu, atau gunakan CP manual.");
   }catch(e){
@@ -170,7 +171,7 @@ async function openHistory(id){
       cp_manual_text:doc.cp_manual_text||null,cp_manual_source_url:doc.cp_manual_source_url||null,
       document_type:doc.document_type,semester:doc.semester,topic:doc.topic,
       class_name:matchingContext.class_name,subject_name:matchingContext.subject_name,
-      phase:phaseFor(matchingContext)
+      phase:phaseFor(matchingContext),creation_method:doc.creation_method||"COPY_PASTE_CHATGPT"
     };
     $("context").value=doc.class_id+"|"+doc.subject_id;
     await loadCP();
@@ -306,16 +307,28 @@ async function saveDocument(final=false){
 
 function filename(){return ($("documentTitle").value||"Perangkat_Pembelajaran").replace(/[^a-zA-Z0-9_-]+/g,"_").slice(0,65)}
 function wordDownload(){
+  if(!$("result").value.trim()){status("Tidak ada isi dokumen untuk diunduh.",true);return}
   const title=esc($("documentTitle").value),body=esc($("result").value);
-  const html='<!doctype html><html><head><meta charset="utf-8"><style>body{font:12pt/1.6 "Times New Roman",serif;margin:2.5cm}h1{text-align:center;font-size:16pt}pre{white-space:pre-wrap;font:inherit}</style></head><body><h1>'+title+'</h1><p><em>Draf SIMANIS AI — Periksa sebelum digunakan.</em></p><pre>'+body+'</pre></body></html>';
-  const blob=new Blob(["\ufeff",html],{type:"application/msword;charset=utf-8"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename()+".doc";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  status("Dokumen Word-kompatibel diunduh (.doc), silakan buka dan simpan ulang sebagai .docx jika diperlukan.");
+  const word='<!doctype html><html><head><meta charset="utf-8"><style>body{font:12pt/1.6 Georgia,serif;margin:2.5cm}h1{text-align:center;font-size:16pt}pre{white-space:pre-wrap;font:inherit}</style></head><body><h1>'+title+'</h1><p><em>Dokumen ditinjau guru sebelum digunakan.</em></p><pre>'+body+'</pre></body></html>';
+  const blob=new Blob(["\ufeff",word],{type:"application/msword;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename()+".doc";
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  status("File Word-kompatibel (.doc) diunduh. Buka menggunakan Word lalu Simpan Sebagai .docx bila diperlukan.");
 }
 function printPDF(){
+  if(!$("result").value.trim()){status("Tidak ada isi dokumen untuk dicetak.",true);return}
   $("printBody").textContent=$("result").value;
   window.print();
 }
+function invalidatePrompt(){
+  if(!$("promptOutput").value)return;
+  $("promptOutput").value="";
+  $("copyPromptBtn").disabled=true;
+  $("templateBtn").disabled=true;
+  status("Pengaturan berubah. Klik Siapkan Prompt ChatGPT agar isi prompt sesuai data terbaru.");
+}
+
+
 async function init(){
   try{
     api=await window.simanisReady;
@@ -333,9 +346,18 @@ async function init(){
     await loadContexts();
     await loadHistory();
     $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"};
-    $("context").onchange=loadCP;
-    $("cp").onchange=showCP;
+    $("context").onchange=async()=>{
+      $("manualCP").value="";$("manualCPUrl").value="";
+      invalidatePrompt();
+      await loadCP();
+    };
+    $("cp").onchange=()=>{showCP();invalidatePrompt()};
+    ["semester","jp","meetings","topic","notes","documentType","manualCP","manualCPUrl"]
+      .forEach(id=>$(id).addEventListener("input",invalidatePrompt));
     $("aiForm").onsubmit=generate;
+    $("copyPromptBtn").onclick=copyPrompt;
+    $("templateBtn").onclick=useTemplate;
+    $("result").addEventListener("input",()=>setDocumentButtons(Boolean(activeDocument&&$("result").value.trim())));
     $("refreshHistory").onclick=loadHistory;
     $("saveBtn").onclick=()=>saveDocument(false);
     $("finalBtn").onclick=()=>saveDocument(true);
