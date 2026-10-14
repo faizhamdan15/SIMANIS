@@ -87,7 +87,7 @@ grant select,insert,update,delete on public.teacher_ai_documents to authenticate
 
 -- Menu sesuai pola hak akses yang sudah dipakai SIMANIS.
 insert into public.app_modules(code,name,icon,route,sort_order,is_active)
-values('SIMANIS_AI','SIMANIS AI • Perangkat Pembelajaran',
+values('SIMANIS_AI','SIMANIS AI',
        'sparkles','simanis-ai.html',95,true)
 on conflict(code) do update set
   name=excluded.name,icon=excluded.icon,route=excluded.route,is_active=true;
