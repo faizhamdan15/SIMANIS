@@ -143,6 +143,8 @@ async function loadCP(){
 function showCP(){
   const cp=cpSources.find(x=>x.id===$("cp").value);
   $("manualCpGroup").hidden=Boolean(cp);
+  $("manualCP").disabled=Boolean(cp);
+  $("manualCPUrl").disabled=Boolean(cp);
   if(!cp){
     $("cpInfo").textContent="CP manual belum diverifikasi madrasah. Tempel teks resmi dan tautannya. Jika kosong, ChatGPT wajib meminta CP sebelum menyusun perangkat.";
     return;
@@ -250,7 +252,7 @@ async function copyPrompt(){
       $("promptOutput").select();
       if(!document.execCommand("copy"))throw new Error("Clipboard tidak tersedia");
     }
-    status("Prompt berhasil disalin. Buka ChatGPT Plus, tempel prompt, lalu ikuti instruksinya.");
+    status("Prompt disalin. Buka ChatGPT (Free atau Plus), tempel prompt, lalu ikuti instruksinya.");
   }catch(err){
     $("promptOutput").focus();
     $("promptOutput").select();
