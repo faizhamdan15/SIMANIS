@@ -17,6 +17,7 @@
     "absensi-siswa-riwayat.html":"ABSENSI_SISWA",
     "wali-kelas.html":"DATA_SISWA",
     "nilai.html":"NILAI",
+    "simanis-ai.html":"SIMANIS_AI",
     "prestasi.html":"PRESTASI",
     "berita.html":"BERITA",
     "pengumuman.html":"PENGUMUMAN",

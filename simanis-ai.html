@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SIMANIS AI — Asisten Perangkat Ajar Tanpa API</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    :root{--ai-green:#075b3a;--ai-line:#dce9e2;--ai-muted:#64786f}
+    .ai-main{max-width:1400px;margin:auto}
+    .ai-hero{padding:23px 25px;border-radius:18px;color:#fff;background:linear-gradient(115deg,#074a33,#0a7852);display:flex;justify-content:space-between;gap:14px;align-items:center}
+    .ai-hero h2{margin:6px 0 8px;font-size:23px}.ai-hero p{margin:0;font-size:11px;color:#e2f1ea;line-height:1.7;max-width:690px}
+    .ai-kicker{font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#bce8ce}
+    .ai-pill{border:1px solid #92c5ab;border-radius:100px;padding:8px 11px;font-size:10px;white-space:nowrap}
+    .ai-grid{display:grid;grid-template-columns:minmax(285px,0.8fr) minmax(0,1.4fr);gap:15px;margin-top:15px;align-items:start}
+    .ai-card{background:#fff;border:1px solid var(--ai-line);border-radius:16px;padding:19px;box-shadow:0 7px 22px rgba(5,72,49,.04);min-width:0}
+    .ai-card h3{margin:0 0 6px;color:#134831;font-size:15px}.ai-card p.desc{font-size:10px;line-height:1.65;color:var(--ai-muted);margin:0 0 16px}
+    .ai-form{display:grid;gap:13px}.ai-label{display:grid;gap:6px;font-size:10px;font-weight:800;color:#284f3d}
+    .ai-label select,.ai-label input,.ai-label textarea,.ai-document{border:1px solid #cfdfd6;border-radius:10px;background:#fff;color:#183b2d;padding:11px 12px;font:500 12px/1.5 Inter,sans-serif;width:100%;outline:none}
+    .ai-label textarea{resize:vertical;min-height:76px}.ai-label select:focus,.ai-label input:focus,.ai-label textarea:focus,.ai-document:focus{border-color:#0b8157;box-shadow:0 0 0 3px rgba(11,129,87,.11)}
+    .ai-double{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .ai-help{font-size:9px;color:#718279;line-height:1.6}
+    .ai-btn{display:inline-flex;justify-content:center;align-items:center;gap:6px;min-height:39px;padding:10px 13px;border:1px solid #bdcfc4;border-radius:10px;background:#fff;color:#17503a;font:800 10px Inter,sans-serif;cursor:pointer}
+    .ai-btn.primary{background:#075b3a;color:#fff;border-color:#075b3a}
+    .ai-btn:disabled{opacity:.48;cursor:not-allowed}
+    .ai-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+    .ai-document{min-height:450px;resize:vertical;background:#fff;line-height:1.8;font-size:12px}
+    .ai-prompt{min-height:310px;background:#f8fbf9;font-size:11px;line-height:1.65}
+    .ai-result-panel{display:grid;gap:14px;min-width:0}
+    .ai-steps{display:flex;gap:6px;flex-wrap:wrap;margin:13px 0 0}
+    .ai-steps span{font:800 9px Inter,sans-serif;color:#e7f4ec;border:1px solid rgba(255,255,255,.3);padding:7px 10px;border-radius:999px}
+    .ai-manual-group{display:grid;gap:11px;padding:12px;border:1px dashed #bcd8c8;background:#f8fcfa;border-radius:11px}
+    .ai-manual-group[hidden]{display:none!important}
+    .ai-instructions{margin:9px 0 0;padding-left:17px;color:#587163;font-size:10px;line-height:1.8}
+    .ai-link{color:#075b3a;text-decoration:underline;font-size:10px}
+    .ai-btn.link{text-decoration:none}
+    .ai-warning{padding:10px 12px;border:1px solid #f0db9d;background:#fffaf0;color:#765b1e;border-radius:10px;font-size:10px;line-height:1.6;margin-top:11px}
+    .ai-small{font:500 10px/1.7 Inter,sans-serif;color:#6b7d74;margin:9px 0}
+    .ai-stage{color:#0b7a4b;font-weight:900;letter-spacing:.06em;font-size:9px;text-transform:uppercase;margin-bottom:6px}
+    .ai-status{font-size:10px;margin-top:11px;min-height:18px;color:#426350;line-height:1.5}
+    .ai-note{padding:11px 13px;border-radius:11px;background:#f2faf5;border:1px solid #d7eadd;font-size:10px;line-height:1.6;color:#37614b;margin-top:12px}
+    .ai-meta{font-size:9px;color:#75857b;margin-bottom:10px}
+    .ai-doc-title{border:0;border-bottom:1px solid #dce9e2;font:700 16px Inter,sans-serif;width:100%;color:#153f2e;padding:8px 0 10px;margin:0 0 10px;outline:none}
+    .ai-history{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:7px;max-height:260px;overflow:auto}
+    .ai-history button{width:100%;border:1px solid #e2ece6;border-radius:10px;background:#fbfdfc;padding:10px;text-align:left;cursor:pointer}
+    .ai-history strong{display:block;color:#1a4c37;font-size:10px}.ai-history small{display:block;margin-top:5px;color:#78877e;font-size:9px}
+    .ai-empty{font-size:10px;color:#7a8c82;padding:12px;text-align:center}
+    @media(max-width:960px){.ai-grid{grid-template-columns:1fr}.ai-hero{align-items:flex-start;flex-direction:column}}
+    @media(max-width:560px){.ai-double{grid-template-columns:1fr}.ai-card{padding:14px}.ai-hero{padding:18px}}
+    @media print{.sidebar,.topbar,.ai-hero,.ai-form-panel,.ai-prompt-card,.ai-actions,.ai-status,.ai-note,.ai-meta,.ai-history-panel,.ai-instructions{display:none!important}
+      .app,.content,.main,.ai-main,.ai-grid,.ai-result-panel,.ai-editor-card,.ai-card{display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important}
+      .ai-doc-title{border:0;font-size:20px}.ai-document{border:0!important;resize:none!important;height:auto!important;min-height:0!important;white-space:pre-wrap;font-size:11pt;overflow:visible!important}
+      #printBody{display:block!important;white-space:pre-wrap;font:11pt/1.65 Georgia,serif;color:#111}
+      #result{display:none!important} }
+  </style>
+</head>
+<body>
+<div id="loading" class="loading-overlay">Menyiapkan SIMANIS AI...</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-brand"><img src="logo.png" alt="Logo"><div><strong>SIMANIS</strong><span>Sistem Informasi MA Nurul Islam</span></div></div>
+    <div class="nav-title">MENU</div><nav id="sidebarMenu"></nav>
+    <div class="sidebar-footer"><div class="user-mini"><strong id="sideUserName">-</strong><span id="sideUserRole">-</span></div><button id="logoutBtn" class="logout-btn">Keluar</button></div>
+  </aside>
+  <section class="content">
+    <header class="topbar"><div><h1>SIMANIS</h1><p>Asisten perangkat pembelajaran guru</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
+    <main class="main ai-main">
+      <section class="ai-hero">
+        <div><div class="ai-kicker">SIMANIS • Teaching Assistant</div><h2>Asisten Perangkat Pembelajaran</h2><p>Buat prompt kurikulum berkualitas, salin ke ChatGPT Plus, lalu tempel dan kelola dokumen di SIMANIS. Tidak memerlukan API berbayar. Referensi CP perlu dicek terhadap dokumen pemerintah yang berlaku.</p><div class="ai-steps"><span>1 · Atur pembelajaran</span><span>2 · Salin prompt ke ChatGPT</span><span>3 · Tempel & simpan hasil</span></div></div>
+        <span class="ai-pill">Mode Manual · Tanpa API</span>
+      </section>
+      <div class="ai-grid">
+        <div class="ai-form-panel">
+          <section class="ai-card">
+            <div class="ai-stage">Langkah 1</div><h3>Pengaturan Pembelajaran</h3><p class="desc">Pilih kelas dan mata pelajaran yang Anda ampu, lalu lengkapi referensi CP.</p>
+            <form class="ai-form" id="aiForm">
+              <label class="ai-label">Kelas dan Mata Pelajaran<select id="context" required><option value="">Memuat penugasan...</option></select></label>
+              <label class="ai-label">Referensi Capaian Pembelajaran (CP)
+                <select id="cp"><option value="">CP manual / belum ada referensi terverifikasi</option></select>
+              </label>
+              <div id="cpInfo" class="ai-help">Pilih CP terverifikasi dari SIMANIS atau tempel CP dari dokumen pemerintah yang sudah Anda cek.</div>
+              <div class="ai-manual-group" id="manualCpGroup">
+                <label class="ai-label">Teks CP dari dokumen resmi
+                  <textarea id="manualCP" rows="6" maxlength="20000" placeholder="Tempel isi CP persis dari dokumen pemerintah yang sesuai fase dan mapel. Jika belum ada, prompt akan meminta Anda melengkapinya di ChatGPT."></textarea>
+                </label>
+                <label class="ai-label">Tautan dokumen resmi (opsional untuk draf)
+                  <input id="manualCPUrl" type="url" maxlength="600" placeholder="https://...">
+                </label>
+                <div class="ai-help">CP manual belum diverifikasi madrasah. Untuk menandai dokumen FINAL, teks CP dan tautan sumber harus dilengkapi. Cari referensi mapel umum di <a class="ai-link" target="_blank" rel="noopener noreferrer" href="https://kurikulum.kemendikdasmen.go.id/panduan-mapel">Portal Kurikulum Kemendikdasmen ↗</a>; untuk mapel keagamaan MA, sesuaikan dengan regulasi Kemenag.</div>
+              </div>
+              <label class="ai-label">Jenis Perangkat<select id="documentType">
+                <option value="TP">1. Tujuan Pembelajaran (TP)</option>
+                <option value="ATP">2. Alur Tujuan Pembelajaran (ATP)</option>
+                <option value="PROTA">3. Program Tahunan (Prota)</option>
+                <option value="PROMES">4. Program Semester (Promes)</option>
+                <option value="MODUL_AJAR">5. Modul Ajar / RPP</option>
+                <option value="BAHAN_AJAR">6. Bahan Ajar</option>
+                <option value="LKPD">7. Lembar Kerja Peserta Didik</option>
+                <option value="MEDIA_PEMBELAJARAN">8. Rancangan Media Pembelajaran</option>
+                <option value="ASESMEN">9. Instrumen Asesmen</option>
+              </select></label>
+              <div class="ai-double">
+                <label class="ai-label">Semester<select id="semester"><option>Ganjil</option><option>Genap</option><option>Setahun</option></select></label>
+                <label class="ai-label">JP per Minggu<input id="jp" type="number" min="1" max="20" value="4" required></label>
+              </div>
+              <label class="ai-label">Jumlah Pertemuan<input id="meetings" type="number" min="1" max="40" value="8" required></label>
+              <label class="ai-label">Materi / Topik<input id="topic" maxlength="180" placeholder="Contoh: Stoikiometri dan reaksi kimia"></label>
+              <label class="ai-label">Kebutuhan Guru (opsional)<textarea id="notes" maxlength="700" placeholder="Contoh: pembelajaran berbasis proyek, kelas heterogen, praktikum sederhana"></textarea></label>
+              <button class="ai-btn primary" id="generateBtn" type="submit">Siapkan Prompt ChatGPT</button>
+            </form>
+            <div class="ai-note"><strong>Catatan:</strong> SIMANIS tidak mengirim data ke layanan AI. Prompt disalin secara manual oleh guru. Jangan memasukkan data pribadi siswa. CP yang belum diverifikasi harus dicocokkan dengan sumber pemerintah sebelum digunakan.</div>
+          </section>
+          <section class="ai-card ai-history-panel" style="margin-top:14px">
+            <h3>Dokumen Saya</h3><p class="desc">Draf dan dokumen final hanya terlihat oleh pemilik akun.</p>
+            <button class="ai-btn" id="refreshHistory" type="button">Muat Ulang Arsip</button>
+            <ul id="history" class="ai-history"><li class="ai-empty">Belum ada dokumen.</li></ul>
+          </section>
+        </div>
+        <div class="ai-result-panel">
+        <section class="ai-card ai-prompt-card">
+          <div class="ai-stage">Langkah 2</div>
+          <h3>Prompt Siap Salin ke ChatGPT Plus</h3>
+          <p class="desc">Klik “Siapkan Prompt ChatGPT”, lalu salin dan kirimkan ke ChatGPT (Free atau Plus). Ini bukan generasi otomatis di SIMANIS.</p>
+          <textarea id="promptOutput" class="ai-document ai-prompt" readonly aria-label="Prompt ChatGPT siap salin" placeholder="Prompt sesuai mapel, fase, CP, dan jenis perangkat akan muncul di sini."></textarea>
+          <div class="ai-actions" style="margin-top:12px">
+            <button type="button" class="ai-btn primary" id="copyPromptBtn" disabled>Salin Prompt</button>
+            <a class="ai-btn link" id="openChatGPT" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Buka ChatGPT ↗</a>
+            <button type="button" class="ai-btn" id="templateBtn" disabled>Gunakan Kerangka Dokumen</button>
+          </div>
+          <ol class="ai-instructions">
+            <li>Salin prompt, buka ChatGPT, lalu tempel.</li>
+            <li>Jika CP belum tersedia, tambahkan CP resmi terlebih dahulu sebelum meminta isi perangkat.</li>
+            <li>Salin jawaban ChatGPT, tempel ke editor di bawah, lalu periksa dan simpan.</li>
+          </ol>
+        </section>
+        <section class="ai-card ai-editor-card">
+          <div class="ai-stage">Langkah 3</div>
+          <h3>Tempel, Edit dan Arsipkan Hasil</h3>
+          <p class="desc">Jawaban ChatGPT tidak tersimpan otomatis. Tempel di bawah, verifikasi tujuan, materi dan asesmen, lalu klik Simpan Draf.</p>
+          <input id="documentTitle" class="ai-doc-title" maxlength="180" value="Perangkat Pembelajaran Baru" aria-label="Judul dokumen">
+          <p id="documentMeta" class="ai-meta">Belum ada dokumen dibuat.</p>
+          <textarea id="result" class="ai-document" placeholder="Tempel jawaban ChatGPT Plus di sini (Ctrl+V), lalu periksa dan edit. Anda juga dapat memakai Kerangka Dokumen sebagai titik awal."></textarea>
+          <div id="printBody" style="display:none"></div>
+          <div class="ai-actions" style="margin-top:12px">
+            <button type="button" class="ai-btn primary" id="saveBtn" disabled>Simpan Draf</button>
+            <button type="button" class="ai-btn" id="finalBtn" disabled>Tandai Final</button>
+            <button type="button" class="ai-btn" id="wordBtn" disabled>Unduh Word</button>
+            <button type="button" class="ai-btn" id="pdfBtn" disabled>Cetak / PDF</button>
+          </div>
+          <div class="ai-status" id="status" role="status" aria-live="polite">Mulai dengan memilih kelas dan mata pelajaran untuk membuat prompt.</div>
+        </section>
+        </div>
+      </div>
+    </main>
+  </section>
+</div>
+<script src="config.js"></script>
+<script src="sdk-loader.js"></script>
+<script src="simanis-ai.js"></script>
+</body>
+</html>
