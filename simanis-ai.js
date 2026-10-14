@@ -86,7 +86,7 @@ function buildScaffold(doc){
 
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
 function status(message,isError=false){$("status").textContent=message;$("status").style.color=isError?"#ad352e":"#426350"}
-function setBusy(b){$("generateBtn").disabled=b;$("generateBtn").textContent=b?"Sedang membuat perangkat...":"✦ Generate dengan AI"}
+function setBusy(b){$("generateBtn").disabled=b;$("generateBtn").textContent=b?"Menyiapkan prompt...":"Siapkan Prompt ChatGPT"}
 function setDocumentButtons(on){["saveBtn","finalBtn","wordBtn","pdfBtn"].forEach(k=>$(k).disabled=!on)}
 function currentContext(){return contexts.find(x=>x.class_id+"|"+x.subject_id===$("context").value)}
 function phaseFor(c){const cl=classes.find(x=>x.id===c?.class_id);if(cl)return Number(cl.grade_level)===10?"E":"F";return /^X(?:\s|$|[-_0-9])/.test(c?.class_name||"")?"E":"F"}
@@ -119,22 +119,38 @@ async function loadContexts(){
 }
 async function loadCP(){
   const c=currentContext();
-  cpSources=[];$("cp").innerHTML='<option value="">Memuat CP resmi...</option>';
-  if(!c){$("cp").innerHTML='<option value="">Pilih kelas dahulu</option>';return}
+  cpSources=[];
+  $("cp").innerHTML='<option value="">CP manual / belum ada referensi terverifikasi</option>';
+  if(!c){$("cpInfo").textContent="Pilih kelas terlebih dahulu.";showCP();return}
+  const phase=phaseFor(c);
   try{
-    const phase=phaseFor(c);
-    cpSources=await api.db.select("curriculum_cp_sources","select=id,subject_id,phase,regulation,source_title,source_url,revision&subject_id=eq."+encodeURIComponent(c.subject_id)+"&phase=eq."+phase+"&is_verified=eq.true&order=created_at.desc");
-    $("cp").innerHTML=cpSources.length?cpSources.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.source_title+" • Fase "+x.phase+" • "+x.revision)+'</option>').join(""):'<option value="">CP belum tersedia atau belum diverifikasi</option>';
-    showCP();
-    if(!cpSources.length)status("CP Fase "+phase+" untuk mapel ini belum diunggah dan diverifikasi admin. Generasi AI dinonaktifkan.",true);
-    else status("CP resmi ditemukan. Pilih perangkat pembelajaran lalu klik Generate.");
-  }catch(e){$("cp").innerHTML='<option value="">Referensi CP belum siap</option>';status("Basis data CP belum tersedia. Minta admin menjalankan migrasi SIMANIS AI.",true)}
+    const found=await api.db.select("curriculum_cp_sources",
+      "select=id,subject_id,phase,regulation,source_title,source_url,content,revision&subject_id=eq."
+      +encodeURIComponent(c.subject_id)+"&phase=eq."+phase+"&is_verified=eq.true&order=created_at.desc");
+    cpSources=found||[];
+    $("cp").innerHTML='<option value="">Tempel CP manual dari dokumen resmi</option>'
+      +cpSources.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.source_title+" • Fase "+x.phase+" • "+x.revision)+'</option>').join("");
+    if(!cpSources.length)status("Belum tersedia CP Fase "+phase+" terverifikasi. Tempel CP dari sumber resmi atau buat prompt yang meminta CP dahulu.");
+    else status("Ada "+cpSources.length+" CP terverifikasi. Pilih salah satu, atau gunakan CP manual.");
+  }catch(e){
+    console.warn("SIMANIS AI: pustaka CP belum siap",e);
+    status("Pustaka CP belum tersedia. Anda tetap dapat membuat prompt dengan CP manual; arsip membutuhkan aktivasi database.",true);
+  }
+  showCP();
 }
+
 function showCP(){
-  const c=cpSources.find(x=>x.id===$("cp").value);
-  if(!c){$("cpInfo").textContent="Hanya CP yang telah diverifikasi oleh admin kurikulum dapat digunakan.";return}
-  $("cpInfo").innerHTML="Sumber: "+esc(c.regulation)+" · "+esc(c.source_title)+' · <a href="'+esc(c.source_url)+'" target="_blank" rel="noopener noreferrer">Lihat sumber resmi ↗</a>';
+  const cp=cpSources.find(x=>x.id===$("cp").value);
+  $("manualCpGroup").hidden=Boolean(cp);
+  if(!cp){
+    $("cpInfo").textContent="CP manual belum diverifikasi madrasah. Tempel teks resmi dan tautannya. Jika kosong, ChatGPT wajib meminta CP sebelum menyusun perangkat.";
+    return;
+  }
+  const safeUrl=/^https:\/\//i.test(cp.source_url||"")?cp.source_url:null;
+  $("cpInfo").innerHTML="CP terverifikasi SIMANIS · "+esc(cp.regulation)+" · "+esc(cp.source_title)
+    +(safeUrl?' · <a href="'+esc(safeUrl)+'" target="_blank" rel="noopener noreferrer">Buka sumber ↗</a>':"");
 }
+
 async function loadHistory(){
   try{
     const rows=await api.db.select("teacher_ai_documents","select=id,title,document_type,status,created_at&owner_id=eq."+encodeURIComponent(user.id)+"&order=created_at.desc&limit=30")||[];
@@ -146,21 +162,39 @@ async function openHistory(id){
   try{
     const rows=await api.db.select("teacher_ai_documents","select=*&id=eq."+encodeURIComponent(id)+"&limit=1");
     const doc=rows?.[0];if(!doc)return;
-    documentId=doc.id;activeDocument={class_id:doc.class_id,subject_id:doc.subject_id,cp_source_id:doc.cp_source_id,document_type:doc.document_type,semester:doc.semester,topic:doc.topic,model_name:doc.model_name};
-    $("documentTitle").value=doc.title;
-    $("result").value=doc.content||"";
-    $("documentMeta").textContent=(DOC_NAMES[doc.document_type]||doc.document_type)+" · "+(doc.status||"DRAFT")+" · Arsip pribadi";
+    const matchingContext=contexts.find(x=>x.class_id===doc.class_id&&x.subject_id===doc.subject_id);
+    if(!matchingContext){status("Penugasan kelas/mapel untuk dokumen arsip ini sudah tidak tersedia.",true);return}
+    documentId=doc.id;
+    activeDocument={
+      class_id:doc.class_id,subject_id:doc.subject_id,cp_source_id:doc.cp_source_id,
+      cp_manual_text:doc.cp_manual_text||null,cp_manual_source_url:doc.cp_manual_source_url||null,
+      document_type:doc.document_type,semester:doc.semester,topic:doc.topic,
+      class_name:matchingContext.class_name,subject_name:matchingContext.subject_name,
+      phase:phaseFor(matchingContext)
+    };
     $("context").value=doc.class_id+"|"+doc.subject_id;
     await loadCP();
-    $("cp").value=doc.cp_source_id;
+    $("cp").value=doc.cp_source_id||"";
+    if($("cp").value!==String(doc.cp_source_id||""))$("cp").value="";
+    $("manualCP").value=doc.cp_manual_text||"";
+    $("manualCPUrl").value=doc.cp_manual_source_url||"";
     showCP();
     $("documentType").value=doc.document_type;
     $("semester").value=doc.semester||"Ganjil";
     $("topic").value=doc.topic||"";
+    $("documentTitle").value=doc.title;
+    $("result").value=doc.content||"";
+    $("promptOutput").value="";
+    $("copyPromptBtn").disabled=true;
+    $("templateBtn").disabled=true;
+    $("documentMeta").textContent=(DOC_NAMES[doc.document_type]||doc.document_type)
+      +" · "+(doc.status||"DRAFT")+" · Arsip pribadi"
+      +(doc.cp_source_id?" · CP perpustakaan":" · CP manual/belum dilengkapi");
     setDocumentButtons(Boolean(doc.content?.trim()));
-    status("Dokumen dari arsip dimuat. Perubahan baru tersimpan setelah menekan Simpan Draf.");
-  }catch(e){status(e.message,true)}
+    status("Dokumen berhasil dimuat dari arsip. Untuk membuat prompt baru, klik Siapkan Prompt ChatGPT.");
+  }catch(e){status("Arsip gagal dibuka: "+e.message,true)}
 }
+
 async function generate(e){
   e.preventDefault();
   const c=currentContext(),cp=cpSources.find(x=>x.id===$("cp").value);
