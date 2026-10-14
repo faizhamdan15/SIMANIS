@@ -1,6 +1,6 @@
 # SIMANIS AI — Asisten Perangkat Pembelajaran (Tanpa API)
 
-**Status:** implementasi tahap 1 di GitHub branch `feature/simanis-ai-guru-mvp`, Pull Request #5. Belum aktif di produksi sampai kode di-merge, migrasi ditinjau/dijalankan, dan diuji dengan akun guru.
+**Status (15 Oktober 2026):** kode Pull Request #5 telah digabung ke `main`; deployment Vercel produksi berstatus READY; migrasi Supabase `simanis_ai_manual_teacher_workspace_20261015` berhasil dipasang. Modul SIMANIS AI sudah diberi akses kepada peran GURU, WALI_KELAS, dan SUPER_ADMIN. **Uji end-to-end login dan simpan memakai akun guru asli masih perlu dilakukan.** Pustaka CP terverifikasi masih kosong; alur CP manual tersedia.
 
 Tidak memerlukan OpenAI API Key dan **tidak** mengirim data ke model AI dari SIMANIS. Guru menyalin prompt ke ChatGPT menggunakan akun miliknya, lalu menempel kembali jawaban yang telah ditelaah guru.
 
@@ -28,7 +28,7 @@ Tidak memerlukan OpenAI API Key dan **tidak** mengirim data ke model AI dari SIM
 - Link pencarian referensi kurikulum umum: https://kurikulum.kemendikdasmen.go.id/panduan-mapel (khusus mapel keagamaan MA, cocokkan juga dengan regulasi Kementerian Agama yang berlaku).
 - Konten yang ditempel adalah data guru; **jangan pernah memasukkan identitas, data kesehatan, alamat, atau informasi pribadi siswa** ke prompt.
 
-## Deployment / aktivasi
+## Deployment / aktivasi (sudah dijalankan; dicatat untuk perawatan selanjutnya)
 
 1. Review **Pull Request #5** di GitHub dan semua berkas yang berubah.
 2. Lakukan pengujian pratinjau branch bila tersedia dari Vercel; jangan merge tanpa persetujuan pengelola.
