@@ -89,7 +89,7 @@
                 <label class="ai-label">Tautan dokumen resmi (opsional untuk draf)
                   <input id="manualCPUrl" type="url" maxlength="600" placeholder="https://...">
                 </label>
-                <div class="ai-help">CP manual belum diverifikasi madrasah. Untuk menandai dokumen FINAL, teks CP dan tautan sumber harus dilengkapi.</div>
+                <div class="ai-help">CP manual belum diverifikasi madrasah. Untuk menandai dokumen FINAL, teks CP dan tautan sumber harus dilengkapi. Cari referensi mapel umum di <a class="ai-link" target="_blank" rel="noopener noreferrer" href="https://kurikulum.kemendikdasmen.go.id/panduan-mapel">Portal Kurikulum Kemendikdasmen ↗</a>; untuk mapel keagamaan MA, sesuaikan dengan regulasi Kemenag.</div>
               </div>
               <label class="ai-label">Jenis Perangkat<select id="documentType">
                 <option value="TP">1. Tujuan Pembelajaran (TP)</option>
@@ -123,11 +123,11 @@
         <section class="ai-card ai-prompt-card">
           <div class="ai-stage">Langkah 2</div>
           <h3>Prompt Siap Salin ke ChatGPT Plus</h3>
-          <p class="desc">Klik “Siapkan Prompt ChatGPT”, lalu salin dan kirimkan ke ChatGPT. Ini bukan generasi otomatis di SIMANIS.</p>
+          <p class="desc">Klik “Siapkan Prompt ChatGPT”, lalu salin dan kirimkan ke ChatGPT (Free atau Plus). Ini bukan generasi otomatis di SIMANIS.</p>
           <textarea id="promptOutput" class="ai-document ai-prompt" readonly aria-label="Prompt ChatGPT siap salin" placeholder="Prompt sesuai mapel, fase, CP, dan jenis perangkat akan muncul di sini."></textarea>
           <div class="ai-actions" style="margin-top:12px">
             <button type="button" class="ai-btn primary" id="copyPromptBtn" disabled>Salin Prompt</button>
-            <a class="ai-btn link" id="openChatGPT" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Buka ChatGPT Plus ↗</a>
+            <a class="ai-btn link" id="openChatGPT" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Buka ChatGPT ↗</a>
             <button type="button" class="ai-btn" id="templateBtn" disabled>Gunakan Kerangka Dokumen</button>
           </div>
           <ol class="ai-instructions">
