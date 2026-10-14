@@ -10,6 +10,7 @@
     ABSENSI_GURU:"absensi-guru.html",
     ABSENSI_SISWA:"absensi-siswa.html",
     NILAI:"nilai.html",
+    SIMANIS_AI:"simanis-ai.html",
     PRESTASI:"prestasi.html",
     BERITA:"berita.html",
     PENGUMUMAN:"pengumuman.html",
