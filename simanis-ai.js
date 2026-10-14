@@ -197,53 +197,113 @@ async function openHistory(id){
 
 async function generate(e){
   e.preventDefault();
-  const c=currentContext(),cp=cpSources.find(x=>x.id===$("cp").value);
-  if(!c||!cp){status("Pilih kelas dan CP resmi yang telah diverifikasi terlebih dahulu.",true);return}
-  if($("result").value.trim()&&!confirm("Hasil yang belum disimpan akan diganti. Lanjutkan?"))return;
+  const ctx=currentContext();
+  if(!ctx){status("Pilih kelas dan mata pelajaran terlebih dahulu.",true);return}
+  const jp=Number($("jp").value),meetings=Number($("meetings").value);
+  if(!Number.isInteger(jp)||jp<1||jp>20||!Number.isInteger(meetings)||meetings<1||meetings>40){
+    status("Masukkan alokasi JP 1–20 dan jumlah pertemuan 1–40.",true);return
+  }
+  if($("result").value.trim()&&!confirm("Teks editor yang belum disimpan akan dikosongkan saat memulai perangkat baru. Lanjutkan?"))return;
   setBusy(true);
   try{
-    const s=await api.auth.getSession();
-    if(!s?.access_token)throw new Error("Sesi telah habis, masuk kembali.");
-    const payload={
-      class_id:c.class_id,subject_id:c.subject_id,cp_source_id:cp.id,
-      document_type:$("documentType").value,semester:$("semester").value,
-      topic:$("topic").value,jp_per_week:Number($("jp").value),
-      meetings:Number($("meetings").value),notes:$("notes").value
+    const cp=cpSources.find(x=>x.id===$("cp").value);
+    const manualText=cp?"":$("manualCP").value.trim();
+    const manualUrl=cp?"":$("manualCPUrl").value.trim();
+    const kind=$("documentType").value;
+    const data={
+      class_id:ctx.class_id,subject_id:ctx.subject_id,cp_source_id:cp?.id||null,
+      cp_manual_text:manualText||null,cp_manual_source_url:manualUrl||null,
+      document_type:kind,semester:$("semester").value,topic:$("topic").value.trim(),
+      jp_per_week:jp,meetings,notes:$("notes").value.trim(),
+      class_name:ctx.class_name,subject_name:ctx.subject_name,phase:phaseFor(ctx),
+      cpText:cp?.content||manualText,
+      cpVerified:Boolean(cp),
+      cpTitle:cp?.source_title||(manualText?"Teks CP yang ditempel guru":"Belum diberikan"),
+      regulation:cp?.regulation||null,
+      source_url:cp?.source_url||manualUrl,
+      creation_method:"COPY_PASTE_CHATGPT"
     };
-    const res=await fetch("/api/simanis-ai",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+s.access_token},body:JSON.stringify(payload)});
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok)throw new Error(data.error||"Layanan AI gagal diakses.");
+    $("promptOutput").value=buildPromptText(data);
+    $("copyPromptBtn").disabled=false;
+    $("templateBtn").disabled=false;
+    activeDocument=data;
     documentId=null;
-    activeDocument={...payload,model_name:data.model};
-    $("result").value=data.content;
-    $("documentTitle").value=data.title;
-    $("documentMeta").textContent=(DOC_NAMES[payload.document_type]||payload.document_type)+" · DRAF AI · "+data.reference+" · "+data.model;
-    setDocumentButtons(true);
-    status("Draf berhasil dihasilkan. Periksa, edit, lalu klik Simpan Draf.");
-  }catch(e){status(e.message,true)}
+    $("result").value="";
+    $("documentTitle").value=(DOC_NAMES[kind]||kind)+" — "+ctx.subject_name+" "+ctx.class_name+(data.topic?" — "+data.topic:"");
+    $("documentMeta").textContent=(DOC_NAMES[kind]||kind)
+      +" · Menunggu hasil ChatGPT Plus · "+(cp?"CP terverifikasi":manualText?"CP manual guru":"CP belum dilengkapi");
+    setDocumentButtons(false);
+    status(!data.cpText?"Prompt siap. ChatGPT akan meminta teks CP resmi sebelum menyusun perangkat.":
+      "Prompt siap disalin. Buka ChatGPT, tempel prompt, lalu salin kembali hasilnya ke editor SIMANIS.");
+  }catch(err){status("Gagal menyiapkan prompt: "+err.message,true)}
   finally{setBusy(false)}
 }
+async function copyPrompt(){
+  const content=$("promptOutput").value.trim();
+  if(!content){status("Siapkan prompt terlebih dahulu.",true);return}
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(content);
+    }else{
+      $("promptOutput").focus();
+      $("promptOutput").select();
+      if(!document.execCommand("copy"))throw new Error("Clipboard tidak tersedia");
+    }
+    status("Prompt berhasil disalin. Buka ChatGPT Plus, tempel prompt, lalu ikuti instruksinya.");
+  }catch(err){
+    $("promptOutput").focus();
+    $("promptOutput").select();
+    status("Salin otomatis tidak tersedia di browser ini. Teks prompt sudah dipilih; tekan Ctrl+C.",true);
+  }
+}
+function useTemplate(){
+  if(!activeDocument){status("Siapkan prompt terlebih dahulu agar kerangka sesuai kelas dan mapel.",true);return}
+  if($("result").value.trim()&&!confirm("Isi editor akan diganti dengan kerangka kosong. Lanjutkan?"))return;
+  activeDocument.creation_method="TEMPLATE_EDITOR";
+  $("result").value=buildScaffold(activeDocument);
+  setDocumentButtons(true);
+  $("documentMeta").textContent=(DOC_NAMES[activeDocument.document_type]||activeDocument.document_type)
+    +" · Kerangka untuk diedit · Belum final";
+  status("Kerangka dokumen tersedia. Isi setiap bagian berdasarkan CP resmi lalu simpan sebagai draf.");
+}
+
 async function saveDocument(final=false){
-  if(!activeDocument){status("Buat atau buka dokumen terlebih dahulu.",true);return}
+  if(!activeDocument){status("Siapkan prompt atau buka dokumen arsip terlebih dahulu.",true);return}
   const title=$("documentTitle").value.trim(),content=$("result").value.trim();
-  if(title.length<3||!content){status("Judul dan isi dokumen wajib dilengkapi.",true);return}
-  const data={
+  if(title.length<3||title.length>180||!content){status("Judul 3–180 karakter dan isi dokumen wajib dilengkapi.",true);return}
+  const hasCp=Boolean(activeDocument.cp_source_id||activeDocument.cp_manual_text);
+  if(final){
+    if(!hasCp){status("Dokumen belum dapat difinalkan sebelum menggunakan CP resmi.",true);return}
+    if(!activeDocument.cp_source_id&&(!activeDocument.cp_manual_source_url||!/^https:\/\//i.test(activeDocument.cp_manual_source_url))){
+      status("CP manual memerlukan URL sumber resmi HTTPS sebelum dokumen ditandai FINAL.",true);return
+    }
+    if(!confirm("Saya telah memeriksa kesesuaian CP resmi, materi, alokasi waktu dan asesmen. Tandai dokumen sebagai FINAL?"))return;
+  }
+  const payload={
     owner_id:user.id,class_id:activeDocument.class_id,subject_id:activeDocument.subject_id,
-    cp_source_id:activeDocument.cp_source_id,document_type:activeDocument.document_type,
+    cp_source_id:activeDocument.cp_source_id||null,
+    cp_manual_text:activeDocument.cp_manual_text||null,
+    cp_manual_source_url:activeDocument.cp_manual_source_url||null,
+    document_type:activeDocument.document_type,
     semester:activeDocument.semester||null,topic:activeDocument.topic||null,
-    model_name:activeDocument.model_name||null,title,content,
-    status:final?"FINAL":"DRAFT",updated_at:new Date().toISOString()
+    creation_method:activeDocument.creation_method||"COPY_PASTE_CHATGPT",
+    title,content,status:final?"FINAL":"DRAFT",updated_at:new Date().toISOString()
   };
   try{
+    $("saveBtn").disabled=true;$("finalBtn").disabled=true;
     const rows=documentId?
-      await rawWrite("teacher_ai_documents?id=eq."+encodeURIComponent(documentId),"PATCH",data):
-      await rawWrite("teacher_ai_documents","POST",data);
-    documentId=rows?.[0]?.id||documentId;
-    $("documentMeta").textContent=(DOC_NAMES[activeDocument.document_type]||activeDocument.document_type)+" · "+data.status+" · Tersimpan";
-    status(final?"Dokumen berhasil ditandai FINAL.":"Draf berhasil disimpan di akun Anda.");
+      await rawWrite("teacher_ai_documents?id=eq."+encodeURIComponent(documentId),"PATCH",payload):
+      await rawWrite("teacher_ai_documents","POST",payload);
+    if(!rows?.[0]?.id)throw new Error("Sistem tidak mengembalikan dokumen tersimpan.");
+    documentId=rows[0].id;
+    $("documentMeta").textContent=(DOC_NAMES[activeDocument.document_type]||activeDocument.document_type)
+      +" · "+payload.status+" · Tersimpan · "+(activeDocument.cp_source_id?"CP terverifikasi":activeDocument.cp_manual_text?"CP manual guru":"CP belum tersedia");
+    status(final?"Dokumen tersimpan sebagai FINAL.":"Draf disimpan di arsip pribadi akun SIMANIS.");
     await loadHistory();
-  }catch(e){status(e.message,true)}
+  }catch(err){status("Gagal menyimpan dokumen: "+err.message,true)}
+  finally{setDocumentButtons(Boolean($("result").value.trim()))}
 }
+
 function filename(){return ($("documentTitle").value||"Perangkat_Pembelajaran").replace(/[^a-zA-Z0-9_-]+/g,"_").slice(0,65)}
 function wordDownload(){
   const title=esc($("documentTitle").value),body=esc($("result").value);
