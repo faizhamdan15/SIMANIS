@@ -272,6 +272,16 @@ async function saveDocument(final=false){
   if(!activeDocument){status("Siapkan prompt atau buka dokumen arsip terlebih dahulu.",true);return}
   const title=$("documentTitle").value.trim(),content=$("result").value.trim();
   if(title.length<3||title.length>180||!content){status("Judul 3–180 karakter dan isi dokumen wajib dilengkapi.",true);return}
+  // Perbolehkan guru memperbaiki CP/URL manual sebelum finalisasi tanpa
+  // menghapus hasil yang sudah ditempel di editor.
+  const ctx=currentContext();
+  if(!activeDocument.cp_source_id && $("cp").value==="" &&
+     ctx?.class_id===activeDocument.class_id &&
+     ctx?.subject_id===activeDocument.subject_id &&
+     $("documentType").value===activeDocument.document_type){
+    activeDocument.cp_manual_text=$("manualCP").value.trim()||null;
+    activeDocument.cp_manual_source_url=$("manualCPUrl").value.trim()||null;
+  }
   const hasCp=Boolean(activeDocument.cp_source_id||activeDocument.cp_manual_text);
   if(final){
     if(!hasCp){status("Dokumen belum dapat difinalkan sebelum menggunakan CP resmi.",true);return}
