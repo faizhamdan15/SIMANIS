@@ -89,6 +89,8 @@ function assessGeneratedModule(text,meetings,totalJp){
   if(missing.length)warnings.push("Judul skenario pertemuan belum terdeteksi untuk: "+missing.join(", ")+". Periksa seluruh kegiatan sebelum finalisasi.");
   if(!/LKPD|lembar kerja peserta didik/i.test(text))warnings.push("Lampiran LKPD tidak terdeteksi.");
   if(!/rubrik/i.test(text))warnings.push("Rubrik asesmen tidak terdeteksi.");
+  const levels=[1,2,3,4].filter(n=>new RegExp("(?:skor|level|tingkat)\\s*"+n+"\\b","i").test(text));
+  if(levels.length<4)warnings.push("Rubrik empat tingkat (skor 4, 3, 2, 1) belum terdeteksi lengkap. Periksa deskriptor tiap tingkat.");
   if(!/(?:kunci jawaban|pembahasan soal)/i.test(text))warnings.push("Kunci jawaban/pembahasan belum terdeteksi.");
   return {expected_meetings:meetings,detected_meetings:found.size,expected_total_jp:totalJp,warnings};
 }
