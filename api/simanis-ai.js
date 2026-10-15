@@ -45,7 +45,7 @@ function instructionalMinutePlan(jpPerMeeting){
   const closing=Math.max(5,Math.round(minutes*0.15/5)*5);
   return {minutes,intro,core:minutes-intro-closing,closing};
 }
-function deepModuleGuide(meetings,jpPerWeek,jpPerMeeting){
+function deepModuleGuide(meetings,jpPerWeek,jpPerMeeting,part='FULL'){
   const p=instructionalMinutePlan(jpPerMeeting);
   const slots=Array.from({length:meetings},(_,i)=>
     "### PERTEMUAN "+(i+1)+" — [Subtopik spesifik sesuai urutan yang logis]\n"+
@@ -55,7 +55,7 @@ function deepModuleGuide(meetings,jpPerWeek,jpPerMeeting){
     "minimal 2 pertanyaan formatif beserta kunci singkat, exit ticket/refleksi dan tindak lanjut. "+
     "JANGAN merujuk secara kosong ke 'pertemuan berikutnya', jangan gabung dua atau lebih pertemuan."
   ).join("\n\n");
-  return [
+  const sections=[
     "STANDAR MODUL AJAR MENDALAM — WAJIB SEMUA BAGIAN DITULIS UTUH. BUKAN RINGKASAN!",
     "0. Tuliskan di awal blok RINGKASAN ALOKASI: "+meetings+" pertemuan × "+jpPerMeeting+" JP/pertemuan = "+(meetings*jpPerMeeting)+" JP = "+(meetings*p.minutes)+" menit (asumsi 1 JP=45 menit). "+
       "Kapasitas jadwal = "+jpPerWeek+" JP/minggu, maka perkiraan lama pelaksanaan "+(meetings*jpPerMeeting/jpPerWeek)+" minggu. Tidak boleh mengubah angka ini atau menulis total JP yang lain.",
@@ -76,8 +76,11 @@ function deepModuleGuide(meetings,jpPerWeek,jpPerMeeting){
     "KONTROL MUTU: wajib cek sebelum mengakhiri jawaban bahwa subbagian pertemuan bernomor 1 sampai "+meetings+" semua ada, hitungan JP konsisten, empat level rubrik lengkap, dan soal berikut kunci tersaji. Jangan menggantinya dengan '[lengkapi sendiri]' atau 'contoh 1–2 pertemuan'.",
     "KEAMANAN LAB: kenali risiko nyata reagen dan limbah, APD, penanganan oleh guru dan opsi alat-bahan aman. Jangan sarankan percobaan berbahaya tanpa pengamanan.",
     "KETELITIAN SAINS: Jika 'Laju Reaksi', bedakan laju reaksi dengan proksi 1/waktu untuk percobaan tablet; jangan menganggap massa/laju tumbukan langsung diukur; tabel kategori utuh vs serbuk tidak boleh dibuat menjadi grafik kuantitatif 'luas permukaan' tanpa angka luas yang diukur. Eksperimen Mg + HCl menghasilkan gas H2 mudah terbakar dan membutuhkan pengamanan; prioritaskan eksperimen tablet effervescent yang lebih aman. Jangan mengarang hasil pengamatan.",
-    "UTAMAKAN kelengkapan 1–13. Hasil harus sedetail dokumen operasional guru, bukan proposal, kerangka, atau ringkasan. Jawaban boleh panjang."
-  ].join("\n\n");
+    "UTAMAKAN kelengkapan bagian yang diminta. Hasil harus sedetail dokumen operasional guru, bukan proposal, kerangka, atau ringkasan. Jawaban boleh panjang."
+  ];
+  if(part==='MAIN')return [...sections.slice(0,9),sections[16],sections[17],sections[18],sections[19],"FOKUS BAGIAN UTAMA SAJA: identitas, CP, TP, materi, peta alur dan skenario SELURUH pertemuan. Jangan menulis asesmen panjang atau lampiran LKPD di respons ini; lampiran dibuat terpisah. Beri judul pertemuan persis ### PERTEMUAN 1 sampai ### PERTEMUAN "+meetings+". Prioritaskan kedalaman langkah pertemuan."].join("\n\n");
+  if(part==='ANNEX')return ["LAMPIRAN MODUL AJAR — keluarkan hanya bagian asesmen dan pelengkap, jangan ulangi identitas dan skenario pertemuan.", ...sections.slice(9,15),sections[16],sections[17],sections[18],sections[19],"FOKUS LAMPIRAN SAJA: instrumen diagnostik, formatif, sumatif lengkap soal dan kunci, kisi-kisi, rubrik 4 level, LKPD lengkap, remedial/pengayaan, refleksi, glosarium dan catatan verifikasi. Jangan ulangi skenario pertemuan."].join("\n\n");
+  return sections.join("\n\n");
 }
 function assessGeneratedModule(text,meetings,totalJp){
   const found=new Set([...text.matchAll(/^#{1,6}\s*(?:\d+[\.\)]\s*)?(?:\*\*)?(?:PERTEMUAN)\s+(\d+)\b/gim)].map(m=>Number(m[1])));
@@ -89,7 +92,7 @@ function assessGeneratedModule(text,meetings,totalJp){
   if(!/(?:kunci jawaban|pembahasan soal)/i.test(text))warnings.push("Kunci jawaban/pembahasan belum terdeteksi.");
   return {expected_meetings:meetings,detected_meetings:found.size,expected_total_jp:totalJp,warnings};
 }
-function createInstruction({kind,subject,className,phase,semester,jp,jpPerMeeting,meetings,topic,notes,cp,reference,source,verified}){
+function createInstruction({kind,subject,className,phase,semester,jp,jpPerMeeting,meetings,topic,notes,cp,reference,source,verified,modulePart='FULL'}){
   const totalJP=meetings*jpPerMeeting;
   const ctx=[
     "SATUAN PENDIDIKAN: MA Nurul Islam",
@@ -121,7 +124,7 @@ function createInstruction({kind,subject,className,phase,semester,jp,jpPerMeetin
     "Gunakan Markdown yang jelas: heading hierarkis, tabel, soal yang bisa dikerjakan, jawaban lengkap, materi substantif. Hasil langsung diawali judul dokumen, TANPA pengantar AI.",
     "Seluruh total JP dan menit wajib dihitung dari JP/pertemuan × jumlah pertemuan. Bila kalender efektif sekolah belum diketahui, tuliskan asumsi dengan transparan.",
     "INSTRUKSI KHUSUS UMUM: "+GUIDES[kind],
-    ...(kind==="MODUL_AJAR"?[deepModuleGuide(meetings,jp,jpPerMeeting)]:[
+    ...(kind==="MODUL_AJAR"?[deepModuleGuide(meetings,jp,jpPerMeeting,modulePart)]:[
       "Untuk perangkat non-modul: sertakan konten dan lampiran yang cukup rinci, jangan hanya outline.",
       "Jelaskan kaitan antara durasi "+totalJP+" JP dan tabel alokasi sesuai kebutuhan perangkat."
     ]),
@@ -183,36 +186,55 @@ module.exports=async function(req,res){
   // Klaim kuota dibatasi per-guru dan total sekolah; dipakai juga sebagai penahan penyalahgunaan.
   const reserved=await supa(bearer,"rpc/simanis_ai_claim_daily_quota","POST",{});
   if(reserved!==true)return reply(res,429,{error:"Batas AI sekolah tercapai (3 generasi per guru/hari, maksimal 60 total/hari). Coba besok."});
-  const prompt=createInstruction({kind,subject:found.subject_name,className:found.class_name,phase,semester,jp,jpPerMeeting,meetings,topic,notes,cp:cpText,reference,source,verified});
-  const upstream=await fetch(
-   "https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(MODEL)+":generateContent",
-   {method:"POST",headers:{"x-goog-api-key":process.env.GEMINI_API_KEY,"Content-Type":"application/json"},
-    signal:AbortSignal.timeout(52000),body:JSON.stringify({
-      systemInstruction:{parts:[{text:"Anda pakar pendidikan yang membuat dokumen Indonesia akurat; patuhi instruksi keamanan dan sumber CP."}]},
-      contents:[{role:"user",parts:[{text:prompt}]}],
-      generationConfig:{temperature:0.35,maxOutputTokens:12000}
-    })}
-  );
-  const response=await upstream.json().catch(()=>({}));
-  if(!upstream.ok){
-    const status=upstream.status===429?429:upstream.status===400||upstream.status===403?502:503;
-    const message=upstream.status===429?"Kuota Gemini gratis sedang penuh. Coba lagi nanti.":upstream.status===400||upstream.status===403?"API Key atau model Gemini belum dapat digunakan. Hubungi admin.":"Layanan AI sedang tidak tersedia; coba lagi nanti.";
-    console.warn("SIMANIS AI upstream",upstream.status);
-    return reply(res,status,{error:message});
+  const context={kind,subject:found.subject_name,className:found.class_name,phase,semester,jp,jpPerMeeting,meetings,topic,notes,cp:cpText,reference,source,verified};
+  // Untuk modul panjang, hasil disusun dalam dua bagian independen agar
+  // model tidak memangkas skenario tiap pertemuan demi memberi ringkasan lampiran.
+  // Dua panggilan API berjalan paralel dalam satu klik dan satu klaim kuota guru.
+  const parts=kind==="MODUL_AJAR"&&meetings>=3?["MAIN","ANNEX"]:["FULL"];
+  const jobs=await Promise.allSettled(parts.map(async part=>{
+    const prompt=createInstruction({...context,modulePart:part});
+    const upstream=await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(MODEL)+":generateContent",
+      {method:"POST",headers:{"x-goog-api-key":process.env.GEMINI_API_KEY,"Content-Type":"application/json"},
+       signal:AbortSignal.timeout(52000),body:JSON.stringify({
+         systemInstruction:{parts:[{text:"Anda pakar pendidikan Madrasah Aliyah. Tulis dokumen Indonesia yang ilmiah, lengkap, aman untuk sekolah, dan sesuai data CP yang disediakan."}]},
+         contents:[{role:"user",parts:[{text:prompt}]}],
+         generationConfig:{temperature:0.35,maxOutputTokens:part==="MAIN"?10000:part==="ANNEX"?8500:12000}
+       })}
+    );
+    const response=await upstream.json().catch(()=>({}));
+    if(!upstream.ok){
+      console.warn("SIMANIS AI upstream",part,upstream.status);
+      const failure=new Error(upstream.status===429?"Kuota gratis Gemini sedang penuh. Coba lagi nanti.":upstream.status===400||upstream.status===403?"Model/API Key Gemini belum dapat digunakan.":"Layanan Gemini sedang bermasalah.");
+      failure.upstreamStatus=upstream.status;
+      throw failure;
+    }
+    const text=(response.candidates?.[0]?.content?.parts||[]).filter(x=>typeof x.text==="string").map(x=>x.text).join("\n").trim();
+    if(text.length<300)throw new Error("Bagian "+part+" terlalu singkat atau kosong.");
+    return {part,text,truncated:response.candidates?.[0]?.finishReason==="MAX_TOKENS"};
+  }));
+  const ok=jobs.filter(x=>x.status==="fulfilled").map(x=>x.value);
+  const failures=jobs.filter(x=>x.status==="rejected").map(x=>x.reason);
+  if(!ok.length){
+    const rateLimited=failures.some(x=>x.upstreamStatus===429);
+    return reply(res,rateLimited?429:503,{error:rateLimited?"Kuota Gemini gratis sedang penuh. Coba kembali nanti.":"AI belum bisa menyusun dokumen. Periksa model atau API Key di Vercel."});
   }
-  const parts=response.candidates?.[0]?.content?.parts||[];
-  let output=parts.filter(x=>typeof x.text==="string").map(x=>x.text).join("\n").trim();
-  if(!output)return reply(res,502,{error:"AI belum menghasilkan dokumen. Coba topik lebih spesifik."});
-  const finish=response.candidates?.[0]?.finishReason;
+  // Pertahankan urutan komponen dan penanda bagian yang belum berhasil.
+  const byPart=Object.fromEntries(ok.map(p=>[p.part,p]));
+  const output=parts.map(part=>byPart[part]?.text||(
+    "## BAGIAN BELUM BERHASIL: "+(part==="MAIN"?"SKENARIO PEMBELAJARAN":"LAMPIRAN ASESMEN DAN LKPD")+
+    "\n\n[PERLU DILENGKAPI OLEH GURU — sebagian proses AI gagal. Jangan gunakan sebagai dokumen final.]"
+  )).join("\n\n---\n\n");
+  const truncated=ok.some(p=>p.truncated);
   const quality=kind==="MODUL_AJAR"?assessGeneratedModule(output,meetings,meetings*jpPerMeeting):null;
-  if(finish==="MAX_TOKENS"){
-    output+="\n\n> CATATAN: Respons AI mencapai batas keluaran. Jangan finalkan sebelum melengkapi bagian yang terpotong.";
-    if(quality)quality.warnings.push("Respons terpotong karena batas keluaran model.");
+  if(quality){
+    if(failures.length)quality.warnings.push("Sebanyak "+failures.length+" bagian AI gagal dibuat. Muat ulang dan coba kembali saat kuota penyedia tersedia.");
+    if(truncated)quality.warnings.push("AI mencapai batas keluaran model; beberapa materi mungkin terpotong.");
   }
   return reply(res,200,{
     title:TYPES[kind]+" — "+found.subject_name+" "+found.class_name+(topic?" — "+topic:""),
     content:output,model:MODEL,provider:"Gemini",
-    cp_verified:verified,truncated:finish==="MAX_TOKENS",
+    cp_verified:verified,truncated:truncated||Boolean(failures.length),
     quality
   });
  }catch(err){
