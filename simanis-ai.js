@@ -219,6 +219,7 @@ async function openHistory(id){
     $("topic").value=doc.topic||"";
     $("documentTitle").value=doc.title;
     $("result").value=doc.content||"";
+    renderPreview();
     $("promptOutput").value="";
     $("copyPromptBtn").disabled=true;
     $("templateBtn").disabled=true;
@@ -322,6 +323,7 @@ async function generateDirect(){
     };
     documentId=null;
     $("result").value=data.content;
+    renderPreview();
     $("documentTitle").value=(data.title||("Perangkat Pembelajaran — "+ctx.subject_name)).slice(0,180);
     $("documentMeta").textContent=(DOC_NAMES[payload.document_type]||payload.document_type)
       +" · DRAF AI LANGSUNG · "+data.provider+" "+data.model
@@ -462,20 +464,66 @@ function markdownToDocumentHtml(markdown){
   closeList();closeTable();return out.join("\n");
 }
 function filename(){return ($("documentTitle").value||"Perangkat_Pembelajaran").replace(/[^a-zA-Z0-9_-]+/g,"_").slice(0,65)}
-function documentStyle(){return "body{font:11pt/1.55 Cambria,Georgia,serif;color:#1e2d27;margin:2.1cm}h1{font-size:18pt;color:#075135;margin-bottom:13pt;border-bottom:2pt solid #187b53;padding-bottom:7pt}h2{font-size:14pt;color:#145a42;margin:19pt 0 7pt}h3{font-size:12pt;color:#1b6148;margin:14pt 0 6pt}h4{font-size:11pt}p{margin:7pt 0;text-align:justify}table{border-collapse:collapse;width:100%;margin:11pt 0;font-size:9.5pt;page-break-inside:avoid}td,th{border:1px solid #b1c5b9;padding:6pt 7pt;vertical-align:top;text-align:left}th{background:#edf4ef;color:#165338}ul,ol{margin:5pt 0 9pt 20pt}li{margin:3pt 0}hr{border:0;border-top:1px solid #cbded1;margin:12pt 0}@page{size:A4;margin:2cm}"; }
+function documentStyle(){return [
+ "@page{size:A4;margin:17mm 16mm}",
+ "html{background:#fff}body{color:#24332c;font:11pt/1.5 Cambria,Georgia,'Times New Roman',serif;margin:0}",
+ "h1{color:#0a5137;font:700 19pt/1.2 Cambria,Georgia,serif;margin:0 0 12pt;border-bottom:2pt solid #b8994d;padding:0 0 9pt}",
+ "h2{color:#0b5940;font:bold 13pt/1.3 Cambria,Georgia,serif;margin:16pt 0 9pt;break-after:avoid}",
+ "h3{color:#1f6249;font:bold 11.3pt/1.4 Cambria,Georgia,serif;margin:13pt 0 7pt;break-after:avoid}",
+ "p{margin:7pt 0;text-align:justify;orphans:3;widows:3}",
+ "table{border-collapse:collapse;width:100%;font-size:8.5pt;margin:9pt 0 13pt;table-layout:fixed}",
+ "th,td{padding:6pt;border:0.6pt solid #b7c9bd;vertical-align:top;overflow-wrap:anywhere}",
+ "th{background:#eaf3ed;color:#114b35;font-weight:bold}",
+ "thead{display:table-header-group}tr{break-inside:avoid}",
+ "ul,ol{margin:6pt 0 11pt;padding-left:21pt}li{margin:4pt 0}",
+ "blockquote{margin:10pt 0;padding:9pt 12pt;border-left:3pt solid #b99950;background:#f4f8f4;font-style:italic}",
+ "strong{color:#174c36}hr{border:0;border-top:1pt solid #c4d7ca;margin:16pt 0}",
+ ".print-cover{height:257mm;box-sizing:border-box;page-break-after:always;break-after:page;display:flex;flex-direction:column;justify-content:space-between;border-top:8px solid #075c3b;padding:32mm 17mm 18mm;background:#fff}",
+ ".print-cover .brand{display:flex;gap:14px;align-items:center;font:700 13pt Arial,sans-serif;color:#0b5639}",
+ ".print-cover .brand img{width:72px;height:72px;object-fit:contain}",
+ ".print-cover .eyebrow{font:700 10pt Arial,sans-serif;letter-spacing:3px;color:#a37d33;margin-bottom:19mm}",
+ ".print-cover h1{font:bold 29pt/1.16 Cambria,Georgia,serif;color:#07573a;border:0;margin:0}",
+ ".print-cover .topic{font:bold 17pt/1.3 Cambria,Georgia,serif;color:#233f33;margin-top:15pt}",
+ ".print-cover .rule{width:62px;height:5px;background:#bda15d;margin:24pt 0}",
+ ".print-cover .subtitle{font:11pt/1.7 Arial,sans-serif;color:#5b7364}",
+ ".print-cover .footer{border-top:1px solid #cfded3;padding-top:14px;font:10pt Arial,sans-serif;color:#537160}",
+ ".document-inner{margin:0 auto;max-width:800px}",
+ ".print-head{border-bottom:1px solid #d3e2d7;padding:0 0 11pt;margin-bottom:16pt;color:#185b40;font:9pt Arial,sans-serif;letter-spacing:1pt}",
+ ".page-tip{font:9pt Arial,sans-serif;color:#678475;text-align:center;margin-bottom:14pt}",
+ "@media screen{body{background:#eef4ee;padding:20px}.document-inner{background:#fff;box-shadow:0 2px 22px #c6d8cb;padding:20mm}.print-cover{max-width:800px;margin:auto;background:#fff;box-shadow:0 2px 22px #c6d8cb}}",
+ "@media print{body{background:#fff}.document-inner{max-width:none}.page-tip{display:none}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}"
+].join("")}
+function printableHTML(){
+ const title=esc($("documentTitle").value);
+ const doc=markdownToDocumentHtml($("result").value);
+ const safeSchool="MA NURUL ISLAM";
+ const srcLogo=new URL("logo.png",window.location.href).href;
+ const safeLogo=esc(srcLogo);
+ const description=activeDocument?esc([activeDocument.subject_name,activeDocument.class_name,activeDocument.topic].filter(Boolean).join(" · ")):"Perangkat Pembelajaran";
+ const cover='<section class="print-cover"><div class="brand"><img src="'+safeLogo+'" alt="Logo MA Nurul Islam"><span>MA NURUL ISLAM</span></div><div><div class="eyebrow">PERANGKAT PEMBELAJARAN</div><h1>'+title+'</h1><div class="rule"></div><div class="topic">'+description+'</div><p class="subtitle">Dokumen perangkat ajar yang disusun dengan bantuan AI dan ditelaah oleh guru pengampu.</p></div><div class="footer">'+safeSchool+' · Dokumen draf — verifikasi guru diperlukan</div></section>';
+ const main='<main class="document-inner"><div class="print-head">MA NURUL ISLAM · PERANGKAT PEMBELAJARAN</div>'+doc+'</main>';
+ return '<!doctype html><html lang="id"><head><meta charset="utf-8"><title>'+title+'</title><style>'+documentStyle()+'</style></head><body>'+cover+main+'</body></html>';
+}
+function renderPreview(){
+ if(!$("previewContent"))return;
+ if(!$("result").value.trim()){$("previewContent").innerHTML="<p>Belum ada dokumen.</p>";return}
+ if(!$("previewDetails").open)return;
+ $("previewContent").innerHTML=markdownToDocumentHtml($("result").value);
+}
 function wordDownload(){
-  if(!$("result").value.trim()){status("Tidak ada isi dokumen untuk diunduh.",true);return}
-  const title=esc($("documentTitle").value),body=markdownToDocumentHtml($("result").value);
-  const word='<!doctype html><html><head><meta charset="utf-8"><style>'+documentStyle()+'</style></head><body><h1>'+title+'</h1>'+body+'</body></html>';
-  const blob=new Blob(["\ufeff",word],{type:"application/msword;charset=utf-8"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename()+".doc";
-  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  status("Dokumen Word-kompatibel (.doc) dengan heading, tabel dan daftar terformat berhasil diunduh. Simpan sebagai .docx melalui Microsoft Word bila diperlukan.");
+ if(!$("result").value.trim()){status("Dokumen masih kosong.",true);return}
+ const blob=new Blob(["\ufeff",printableHTML()],{type:"application/msword;charset=utf-8"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename()+".doc";
+ document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1300);
+ status("Word-kompatibel (.doc) terformat berhasil diunduh. Buka di Microsoft Word lalu Simpan Sebagai .docx jika diperlukan.");
 }
 function printPDF(){
-  if(!$("result").value.trim()){status("Tidak ada isi dokumen untuk dicetak.",true);return}
-  $("printBody").innerHTML=markdownToDocumentHtml($("result").value);
-  window.print();
+ if(!$("result").value.trim()){status("Dokumen masih kosong untuk dicetak.",true);return}
+ const win=window.open("","_blank");
+ if(!win){status("Browser memblokir jendela cetak. Izinkan pop-up untuk SIMANIS, lalu klik kembali.",true);return}
+ win.document.open();win.document.write(printableHTML());win.document.close();
+ win.addEventListener("load",()=>{win.focus();win.print()},{once:true});
+ status("Pratinjau PDF profesional dibuka pada jendela baru. Pilih Save as PDF; nonaktifkan 'Headers and footers' di dialog cetak bila muncul.");
 }
 
 function invalidatePrompt(){
@@ -519,7 +567,11 @@ async function init(){
     $("directGenerateBtn").onclick=generateDirect;
     $("copyPromptBtn").onclick=copyPrompt;
     $("templateBtn").onclick=useTemplate;
-    $("result").addEventListener("input",()=>setDocumentButtons(Boolean(activeDocument&&$("result").value.trim())));
+    $("result").addEventListener("input",()=>{
+      setDocumentButtons(Boolean(activeDocument&&$("result").value.trim()));
+      renderPreview();
+    });
+    $("previewDetails").addEventListener("toggle",renderPreview);
     $("refreshHistory").onclick=loadHistory;
     $("saveBtn").onclick=()=>saveDocument(false);
     $("finalBtn").onclick=()=>saveDocument(true);
