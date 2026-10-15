@@ -86,6 +86,14 @@ function assessGeneratedModule(text,meetings,totalJp){
   const found=new Set([...text.matchAll(/^#{1,6}\s*(?:\d+[\.\)]\s*)?(?:\*\*)?(?:PERTEMUAN)\s+(\d+)\b/gim)].map(m=>Number(m[1])));
   const missing=Array.from({length:meetings},(_,i)=>i+1).filter(i=>!found.has(i));
   const warnings=[];
+  // Deteksi inkonsistensi umum: "8 pertemuan (32 JP)" ketika 8×2 seharusnya 16 JP.
+  const totalMentions=[...text.matchAll(new RegExp("\\b"+meetings+"\\s*pertemuan\\s*\\(\\s*(\\d+)\\s*JP","gi"))];
+  for(const m of totalMentions){
+    if(Number(m[1])!==totalJp){
+      warnings.push("Jumlah JP tidak konsisten: ditemukan "+m[1]+" JP untuk "+meetings+" pertemuan, seharusnya "+totalJp+" JP.");
+      break;
+    }
+  }
   if(missing.length)warnings.push("Judul skenario pertemuan belum terdeteksi untuk: "+missing.join(", ")+". Periksa seluruh kegiatan sebelum finalisasi.");
   if(!/LKPD|lembar kerja peserta didik/i.test(text))warnings.push("Lampiran LKPD tidak terdeteksi.");
   if(!/rubrik/i.test(text))warnings.push("Rubrik asesmen tidak terdeteksi.");
