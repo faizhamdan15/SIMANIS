@@ -413,21 +413,71 @@ async function saveDocument(final=false){
   finally{setDocumentButtons(Boolean($("result").value.trim()))}
 }
 
+
+function formatInlineMarkdown(source){
+  let out=esc(source);
+  out=out.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
+  out=out.replace(/__([^_]+)__/g,"<strong>$1</strong>");
+  out=out.replace(/\*([^*\n]+)\*/g,"<em>$1</em>");
+  return out;
+}
+function markdownToDocumentHtml(markdown){
+  const lines=String(markdown||"").replace(/\r\n?/g,"\n").split("\n");
+  const out=[];let currentList="",inTable=false;
+  const closeList=()=>{if(currentList){out.push("</"+currentList+">");currentList=""}};
+  const closeTable=()=>{if(inTable){out.push("</tbody></table>");inTable=false}};
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i].trim();
+    if(!line){closeList();closeTable();continue}
+    const isTable=/^\|[^|]+(?:\|[^|]*)+\|?$/.test(line);
+    if(isTable){
+      const cols=line.replace(/^\|/,"").replace(/\|$/,"").split("|").map(x=>x.trim());
+      if(cols.every(x=>/^:?-{3,}:?$/.test(x)))continue;
+      closeList();
+      if(!inTable){out.push("<table><tbody>");inTable=true}
+      const next=(lines[i+1]||"").trim();
+      const header=next.startsWith("|")&&next.replace(/^\|/,"").replace(/\|$/,"").split("|").every(x=>/^:?-{3,}:?$/.test(x.trim()));
+      const tag=header?"th":"td";
+      out.push("<tr>"+cols.map(x=>"<"+tag+">"+formatInlineMarkdown(x)+"</"+tag+">").join("")+"</tr>");
+      continue;
+    }
+    closeTable();
+    const heading=line.match(/^(#{1,6})\s+(.+)$/);
+    if(heading){
+      closeList();
+      const level=Math.min(4,heading[1].length);
+      out.push("<h"+level+">"+formatInlineMarkdown(heading[2])+"</h"+level+">");
+      continue;
+    }
+    if(/^---+$/.test(line)){closeList();out.push("<hr>");continue}
+    const bullet=line.match(/^[-*+]\s+(.+)$/),ordered=line.match(/^\d+[.)]\s+(.+)$/);
+    if(bullet||ordered){
+      const type=bullet?"ul":"ol";
+      if(currentList!==type){closeList();out.push("<"+type+">");currentList=type}
+      out.push("<li>"+formatInlineMarkdown((bullet||ordered)[1])+"</li>");
+      continue;
+    }
+    closeList();out.push("<p>"+formatInlineMarkdown(line.replace(/^>\s*/,""))+"</p>");
+  }
+  closeList();closeTable();return out.join("\n");
+}
 function filename(){return ($("documentTitle").value||"Perangkat_Pembelajaran").replace(/[^a-zA-Z0-9_-]+/g,"_").slice(0,65)}
+function documentStyle(){return "body{font:11pt/1.55 Cambria,Georgia,serif;color:#1e2d27;margin:2.1cm}h1{font-size:18pt;color:#075135;margin-bottom:13pt;border-bottom:2pt solid #187b53;padding-bottom:7pt}h2{font-size:14pt;color:#145a42;margin:19pt 0 7pt}h3{font-size:12pt;color:#1b6148;margin:14pt 0 6pt}h4{font-size:11pt}p{margin:7pt 0;text-align:justify}table{border-collapse:collapse;width:100%;margin:11pt 0;font-size:9.5pt;page-break-inside:avoid}td,th{border:1px solid #b1c5b9;padding:6pt 7pt;vertical-align:top;text-align:left}th{background:#edf4ef;color:#165338}ul,ol{margin:5pt 0 9pt 20pt}li{margin:3pt 0}hr{border:0;border-top:1px solid #cbded1;margin:12pt 0}@page{size:A4;margin:2cm}"; }
 function wordDownload(){
   if(!$("result").value.trim()){status("Tidak ada isi dokumen untuk diunduh.",true);return}
-  const title=esc($("documentTitle").value),body=esc($("result").value);
-  const word='<!doctype html><html><head><meta charset="utf-8"><style>body{font:12pt/1.6 Georgia,serif;margin:2.5cm}h1{text-align:center;font-size:16pt}pre{white-space:pre-wrap;font:inherit}</style></head><body><h1>'+title+'</h1><p><em>Dokumen ditinjau guru sebelum digunakan.</em></p><pre>'+body+'</pre></body></html>';
+  const title=esc($("documentTitle").value),body=markdownToDocumentHtml($("result").value);
+  const word='<!doctype html><html><head><meta charset="utf-8"><style>'+documentStyle()+'</style></head><body><h1>'+title+'</h1>'+body+'</body></html>';
   const blob=new Blob(["\ufeff",word],{type:"application/msword;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename()+".doc";
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  status("File Word-kompatibel (.doc) diunduh. Buka menggunakan Word lalu Simpan Sebagai .docx bila diperlukan.");
+  status("Dokumen Word-kompatibel (.doc) dengan heading, tabel dan daftar terformat berhasil diunduh. Simpan sebagai .docx melalui Microsoft Word bila diperlukan.");
 }
 function printPDF(){
   if(!$("result").value.trim()){status("Tidak ada isi dokumen untuk dicetak.",true);return}
-  $("printBody").textContent=$("result").value;
+  $("printBody").innerHTML=markdownToDocumentHtml($("result").value);
   window.print();
 }
+
 function invalidatePrompt(){
   if(!$("promptOutput").value)return;
   $("promptOutput").value="";
