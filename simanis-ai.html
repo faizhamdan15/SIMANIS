@@ -44,6 +44,7 @@
     .ai-preview-panel[open] summary{border-bottom:1px solid #d6e8dc}
     .ai-preview-note{font-size:10px;color:#627d6e;margin:12px 16px}
     .ai-preview-content{background:#fff;padding:24px;max-height:680px;overflow:auto;margin:0 12px 12px;border:1px solid #d8e6dc;border-radius:8px;font:12px/1.65 Cambria,Georgia,serif;color:#27372f}
+    .ai-preview-panel .ai-document{min-height:400px;margin:8px 0 14px;border:0;border-radius:0;width:100%;box-shadow:none}
     .ai-preview-content h1{font-size:22px;color:#095a3b}.ai-preview-content h2{font-size:17px;color:#095a3b;margin:24px 0 10px}.ai-preview-content h3{font-size:14px;margin-top:18px}
     .ai-preview-content table{width:100%;border-collapse:collapse;font-size:10px;margin:12px 0}.ai-preview-content th,.ai-preview-content td{border:1px solid #c5d6cc;padding:6px;vertical-align:top;overflow-wrap:anywhere}
     .ai-preview-content th{background:#eaf4ed}.ai-preview-content p{margin:7px 0}.ai-preview-content ul,.ai-preview-content ol{padding-left:22px}
@@ -168,11 +169,15 @@
           <p class="desc">Hasil AI akan langsung muncul di editor ini. Silakan koreksi kesesuaian CP, tujuan, materi, asesmen, dan alokasi waktu sebelum menyimpan. Jika memakai mode manual, hasil ChatGPT juga dapat ditempel di sini.</p>
           <input id="documentTitle" class="ai-doc-title" maxlength="180" value="Perangkat Pembelajaran Baru" aria-label="Judul dokumen">
           <p id="documentMeta" class="ai-meta">Belum ada dokumen dibuat.</p>
-          <textarea id="result" class="ai-document" placeholder="Hasil AI akan langsung muncul di sini setelah menekan Buat Langsung dengan AI. Anda dapat mengedit, menyimpan, dan mengunduhnya."></textarea>
-          <details id="previewDetails" class="ai-preview-panel">
-            <summary>Pratinjau Dokumen Rapi (seperti hasil Word/PDF)</summary>
-            <div class="ai-preview-note">Ini pratinjau tata letak, bukan teks mentah. Gunakan tombol Cetak PDF Profesional untuk mencetak dokumen saja, tanpa tampilan dashboard.</div>
+          <details id="previewDetails" class="ai-preview-panel" open>
+            <summary><icon name="file-text" /> Pratinjau Dokumen Rapi — hasil yang akan dicetak</summary>
+            <div class="ai-preview-note">Konten di bawah sudah diformat menjadi judul, paragraf, tabel, dan daftar. Untuk memperbaiki kalimat, buka bagian Edit Dokumen.</div>
             <div id="previewContent" class="ai-preview-content"><p>Dokumen belum tersedia.</p></div>
+          </details>
+          <details id="editorDetails" class="ai-preview-panel">
+            <summary>✎ Edit Dokumen — buka sumber teks jika ingin memperbaiki isi</summary>
+            <div class="ai-preview-note">Perubahan pada editor akan langsung diperbarui di pratinjau. Pastikan semua soal dan kunci benar sebelum ditandai final.</div>
+            <textarea id="result" class="ai-document" placeholder="Dokumen hasil AI akan muncul di sini. Anda dapat mengeditnya sesuai kebutuhan guru."></textarea>
           </details>
           <div id="printBody" style="display:none"></div>
           <div class="ai-actions" style="margin-top:12px">
