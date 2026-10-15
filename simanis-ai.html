@@ -39,6 +39,14 @@
     .ai-btn.link{text-decoration:none}
     .ai-warning{padding:10px 12px;border:1px solid #f0db9d;background:#fffaf0;color:#765b1e;border-radius:10px;font-size:10px;line-height:1.6;margin-top:11px}
     .ai-small{font:500 10px/1.7 Inter,sans-serif;color:#6b7d74;margin:9px 0}
+    .ai-preview-panel{border:1px solid #bad9c7;border-radius:13px;background:#f5faf7;margin-top:15px;overflow:hidden}
+    .ai-preview-panel summary{cursor:pointer;padding:13px 15px;color:#0c5035;font-size:12px;font-weight:800}
+    .ai-preview-panel[open] summary{border-bottom:1px solid #d6e8dc}
+    .ai-preview-note{font-size:10px;color:#627d6e;margin:12px 16px}
+    .ai-preview-content{background:#fff;padding:24px;max-height:680px;overflow:auto;margin:0 12px 12px;border:1px solid #d8e6dc;border-radius:8px;font:12px/1.65 Cambria,Georgia,serif;color:#27372f}
+    .ai-preview-content h1{font-size:22px;color:#095a3b}.ai-preview-content h2{font-size:17px;color:#095a3b;margin:24px 0 10px}.ai-preview-content h3{font-size:14px;margin-top:18px}
+    .ai-preview-content table{width:100%;border-collapse:collapse;font-size:10px;margin:12px 0}.ai-preview-content th,.ai-preview-content td{border:1px solid #c5d6cc;padding:6px;vertical-align:top;overflow-wrap:anywhere}
+    .ai-preview-content th{background:#eaf4ed}.ai-preview-content p{margin:7px 0}.ai-preview-content ul,.ai-preview-content ol{padding-left:22px}
     .ai-allocation{padding:11px 13px;background:#eef8f2;border:1px solid #cfe8d9;border-radius:10px;font-size:11px;line-height:1.55;color:#145a3c;font-weight:700}
     #printBody h1{font-size:21px;margin:10px 0 16px}#printBody h2{font-size:16px;margin:20px 0 10px}#printBody h3{font-size:13px;margin:15px 0 8px}
     #printBody table{border-collapse:collapse;width:100%;margin:10px 0;font-size:10pt}#printBody th,#printBody td{padding:6px 8px;border:1px solid #b9c5bd;vertical-align:top}#printBody th{background:#eaf3ec}#printBody p,#printBody li{line-height:1.6}
@@ -161,12 +169,17 @@
           <input id="documentTitle" class="ai-doc-title" maxlength="180" value="Perangkat Pembelajaran Baru" aria-label="Judul dokumen">
           <p id="documentMeta" class="ai-meta">Belum ada dokumen dibuat.</p>
           <textarea id="result" class="ai-document" placeholder="Hasil AI akan langsung muncul di sini setelah menekan Buat Langsung dengan AI. Anda dapat mengedit, menyimpan, dan mengunduhnya."></textarea>
+          <details id="previewDetails" class="ai-preview-panel">
+            <summary>Pratinjau Dokumen Rapi (seperti hasil Word/PDF)</summary>
+            <div class="ai-preview-note">Ini pratinjau tata letak, bukan teks mentah. Gunakan tombol Cetak PDF Profesional untuk mencetak dokumen saja, tanpa tampilan dashboard.</div>
+            <div id="previewContent" class="ai-preview-content"><p>Dokumen belum tersedia.</p></div>
+          </details>
           <div id="printBody" style="display:none"></div>
           <div class="ai-actions" style="margin-top:12px">
             <button type="button" class="ai-btn primary" id="saveBtn" disabled>Simpan Draf</button>
             <button type="button" class="ai-btn" id="finalBtn" disabled>Tandai Final</button>
-            <button type="button" class="ai-btn" id="wordBtn" disabled>Unduh Word</button>
-            <button type="button" class="ai-btn" id="pdfBtn" disabled>Cetak / PDF</button>
+            <button type="button" class="ai-btn" id="wordBtn" disabled>Unduh Word Terformat</button>
+            <button type="button" class="ai-btn" id="pdfBtn" disabled>Cetak PDF Profesional</button>
           </div>
           <div class="ai-status" id="status" role="status" aria-live="polite">Pilih kelas, mata pelajaran, CP dan jenis perangkat. Setelah koneksi AI aktif, tekan Buat Langsung dengan AI.</div>
         </section>
