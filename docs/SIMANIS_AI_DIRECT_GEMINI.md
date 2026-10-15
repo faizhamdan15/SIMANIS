@@ -5,6 +5,17 @@ Guru dapat membuat perangkat pembelajaran **langsung di SIMANIS**, tanpa berpind
 
 Sembilan jenis: TP, ATP, Prota, Promes, Modul Ajar/RPP, Bahan Ajar, LKPD, Rancangan Media Pembelajaran (teks/storyboard), Instrumen Asesmen.
 
+## Pembaruan kualitas Modul Ajar (15 Oktober 2026)
+
+- Guru kini mengisi **JP per Minggu** dan **JP per Pertemuan** secara terpisah. Sistem menghitung **jumlah pertemuan × JP per pertemuan**, dengan asumsi 45 menit/JP. Contoh: 8 × 2 = **16 JP = 720 menit**, bukan 32 JP. Jumlah minggu = total JP ÷ JP per minggu; cek kalender akademik.
+- Mode **MODUL_AJAR** dibatasi 12 pertemuan per dokumen agar skenario pembelajaran mendalam tidak mengalahkan ruang asesmen/lampiran. Pecah topik besar menjadi beberapa modul.
+- Saat tombol **Buat Langsung dengan AI** ditekan, SIMANIS menggunakan **dua permintaan Gemini paralel** dalam satu klaim kuota internal: (a) identitas, CP, TP, materi dan skenario **semua pertemuan**, (b) asesmen diagnostik, formatif, sumatif, LKPD, kunci jawaban dan rubrik. Hasil digabung otomatis dan tetap menjadi **DRAF** untuk diperiksa guru. Ini dapat menggunakan kuota permintaan Google lebih cepat daripada versi satu panggilan.
+- Setiap pertemuan ditargetkan memiliki 15+60+15 menit pada contoh 2 JP, lengkap aktivitas guru/siswa, media, diferensiasi berdasarkan kebutuhan, asesmen formatif, exit ticket dan tindak lanjut.
+- Pemeriksaan keluaran otomatis menandai **pertemuan yang tidak terdeteksi**, rubrik yang belum memiliki 4 tingkat, serta kunci dan LKPD yang tidak terdeteksi. Ini pemeriksaan heuristik, **bukan jaminan akurasi ilmiah atau kelengkapan**; guru harus meninjau dan melengkapi.
+- Export **Word-kompatibel (.doc)** dan **Cetak/PDF** kini mengubah heading Markdown, tabel dan daftar menjadi layout dokumen yang lebih terstruktur. Belum merupakan file `.docx` native.
+- Jika salah satu bagian Gemini gagal akibat kuota atau gangguan, bagian yang berhasil tetap ditampilkan tetapi diberi peringatan bahwa dokumen belum lengkap. Ulangi pembuatan saat kuota tersedia; jangan tandai final sebelum melengkapi.
+- Petunjuk kimia menekankan keamanan laboratorium dan keakuratan eksperimen laju reaksi; hasil eksperimen tidak boleh diada-adakan.
+
 ## Persyaratan dan aktivasi
 1. Tambahkan kunci API gratis melalui Google AI Studio: https://aistudio.google.com/apikey . Pastikan project mendapat kuota Free Tier untuk model yang dipilih.
 2. **JANGAN kirim API Key ke chat, GitHub, JavaScript, atau siswa.** Masukkan hanya di **Vercel → Project SIMANIS → Settings → Environment Variables**:
