@@ -20,7 +20,7 @@ const DOC_RULES={
   ATP:"Rangkaikan semua TP secara berurutan berdasarkan prasyarat, kompleksitas dan perkembangan belajar; sertakan alokasi JP.",
   PROTA:"Buat tabel program dua semester lengkap minggu efektif/JP; total sesuai JP per minggu dan nyatakan asumsi kalender.",
   PROMES:"Buat tabel pembagian materi per minggu untuk semester pilihan, menyertakan minggu asesmen dan tindak lanjut.",
-  MODUL_AJAR:"Buat modul/RPP yang siap dipakai, sintaks pembelajaran per tahap dan menit, asesmen, rubrik serta diferensiasi.",
+  MODUL_AJAR:"Susun semua pertemuan satu per satu dengan menit yang sesuai; LKPD utuh, asesmen diagnostik–formatif–sumatif, kunci jawaban, rubrik 4 level. Jangan hanya memberi contoh pertemuan 1–2.",
   BAHAN_AJAR:"Jelaskan konsep ilmiah akurat dengan contoh kontekstual dan latihan dari mudah ke menantang, termasuk kunci.",
   LKPD:"Susun LKPD yang bisa langsung diisi peserta didik, petunjuk, lembar kerja nyata, pengolahan data, rubrik guru.",
   MEDIA_PEMBELAJARAN:"Buat isi storyboard/slide lengkap, petunjuk visual dan interaksi; jangan mengklaim file video/PPT telah dibuat.",
@@ -42,7 +42,7 @@ function buildPromptText(data){
     "- Mata pelajaran: "+data.subject_name,
     "- Kelas: "+data.class_name+" (Fase "+data.phase+")",
     "- Semester: "+data.semester,
-    "- Alokasi: "+data.jp_per_week+" JP per minggu, rancangan "+data.meetings+" pertemuan",
+    "- Alokasi: "+data.jp_per_week+" JP per minggu; "+data.jp_per_meeting+" JP per pertemuan × "+data.meetings+" pertemuan = "+(data.jp_per_meeting*data.meetings)+" JP (asumsi 45 menit/JP)",
     "- Materi/topik: "+(data.topic||"Disesuaikan lingkup CP"),
     "- Jenis perangkat: "+(DOC_NAMES[data.document_type]||data.document_type),
     "- Kebutuhan khusus guru: "+(data.notes||"Kelas heterogen; gunakan contoh sesuai konteks lokal dan sarana madrasah"),
@@ -87,6 +87,13 @@ function buildScaffold(doc){
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
 function status(message,isError=false){$("status").textContent=message;$("status").style.color=isError?"#ad352e":"#426350"}
 function setBusy(b){$("generateBtn").disabled=b;$("generateBtn").textContent=b?"Menyiapkan prompt...":"Siapkan Prompt ChatGPT"}
+function updateAllocationInfo(){
+ const week=Number($("jp").value),per=Number($("jpSession").value),n=Number($("meetings").value),el=$("allocationInfo");
+ if(!Number.isInteger(week)||week<1||week>20||!Number.isInteger(per)||per<1||per>6||!Number.isInteger(n)||n<1||n>40){el.textContent="Isi JP/minggu, JP/pertemuan dan jumlah pertemuan yang valid.";return}
+ const total=per*n,estimatedWeeks=total/week;
+ el.textContent=n+" pertemuan × "+per+" JP = "+total+" JP = "+(total*45)+" menit (asumsi 1 JP=45 menit). Dengan "+week+" JP/minggu, perkiraan "+Number(estimatedWeeks.toFixed(1))+" minggu; cek kalender madrasah.";
+ if($("documentType").value==="MODUL_AJAR"&&n>12)el.textContent+=" Modul mendalam maksimal 12 pertemuan; pecah topik menjadi beberapa modul.";
+}
 let directAIReady=false, directAIBusy=false;
 function setDirectBusy(b){
   directAIBusy=b;
@@ -227,9 +234,9 @@ async function generate(e){
   e.preventDefault();
   const ctx=currentContext();
   if(!ctx){status("Pilih kelas dan mata pelajaran terlebih dahulu.",true);return}
-  const jp=Number($("jp").value),meetings=Number($("meetings").value);
-  if(!Number.isInteger(jp)||jp<1||jp>20||!Number.isInteger(meetings)||meetings<1||meetings>40){
-    status("Masukkan alokasi JP 1–20 dan jumlah pertemuan 1–40.",true);return
+  const jp=Number($("jp").value),meetings=Number($("meetings").value),jpSession=Number($("jpSession").value);
+  if(!Number.isInteger(jp)||jp<1||jp>20||!Number.isInteger(jpSession)||jpSession<1||jpSession>6||!Number.isInteger(meetings)||meetings<1||meetings>40){
+    status("Masukkan JP per minggu (1–20), JP per pertemuan (1–6), dan jumlah pertemuan (1–40).",true);return
   }
   if($("result").value.trim()&&!confirm("Teks editor yang belum disimpan akan dikosongkan saat memulai perangkat baru. Lanjutkan?"))return;
   setBusy(true);
@@ -242,7 +249,7 @@ async function generate(e){
       class_id:ctx.class_id,subject_id:ctx.subject_id,cp_source_id:cp?.id||null,
       cp_manual_text:manualText||null,cp_manual_source_url:manualUrl||null,
       document_type:kind,semester:$("semester").value,topic:$("topic").value.trim(),
-      jp_per_week:jp,meetings,notes:$("notes").value.trim(),
+      jp_per_week:jp,jp_per_meeting:jpSession,meetings,notes:$("notes").value.trim(),
       class_name:ctx.class_name,subject_name:ctx.subject_name,phase:phaseFor(ctx),
       cpText:cp?.content||manualText,
       cpVerified:Boolean(cp),
@@ -278,10 +285,11 @@ async function generateDirect(){
     status("Agar AI tidak mengarang CP, tempel teks CP resmi minimal 100 karakter atau pilih CP terverifikasi.",true);
     $("manualCP").focus();return;
   }
-  const jp=Number($("jp").value),meetings=Number($("meetings").value);
-  if(!Number.isInteger(jp)||jp<1||jp>20||!Number.isInteger(meetings)||meetings<1||meetings>40){
-    status("JP per minggu harus 1–20 dan jumlah pertemuan 1–40.",true);return
+  const jp=Number($("jp").value),meetings=Number($("meetings").value),jpSession=Number($("jpSession").value);
+  if(!Number.isInteger(jp)||jp<1||jp>20||!Number.isInteger(jpSession)||jpSession<1||jpSession>6||!Number.isInteger(meetings)||meetings<1||meetings>40){
+    status("JP/minggu (1–20), JP/pertemuan (1–6) dan jumlah pertemuan (1–40) harus valid.",true);return
   }
+  if($("documentType").value==="MODUL_AJAR"&&meetings>12){status("Modul Ajar mendalam maksimal 12 pertemuan. Pecah topik menjadi beberapa modul.",true);return}
   if($("result").value.trim()&&!confirm("Dokumen pada editor akan diganti setelah AI selesai. Pastikan sudah disimpan. Lanjutkan?"))return;
   if(!directAIReady){
     status("Mesin AI belum aktif. Admin harus menyiapkan GEMINI_API_KEY pada Vercel terlebih dahulu.",true);return
@@ -297,7 +305,7 @@ async function generateDirect(){
       document_type:$("documentType").value,
       semester:$("semester").value,
       topic:$("topic").value.trim(),
-      jp_per_week:jp,meetings,notes:$("notes").value.trim()
+      jp_per_week:jp,jp_per_meeting:jpSession,meetings,notes:$("notes").value.trim()
     };
     const response=await fetch("/api/simanis-ai",{
       method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},
@@ -319,8 +327,10 @@ async function generateDirect(){
       +" · DRAF AI LANGSUNG · "+data.provider+" "+data.model
       +" · "+(data.cp_verified?"CP terverifikasi SIMANIS":"CP manual guru/belum diverifikasi");
     setDocumentButtons(true);
-    status(data.truncated?"Dokumen dibuat, tetapi terpotong. Lengkapi dan verifikasi isinya sebelum menyimpan.":
-      "Dokumen berhasil dibuat langsung di SIMANIS. Silakan koreksi lalu Simpan Draf atau unduh.");
+    const warnings=data.quality?.warnings||[];
+    activeDocument.quality_warnings=warnings;
+    if(warnings.length)status("Draf AI telah dibuat, tetapi terdeteksi catatan kelengkapan: "+warnings.join(" ")+" Periksa dan lengkapi sebelum final.",true);
+    else status(data.truncated?"Dokumen terpotong; lengkapi dulu sebelum final.":"Draf AI selesai. Total alokasi "+(meetings*jpSession)+" JP. Periksa CP, materi, seluruh pertemuan, rubrik dan kunci sebelum disimpan.");
     $("result").focus();
   }catch(e){status("Gagal membuat dokumen langsung: "+e.message,true)}
   finally{setDirectBusy(false)}
@@ -375,7 +385,8 @@ async function saveDocument(final=false){
     if(!activeDocument.cp_source_id&&(!activeDocument.cp_manual_source_url||!/^https:\/\//i.test(activeDocument.cp_manual_source_url))){
       status("CP manual memerlukan URL sumber resmi HTTPS sebelum dokumen ditandai FINAL.",true);return
     }
-    if(!confirm("Saya telah memeriksa kesesuaian CP resmi, materi, alokasi waktu dan asesmen. Tandai dokumen sebagai FINAL?"))return;
+    const issues=(activeDocument.quality_warnings||[]).length?"\nCatatan pemeriksaan otomatis: "+activeDocument.quality_warnings.join(" ")+"\nPastikan semuanya sudah diperbaiki di editor.":"";
+    if(!confirm("Saya telah memeriksa CP, seluruh pertemuan, alokasi JP, materi, LKPD, kunci dan rubrik."+issues+"\nTandai dokumen sebagai FINAL?"))return;
   }
   const payload={
     owner_id:user.id,class_id:activeDocument.class_id,subject_id:activeDocument.subject_id,
@@ -402,21 +413,71 @@ async function saveDocument(final=false){
   finally{setDocumentButtons(Boolean($("result").value.trim()))}
 }
 
+
+function formatInlineMarkdown(source){
+  let out=esc(source);
+  out=out.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
+  out=out.replace(/__([^_]+)__/g,"<strong>$1</strong>");
+  out=out.replace(/\*([^*\n]+)\*/g,"<em>$1</em>");
+  return out;
+}
+function markdownToDocumentHtml(markdown){
+  const lines=String(markdown||"").replace(/\r\n?/g,"\n").split("\n");
+  const out=[];let currentList="",inTable=false;
+  const closeList=()=>{if(currentList){out.push("</"+currentList+">");currentList=""}};
+  const closeTable=()=>{if(inTable){out.push("</tbody></table>");inTable=false}};
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i].trim();
+    if(!line){closeList();closeTable();continue}
+    const isTable=/^\|[^|]+(?:\|[^|]*)+\|?$/.test(line);
+    if(isTable){
+      const cols=line.replace(/^\|/,"").replace(/\|$/,"").split("|").map(x=>x.trim());
+      if(cols.every(x=>/^:?-{3,}:?$/.test(x)))continue;
+      closeList();
+      if(!inTable){out.push("<table><tbody>");inTable=true}
+      const next=(lines[i+1]||"").trim();
+      const header=next.startsWith("|")&&next.replace(/^\|/,"").replace(/\|$/,"").split("|").every(x=>/^:?-{3,}:?$/.test(x.trim()));
+      const tag=header?"th":"td";
+      out.push("<tr>"+cols.map(x=>"<"+tag+">"+formatInlineMarkdown(x)+"</"+tag+">").join("")+"</tr>");
+      continue;
+    }
+    closeTable();
+    const heading=line.match(/^(#{1,6})\s+(.+)$/);
+    if(heading){
+      closeList();
+      const level=Math.min(4,heading[1].length);
+      out.push("<h"+level+">"+formatInlineMarkdown(heading[2])+"</h"+level+">");
+      continue;
+    }
+    if(/^---+$/.test(line)){closeList();out.push("<hr>");continue}
+    const bullet=line.match(/^[-*+]\s+(.+)$/),ordered=line.match(/^\d+[.)]\s+(.+)$/);
+    if(bullet||ordered){
+      const type=bullet?"ul":"ol";
+      if(currentList!==type){closeList();out.push("<"+type+">");currentList=type}
+      out.push("<li>"+formatInlineMarkdown((bullet||ordered)[1])+"</li>");
+      continue;
+    }
+    closeList();out.push("<p>"+formatInlineMarkdown(line.replace(/^>\s*/,""))+"</p>");
+  }
+  closeList();closeTable();return out.join("\n");
+}
 function filename(){return ($("documentTitle").value||"Perangkat_Pembelajaran").replace(/[^a-zA-Z0-9_-]+/g,"_").slice(0,65)}
+function documentStyle(){return "body{font:11pt/1.55 Cambria,Georgia,serif;color:#1e2d27;margin:2.1cm}h1{font-size:18pt;color:#075135;margin-bottom:13pt;border-bottom:2pt solid #187b53;padding-bottom:7pt}h2{font-size:14pt;color:#145a42;margin:19pt 0 7pt}h3{font-size:12pt;color:#1b6148;margin:14pt 0 6pt}h4{font-size:11pt}p{margin:7pt 0;text-align:justify}table{border-collapse:collapse;width:100%;margin:11pt 0;font-size:9.5pt;page-break-inside:avoid}td,th{border:1px solid #b1c5b9;padding:6pt 7pt;vertical-align:top;text-align:left}th{background:#edf4ef;color:#165338}ul,ol{margin:5pt 0 9pt 20pt}li{margin:3pt 0}hr{border:0;border-top:1px solid #cbded1;margin:12pt 0}@page{size:A4;margin:2cm}"; }
 function wordDownload(){
   if(!$("result").value.trim()){status("Tidak ada isi dokumen untuk diunduh.",true);return}
-  const title=esc($("documentTitle").value),body=esc($("result").value);
-  const word='<!doctype html><html><head><meta charset="utf-8"><style>body{font:12pt/1.6 Georgia,serif;margin:2.5cm}h1{text-align:center;font-size:16pt}pre{white-space:pre-wrap;font:inherit}</style></head><body><h1>'+title+'</h1><p><em>Dokumen ditinjau guru sebelum digunakan.</em></p><pre>'+body+'</pre></body></html>';
+  const title=esc($("documentTitle").value),body=markdownToDocumentHtml($("result").value);
+  const word='<!doctype html><html><head><meta charset="utf-8"><style>'+documentStyle()+'</style></head><body><h1>'+title+'</h1>'+body+'</body></html>';
   const blob=new Blob(["\ufeff",word],{type:"application/msword;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename()+".doc";
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  status("File Word-kompatibel (.doc) diunduh. Buka menggunakan Word lalu Simpan Sebagai .docx bila diperlukan.");
+  status("Dokumen Word-kompatibel (.doc) dengan heading, tabel dan daftar terformat berhasil diunduh. Simpan sebagai .docx melalui Microsoft Word bila diperlukan.");
 }
 function printPDF(){
   if(!$("result").value.trim()){status("Tidak ada isi dokumen untuk dicetak.",true);return}
-  $("printBody").textContent=$("result").value;
+  $("printBody").innerHTML=markdownToDocumentHtml($("result").value);
   window.print();
 }
+
 function invalidatePrompt(){
   if(!$("promptOutput").value)return;
   $("promptOutput").value="";
@@ -450,8 +511,10 @@ async function init(){
       await loadCP();
     };
     $("cp").onchange=()=>{showCP();invalidatePrompt()};
-    ["semester","jp","meetings","topic","notes","documentType","manualCP","manualCPUrl"]
+    ["semester","jp","jpSession","meetings","topic","notes","documentType","manualCP","manualCPUrl"]
       .forEach(id=>$(id).addEventListener("input",invalidatePrompt));
+    ["jp","jpSession","meetings","documentType"].forEach(id=>$(id).addEventListener("input",updateAllocationInfo));
+    updateAllocationInfo();
     $("aiForm").onsubmit=generate;
     $("directGenerateBtn").onclick=generateDirect;
     $("copyPromptBtn").onclick=copyPrompt;
