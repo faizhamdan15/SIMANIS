@@ -79,7 +79,7 @@ function deepModuleGuide(meetings,jpPerWeek,jpPerMeeting,part='FULL'){
     "UTAMAKAN kelengkapan bagian yang diminta. Hasil harus sedetail dokumen operasional guru, bukan proposal, kerangka, atau ringkasan. Jawaban boleh panjang."
   ];
   if(part==='MAIN')return [...sections.slice(0,9),sections[16],sections[17],sections[18],sections[19],"FOKUS BAGIAN UTAMA SAJA: identitas, CP, TP, materi, peta alur dan skenario SELURUH pertemuan. Jangan menulis asesmen panjang atau lampiran LKPD di respons ini; lampiran dibuat terpisah. Beri judul pertemuan persis ### PERTEMUAN 1 sampai ### PERTEMUAN "+meetings+". Prioritaskan kedalaman langkah pertemuan."].join("\n\n");
-  if(part==='ANNEX')return ["LAMPIRAN MODUL AJAR — keluarkan hanya bagian asesmen dan pelengkap, jangan ulangi identitas dan skenario pertemuan.", ...sections.slice(9,15),sections[16],sections[17],sections[18],sections[19],"FOKUS LAMPIRAN SAJA: instrumen diagnostik, formatif, sumatif lengkap soal dan kunci, kisi-kisi, rubrik 4 level, LKPD lengkap, remedial/pengayaan, refleksi, glosarium dan catatan verifikasi. Jangan ulangi skenario pertemuan."].join("\n\n");
+  if(part==='ANNEX')return ["LAMPIRAN MODUL AJAR — keluarkan hanya bagian asesmen dan pelengkap, jangan ulangi identitas dan skenario pertemuan.", ...sections.slice(9,16),sections[16],sections[17],sections[18],sections[19],"FOKUS LAMPIRAN SAJA: instrumen diagnostik, formatif, sumatif lengkap soal dan kunci, kisi-kisi, rubrik 4 level, LKPD lengkap, remedial/pengayaan, refleksi, glosarium dan catatan verifikasi. Jangan ulangi skenario pertemuan."].join("\n\n");
   return sections.join("\n\n");
 }
 function assessGeneratedModule(text,meetings,totalJp){
