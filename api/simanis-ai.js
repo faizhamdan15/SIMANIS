@@ -39,6 +39,11 @@ async function supa(token,path,method="GET",body){
  if(!response.ok)throw new Error("SUPABASE_"+response.status);
  return data;
 }
+async function refundFailedGeneration(token,reservationId){
+ if(!token||!reservationId)return;
+ try{await supa(token,"rpc/simanis_ai_refund_generation","POST",{p_reservation_id:reservationId});}
+ catch(err){console.warn("SIMANIS AI refund failed",String(err?.message||"error").slice(0,100));}
+}
 function validHttps(url){if(!url)return true;try{let u=new URL(url);return u.protocol==="https:"&&u.hostname.length>3&&!u.username&&!u.password;}catch{return false;}}
 function instructionalMinutePlan(jpPerMeeting){
   const minutes=jpPerMeeting*45; // Asumsi pembelajaran MA; guru perlu memverifikasi durasi satu JP.
@@ -149,12 +154,22 @@ module.exports=async function(req,res){
  res.setHeader("Cache-Control","no-store, max-age=0");
  res.setHeader("X-Content-Type-Options","nosniff");
  if(req.method==="GET"){
-   // Tidak mengembalikan rahasia server, hanya kesiapan fitur.
+   if(req.query?.usage==="1"){
+     const token=(req.headers.authorization||"").match(/^Bearer\s+([^\s]+)$/i)?.[1];
+     if(!token)return reply(res,401,{error:"Harap masuk ke SIMANIS."});
+     try{
+       const info=await supa(token,"rpc/simanis_ai_my_quota_status","POST",{});
+       if(!info)return reply(res,403,{error:"Akses kuota tidak tersedia."});
+       return reply(res,200,info);
+     }catch(err){return reply(res,503,{error:"Informasi kuota belum tersedia."});}
+   }
    return reply(res,200,{enabled:Boolean(process.env.GEMINI_API_KEY),provider:"Gemini API",model:MODEL});
  }
  if(req.method!=="POST")return reply(res,405,{error:"Gunakan POST."});
+ let bearerForRefund=null,reservationForRefund=null;
  try{
   const bearer=(req.headers.authorization||"").match(/^Bearer\s+([^\s]+)$/i)?.[1];
+  bearerForRefund=bearer;
   if(!bearer)return reply(res,401,{error:"Silakan login ke SIMANIS terlebih dahulu."});
   if(!process.env.GEMINI_API_KEY)return reply(res,503,{error:"AI langsung belum dikonfigurasi. Admin perlu memasang GEMINI_API_KEY di Vercel."});
   const body=typeof req.body==="string"?JSON.parse(req.body):req.body;
@@ -195,8 +210,10 @@ module.exports=async function(req,res){
     cpText=cp.content;reference=cp.source_title+" — "+cp.regulation;source=cp.source_url;verified=true;
   }
   // Klaim kuota dibatasi per-guru dan total sekolah; dipakai juga sebagai penahan penyalahgunaan.
-  const reserved=await supa(bearer,"rpc/simanis_ai_claim_daily_quota","POST",{});
-  if(reserved!==true)return reply(res,429,{error:"Batas AI sekolah tercapai (3 generasi per guru/hari, maksimal 60 total/hari). Coba besok."});
+  const reserved=await supa(bearer,"rpc/simanis_ai_reserve_generation","POST",{});
+  if(typeof reserved!=="string"||!uuid.test(reserved))
+    return reply(res,429,{error:"Batas internal SIMANIS tercapai (12 generasi per guru per hari, 120 seluruh sekolah). Batas ini terpisah dari kuota Gemini."});
+  reservationForRefund=reserved;
   const context={kind,subject:found.subject_name,className:found.class_name,phase,semester,jp,jpPerMeeting,meetings,topic,notes,cp:cpText,reference,source,verified};
   // Untuk modul panjang, hasil disusun dalam dua bagian independen agar
   // model tidak memangkas skenario tiap pertemuan demi memberi ringkasan lampiran.
@@ -229,6 +246,8 @@ module.exports=async function(req,res){
       return {part,json,truncated:body.candidates?.[0]?.finishReason==="MAX_TOKENS"};
     }));
     if(completed.some(x=>x.status==="rejected")){
+      await refundFailedGeneration(bearer,reservationForRefund);
+      reservationForRefund=null;
       const limited=completed.some(x=>x.status==="rejected"&&x.reason?.status===429);
       console.warn("SIMANIS AI: modul tidak lengkap, generasi batal.");
       return reply(res,limited?429:502,{
@@ -240,6 +259,7 @@ module.exports=async function(req,res){
     const document=moduleBuilder.assemble(context,main.json,annex.json);
     if(main.truncated||annex.truncated)
       document.quality.warnings.push("Salah satu respons mencapai batas model; periksa materi dan lampiran.");
+    reservationForRefund=null;
     return reply(res,200,{
       title:"Modul Ajar — "+found.subject_name+" "+found.class_name+(topic?" — "+topic:""),
       content:document.content,model:MODEL,provider:"Gemini",
@@ -273,6 +293,8 @@ module.exports=async function(req,res){
   const ok=jobs.filter(x=>x.status==="fulfilled").map(x=>x.value);
   const failures=jobs.filter(x=>x.status==="rejected").map(x=>x.reason);
   if(!ok.length){
+    await refundFailedGeneration(bearer,reservationForRefund);
+    reservationForRefund=null;
     const rateLimited=failures.some(x=>x.upstreamStatus===429);
     return reply(res,rateLimited?429:503,{error:rateLimited?"Kuota Gemini gratis sedang penuh. Coba kembali nanti.":"AI belum bisa menyusun dokumen. Periksa model atau API Key di Vercel."});
   }
@@ -288,6 +310,7 @@ module.exports=async function(req,res){
     if(failures.length)quality.warnings.push("Sebanyak "+failures.length+" bagian AI gagal dibuat. Muat ulang dan coba kembali saat kuota penyedia tersedia.");
     if(truncated)quality.warnings.push("AI mencapai batas keluaran model; beberapa materi mungkin terpotong.");
   }
+  reservationForRefund=null;
   return reply(res,200,{
     title:TYPES[kind]+" — "+found.subject_name+" "+found.class_name+(topic?" — "+topic:""),
     content:output,model:MODEL,provider:"Gemini",
@@ -295,6 +318,7 @@ module.exports=async function(req,res){
     quality
   });
  }catch(err){
+  await refundFailedGeneration(bearerForRefund,reservationForRefund);
   console.error("SIMANIS AI request:",err?.name||"unknown");
   const timeout=err?.name==="TimeoutError"||err?.name==="AbortError";
   return reply(res,timeout?504:500,{error:timeout?"Pembuatan dokumen melewati batas waktu. Coba pertopik atau beberapa pertemuan.":"Permintaan gagal diproses. Periksa konfigurasi SIMANIS AI atau hubungi admin."});
