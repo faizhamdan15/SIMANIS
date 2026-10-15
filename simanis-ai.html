@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SIMANIS AI — Asisten Perangkat Ajar Tanpa API</title>
+  <title>SIMANIS AI — Buat Perangkat Ajar Langsung</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -40,6 +40,11 @@
     .ai-warning{padding:10px 12px;border:1px solid #f0db9d;background:#fffaf0;color:#765b1e;border-radius:10px;font-size:10px;line-height:1.6;margin-top:11px}
     .ai-small{font:500 10px/1.7 Inter,sans-serif;color:#6b7d74;margin:9px 0}
     .ai-stage{color:#0b7a4b;font-weight:900;letter-spacing:.06em;font-size:9px;text-transform:uppercase;margin-bottom:6px}
+    .ai-manual-summary{cursor:pointer;font-size:11px;font-weight:800;color:#1b583e;line-height:1.5}
+    .ai-manual-summary:hover{color:#098353}
+    .ai-btn.primary{font-size:12px;min-height:45px}
+    #apiAvailability[data-ready="true"]{color:#087344}
+    #apiAvailability[data-ready="false"]{color:#91671c}
     .ai-status{font-size:10px;margin-top:11px;min-height:18px;color:#426350;line-height:1.5}
     .ai-note{padding:11px 13px;border-radius:11px;background:#f2faf5;border:1px solid #d7eadd;font-size:10px;line-height:1.6;color:#37614b;margin-top:12px}
     .ai-meta{font-size:9px;color:#75857b;margin-bottom:10px}
@@ -69,8 +74,8 @@
     <header class="topbar"><div><h1>SIMANIS</h1><p>Asisten perangkat pembelajaran guru</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
     <main class="main ai-main">
       <section class="ai-hero">
-        <div><div class="ai-kicker">SIMANIS • Teaching Assistant</div><h2>Asisten Perangkat Pembelajaran</h2><p>Buat prompt kurikulum berkualitas, salin ke ChatGPT Plus, lalu tempel dan kelola dokumen di SIMANIS. Tidak memerlukan API berbayar. Referensi CP perlu dicek terhadap dokumen pemerintah yang berlaku.</p><div class="ai-steps"><span>1 · Atur pembelajaran</span><span>2 · Salin prompt ke ChatGPT</span><span>3 · Tempel & simpan hasil</span></div></div>
-        <span class="ai-pill">Mode Manual · Tanpa API</span>
+        <div><div class="ai-kicker">SIMANIS • Teaching Assistant</div><h2>Perangkat Pembelajaran dengan AI</h2><p>Pilih kelas, mata pelajaran, CP dan perangkat yang dibutuhkan. AI menyusun dokumen langsung di halaman SIMANIS tanpa salin-tempel ke ChatGPT. Guru tetap memeriksa dan menyetujui hasil sebelum digunakan.</p><div class="ai-steps"><span>1 · Atur pembelajaran</span><span>2 · Buat langsung dengan AI</span><span>3 · Edit, simpan & unduh</span></div></div>
+        <span class="ai-pill">AI langsung · Gemini</span>
       </section>
       <div class="ai-grid">
         <div class="ai-form-panel">
@@ -109,9 +114,11 @@
               <label class="ai-label">Jumlah Pertemuan<input id="meetings" type="number" min="1" max="40" value="8" required></label>
               <label class="ai-label">Materi / Topik<input id="topic" maxlength="180" placeholder="Contoh: Stoikiometri dan reaksi kimia"></label>
               <label class="ai-label">Kebutuhan Guru (opsional)<textarea id="notes" maxlength="700" placeholder="Contoh: pembelajaran berbasis proyek, kelas heterogen, praktikum sederhana"></textarea></label>
-              <button class="ai-btn primary" id="generateBtn" type="submit">Siapkan Prompt ChatGPT</button>
+              <button class="ai-btn primary" id="directGenerateBtn" type="button" disabled>✦ Buat Langsung dengan AI</button>
+              <div class="ai-help" id="apiAvailability" role="status">Memeriksa koneksi AI ...</div>
+              <button class="ai-btn" id="generateBtn" type="submit">Alternatif: Siapkan Prompt Manual</button>
             </form>
-            <div class="ai-note"><strong>Catatan:</strong> SIMANIS tidak mengirim data ke layanan AI. Prompt disalin secara manual oleh guru. Jangan memasukkan data pribadi siswa. CP yang belum diverifikasi harus dicocokkan dengan sumber pemerintah sebelum digunakan.</div>
+            <div class="ai-note"><strong>Privasi dan verifikasi:</strong> jika menggunakan fitur AI langsung, konteks pembelajaran (kelas, mata pelajaran, CP, topik dan catatan guru) dikirim ke Gemini API milik Google. Paket gratis dapat menggunakan data untuk peningkatan produk Google. Jangan masukkan informasi pribadi siswa. Guru wajib memeriksa seluruh isi sebelum ditandai final.</div>
           </section>
           <section class="ai-card ai-history-panel" style="margin-top:14px">
             <h3>Dokumen Saya</h3><p class="desc">Draf dan dokumen final hanya terlihat oleh pemilik akun.</p>
@@ -121,8 +128,10 @@
         </div>
         <div class="ai-result-panel">
         <section class="ai-card ai-prompt-card">
-          <div class="ai-stage">Langkah 2</div>
-          <h3>Prompt Siap Salin ke ChatGPT Plus</h3>
+          <details id="manualMode">
+          <summary class="ai-manual-summary">Alternatif: gunakan ChatGPT secara manual jika koneksi AI belum aktif</summary>
+          <div style="margin-top:16px" class="ai-stage">Mode cadangan</div>
+          <h3>Prompt Siap Salin ke ChatGPT</h3>
           <p class="desc">Klik “Siapkan Prompt ChatGPT”, lalu salin dan kirimkan ke ChatGPT (Free atau Plus). Ini bukan generasi otomatis di SIMANIS.</p>
           <textarea id="promptOutput" class="ai-document ai-prompt" readonly aria-label="Prompt ChatGPT siap salin" placeholder="Prompt sesuai mapel, fase, CP, dan jenis perangkat akan muncul di sini."></textarea>
           <div class="ai-actions" style="margin-top:12px">
@@ -135,14 +144,15 @@
             <li>Jika CP belum tersedia, tambahkan CP resmi terlebih dahulu sebelum meminta isi perangkat.</li>
             <li>Salin jawaban ChatGPT, tempel ke editor di bawah, lalu periksa dan simpan.</li>
           </ol>
+          </details>
         </section>
         <section class="ai-card ai-editor-card">
-          <div class="ai-stage">Langkah 3</div>
-          <h3>Tempel, Edit dan Arsipkan Hasil</h3>
-          <p class="desc">Jawaban ChatGPT tidak tersimpan otomatis. Tempel di bawah, verifikasi tujuan, materi dan asesmen, lalu klik Simpan Draf.</p>
+          <div class="ai-stage">Hasil AI · Editor Guru</div>
+          <h3>Periksa dan Simpan Perangkat Pembelajaran</h3>
+          <p class="desc">Hasil AI akan langsung muncul di editor ini. Silakan koreksi kesesuaian CP, tujuan, materi, asesmen, dan alokasi waktu sebelum menyimpan. Jika memakai mode manual, hasil ChatGPT juga dapat ditempel di sini.</p>
           <input id="documentTitle" class="ai-doc-title" maxlength="180" value="Perangkat Pembelajaran Baru" aria-label="Judul dokumen">
           <p id="documentMeta" class="ai-meta">Belum ada dokumen dibuat.</p>
-          <textarea id="result" class="ai-document" placeholder="Tempel jawaban ChatGPT Plus di sini (Ctrl+V), lalu periksa dan edit. Anda juga dapat memakai Kerangka Dokumen sebagai titik awal."></textarea>
+          <textarea id="result" class="ai-document" placeholder="Hasil AI akan langsung muncul di sini setelah menekan Buat Langsung dengan AI. Anda dapat mengedit, menyimpan, dan mengunduhnya."></textarea>
           <div id="printBody" style="display:none"></div>
           <div class="ai-actions" style="margin-top:12px">
             <button type="button" class="ai-btn primary" id="saveBtn" disabled>Simpan Draf</button>
@@ -150,7 +160,7 @@
             <button type="button" class="ai-btn" id="wordBtn" disabled>Unduh Word</button>
             <button type="button" class="ai-btn" id="pdfBtn" disabled>Cetak / PDF</button>
           </div>
-          <div class="ai-status" id="status" role="status" aria-live="polite">Mulai dengan memilih kelas dan mata pelajaran untuk membuat prompt.</div>
+          <div class="ai-status" id="status" role="status" aria-live="polite">Pilih kelas, mata pelajaran, CP dan jenis perangkat. Setelah koneksi AI aktif, tekan Buat Langsung dengan AI.</div>
         </section>
         </div>
       </div>
