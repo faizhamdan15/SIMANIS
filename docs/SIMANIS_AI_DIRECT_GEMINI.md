@@ -16,6 +16,22 @@ Sembilan jenis: TP, ATP, Prota, Promes, Modul Ajar/RPP, Bahan Ajar, LKPD, Rancan
 - Jika salah satu bagian Gemini gagal akibat kuota atau gangguan, bagian yang berhasil tetap ditampilkan tetapi diberi peringatan bahwa dokumen belum lengkap. Ulangi pembuatan saat kuota tersedia; jangan tandai final sebelum melengkapi.
 - Petunjuk kimia menekankan keamanan laboratorium dan keakuratan eksperimen laju reaksi; hasil eksperimen tidak boleh diada-adakan.
 
+## Perbaikan tata dokumen dan ekspor profesional (15 Oktober 2026)
+
+**Masalah terkonfirmasi dari PDF pengguna (3 halaman):** browser mencetak halaman SIMANIS beserta header/footer; Markdown menjadi satu paragraf mentah, tabel tidak terbentuk; dua hasil AI mengulang judul, identitas, dan skenario; beberapa soal sumatif masih placeholder.
+
+**Perbaikan versi ini:**
+- Modul Ajar menggunakan format data Gemini **JSON** untuk konten inti dan lampiran. Backend SIMANIS menyusun **satu struktur dokumen kanonis**, bukan menempel dua laporan Markdown. Judul/identitas/CP muncul satu kali, skenario dibagi pertemuan 1 sampai N, soal dan rubrik ditampilkan pada bagian yang tepat.
+- Struktur lengkap: sampul, identitas, CP/TP/IKTP, peta pertemuan, uraian materi, skenario aktivitas guru/siswa tiap pertemuan beserta menit dan bukti, asesmen diagnostik/formatif/sumatif beserta kunci, rubrik skor 4–1, LKPD dan tabel data kosong, refleksi, glosarium serta verifikasi guru.
+- Jika model mengembalikan JSON invalid atau salah satu dari dua bagian gagal, **hasil editor sebelumnya tidak ditimpa**; sistem menampilkan pesan untuk mencoba lagi.
+- Di UI, **pratinjau dokumen yang telah diformat** tampil sebagai panel utama; editor sumber Markdown berada pada panel yang dapat dibuka saat guru ingin mengedit.
+- **Cetak PDF Profesional** membuka *jendela dokumen terpisah* (bukan halaman dashboard), dengan cover logo MA, tipografi, heading dan tabel; pilih Print → Save as PDF. Agar URL/tanggal browser tidak ikut tercetak, matikan **Headers and footers** pada dialog cetak.
+- **Unduh Word Terformat** masih menghasilkan `.doc` kompatibel Word, bukan file `.docx` native. Bila ingin format `.docx`, buka di Word dan pilih Save As.
+- Formula kimia LaTeX sederhana diubah ke karakter/superscript/subscript saat ekspor; teks tidak dipercaya dan di-escape dari HTML/script.
+- Karena model gratis memiliki batas output, untuk topik yang sangat kompleks pertimbangkan 4–6 pertemuan per modul. Pengujian kualitas sungguhan dengan akun guru tetap wajib.
+
+**Uji teknis internal:** endpoint mock dua hasil JSON, satu klaim kuota, otorisasi guru; renderer menghasilkan 12 bab, 8 sesi, satu judul utama dan total 16 JP dari 8 × 2. Browser formatter berhasil membentuk tabel/heading dan HTML print tanpa dashboard. Kualitas pedagogis riil hasil model belum dijamin sebelum uji guru.
+
 ## Persyaratan dan aktivasi
 1. Tambahkan kunci API gratis melalui Google AI Studio: https://aistudio.google.com/apikey . Pastikan project mendapat kuota Free Tier untuk model yang dipilih.
 2. **JANGAN kirim API Key ke chat, GitHub, JavaScript, atau siswa.** Masukkan hanya di **Vercel → Project SIMANIS → Settings → Environment Variables**:
