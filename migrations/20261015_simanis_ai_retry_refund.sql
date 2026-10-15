@@ -148,19 +148,6 @@ $$;
 revoke all on function public.simanis_ai_my_quota_status() from public, anon;
 grant execute on function public.simanis_ai_my_quota_status() to authenticated;
 
--- One-time courtesy reset of three SIMANIS development trials, only if
--- they are the ONLY usage today. Other teachers' usage is left untouched.
-do $$
-declare v_day date := (timezone('Asia/Jakarta',now()))::date;
-begin
-  perform pg_advisory_xact_lock(20261015,1);
-  if (select count(*) from public.simanis_ai_teacher_quota where usage_day=v_day)=1
-   and (select sum(generation_count) from public.simanis_ai_teacher_quota where usage_day=v_day)=3
-   and (select generation_count from public.simanis_ai_school_quota where usage_day=v_day)=3
-  then
-    update public.simanis_ai_teacher_quota set generation_count=0 where usage_day=v_day;
-    update public.simanis_ai_school_quota set generation_count=0 where usage_day=v_day;
-  end if;
-end;
-$$;
+-- No usage counters reset; preserves accurate historical counts. Existing 3 claims stay counted.
+
 commit;
