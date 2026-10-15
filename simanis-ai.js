@@ -87,6 +87,31 @@ function buildScaffold(doc){
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
 function status(message,isError=false){$("status").textContent=message;$("status").style.color=isError?"#ad352e":"#426350"}
 function setBusy(b){$("generateBtn").disabled=b;$("generateBtn").textContent=b?"Menyiapkan prompt...":"Siapkan Prompt ChatGPT"}
+let directAIReady=false, directAIBusy=false;
+function setDirectBusy(b){
+  directAIBusy=b;
+  $("directGenerateBtn").disabled=b||!directAIReady;
+  $("generateBtn").disabled=b;
+  $("directGenerateBtn").textContent=b?"Menyusun dokumen dengan AI...":"✦ Buat Langsung dengan AI";
+}
+async function checkDirectAI(){
+  const el=$("apiAvailability");
+  try{
+    const r=await fetch("/api/simanis-ai",{method:"GET",cache:"no-store"});
+    if(!r.ok)throw new Error("status unavailable");
+    const data=await r.json();
+    directAIReady=data.enabled===true;
+    $("directGenerateBtn").disabled=!directAIReady;
+    el.dataset.ready=String(directAIReady);
+    el.textContent=directAIReady?"Koneksi AI tersedia ("+data.provider+" • "+data.model+"). Dokumen dapat dibuat langsung di SIMANIS.":
+      "AI langsung belum diaktifkan oleh admin. Pengelola perlu memasang GEMINI_API_KEY di Vercel. Mode prompt manual tetap tersedia.";
+  }catch(e){
+    directAIReady=false;$("directGenerateBtn").disabled=true;
+    el.dataset.ready="false";
+    el.textContent="Status koneksi AI belum dapat diperiksa. Muat ulang halaman atau hubungi admin SIMANIS.";
+  }
+}
+
 function setDocumentButtons(on){["saveBtn","finalBtn","wordBtn","pdfBtn"].forEach(k=>$(k).disabled=!on)}
 function currentContext(){return contexts.find(x=>x.class_id+"|"+x.subject_id===$("context").value)}
 function phaseFor(c){const cl=classes.find(x=>x.id===c?.class_id);if(cl)return Number(cl.grade_level)===10?"E":"F";return /^X(?:\s|$|[-_0-9])/.test(c?.class_name||"")?"E":"F"}
@@ -241,6 +266,66 @@ async function generate(e){
   }catch(err){status("Gagal menyiapkan prompt: "+err.message,true)}
   finally{setBusy(false)}
 }
+
+async function generateDirect(){
+  if(directAIBusy)return;
+  const ctx=currentContext();
+  if(!ctx){status("Pilih kelas dan mata pelajaran terlebih dahulu.",true);return}
+  const cp=cpSources.find(x=>x.id===$("cp").value);
+  const manualText=cp?"":$("manualCP").value.trim();
+  const manualUrl=cp?"":$("manualCPUrl").value.trim();
+  if(!cp&&manualText.length<100){
+    status("Agar AI tidak mengarang CP, tempel teks CP resmi minimal 100 karakter atau pilih CP terverifikasi.",true);
+    $("manualCP").focus();return;
+  }
+  const jp=Number($("jp").value),meetings=Number($("meetings").value);
+  if(!Number.isInteger(jp)||jp<1||jp>20||!Number.isInteger(meetings)||meetings<1||meetings>40){
+    status("JP per minggu harus 1–20 dan jumlah pertemuan 1–40.",true);return
+  }
+  if($("result").value.trim()&&!confirm("Dokumen pada editor akan diganti setelah AI selesai. Pastikan sudah disimpan. Lanjutkan?"))return;
+  if(!directAIReady){
+    status("Mesin AI belum aktif. Admin harus menyiapkan GEMINI_API_KEY pada Vercel terlebih dahulu.",true);return
+  }
+  setDirectBusy(true);
+  status("AI sedang menyusun "+(DOC_NAMES[$("documentType").value]||"perangkat")+" untuk "+ctx.subject_name+" "+ctx.class_name+". Mohon tunggu...");
+  try{
+    const session=await api.auth.getSession();
+    if(!session?.access_token)throw Error("Sesi login telah habis. Silakan login kembali.");
+    const payload={
+      class_id:ctx.class_id,subject_id:ctx.subject_id,cp_source_id:cp?.id||null,
+      cp_manual_text:manualText||null,cp_manual_source_url:manualUrl||null,
+      document_type:$("documentType").value,
+      semester:$("semester").value,
+      topic:$("topic").value.trim(),
+      jp_per_week:jp,meetings,notes:$("notes").value.trim()
+    };
+    const response=await fetch("/api/simanis-ai",{
+      method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},
+      body:JSON.stringify(payload)
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error(data.error||"AI gagal menyusun dokumen.");
+    if(!data.content?.trim())throw Error("AI tidak mengembalikan teks dokumen.");
+    // Ganti dokumen hanya setelah permintaan benar-benar berhasil.
+    activeDocument={
+      ...payload,cpVerified:Boolean(cp),class_name:ctx.class_name,
+      subject_name:ctx.subject_name,phase:phaseFor(ctx),
+      creation_method:"GENERATED_GEMINI"
+    };
+    documentId=null;
+    $("result").value=data.content;
+    $("documentTitle").value=(data.title||("Perangkat Pembelajaran — "+ctx.subject_name)).slice(0,180);
+    $("documentMeta").textContent=(DOC_NAMES[payload.document_type]||payload.document_type)
+      +" · DRAF AI LANGSUNG · "+data.provider+" "+data.model
+      +" · "+(data.cp_verified?"CP terverifikasi SIMANIS":"CP manual guru/belum diverifikasi");
+    setDocumentButtons(true);
+    status(data.truncated?"Dokumen dibuat, tetapi terpotong. Lengkapi dan verifikasi isinya sebelum menyimpan.":
+      "Dokumen berhasil dibuat langsung di SIMANIS. Silakan koreksi lalu Simpan Draf atau unduh.");
+    $("result").focus();
+  }catch(e){status("Gagal membuat dokumen langsung: "+e.message,true)}
+  finally{setDirectBusy(false)}
+}
+
 async function copyPrompt(){
   const content=$("promptOutput").value.trim();
   if(!content){status("Siapkan prompt terlebih dahulu.",true);return}
@@ -337,7 +422,7 @@ function invalidatePrompt(){
   $("promptOutput").value="";
   $("copyPromptBtn").disabled=true;
   $("templateBtn").disabled=true;
-  status("Pengaturan berubah. Klik Siapkan Prompt ChatGPT agar isi prompt sesuai data terbaru.");
+  status("Pengaturan berubah. Klik Buat Langsung dengan AI untuk hasil baru, atau siapkan prompt manual sebagai alternatif.");
 }
 
 
@@ -357,6 +442,7 @@ async function init(){
     await loadMenu();
     await loadContexts();
     await loadHistory();
+    await checkDirectAI();
     $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"};
     $("context").onchange=async()=>{
       $("manualCP").value="";$("manualCPUrl").value="";
@@ -367,6 +453,7 @@ async function init(){
     ["semester","jp","meetings","topic","notes","documentType","manualCP","manualCPUrl"]
       .forEach(id=>$(id).addEventListener("input",invalidatePrompt));
     $("aiForm").onsubmit=generate;
+    $("directGenerateBtn").onclick=generateDirect;
     $("copyPromptBtn").onclick=copyPrompt;
     $("templateBtn").onclick=useTemplate;
     $("result").addEventListener("input",()=>setDocumentButtons(Boolean(activeDocument&&$("result").value.trim())));
