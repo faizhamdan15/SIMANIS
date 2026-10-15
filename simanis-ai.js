@@ -418,13 +418,34 @@ async function saveDocument(final=false){
 
 function formatInlineMarkdown(source){
   let out=esc(source);
+  // Format formula LaTeX sederhana secara lokal, tanpa CDN atau pemuatan script asing.
+  out=out.replace(/\$([^$\n]+)\$/g,(_,formula)=>{
+    const u=formula.replace(/\\(?:Delta|delta)/g,"Δ").replace(/\\rightarrow/g,"→")
+      .replace(/\\(?:geq|ge)/g,"≥").replace(/\\(?:leq|le)/g,"≤")
+      .replace(/\\times/g,"×").replace(/\\cdot/g,"·")
+      .replace(/\\(?:left|right)/g,"")
+      .replace(/\\(?:mathrm|text)\{([^{}]+)\}/g,"$1")
+      .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g,"($1)/($2)")
+      .replace(/_\{([^{}]+)\}/g,"<sub>$1</sub>")
+      .replace(/\^\{([^{}]+)\}/g,"<sup>$1</sup>")
+      .replace(/_([A-Za-z0-9])/g,"<sub>$1</sub>")
+      .replace(/\^([A-Za-z0-9])/g,"<sup>$1</sup>");
+    return '<span class="ai-math">'+u+"</span>";
+  });
   out=out.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
   out=out.replace(/__([^_]+)__/g,"<strong>$1</strong>");
   out=out.replace(/\*([^*\n]+)\*/g,"<em>$1</em>");
   return out;
 }
 function markdownToDocumentHtml(markdown){
-  const lines=String(markdown||"").replace(/\r\n?/g,"\n").split("\n");
+  let normalized=String(markdown||"").replace(/\r\n?/g,"\n");
+  // Dokumen AI lama kadang menggabungkan semua Markdown menjadi satu paragraf.
+  // Pecah heading dan divider sebelum parsing; dokumen baru sudah memakai baris stabil.
+  if(normalized.split("\n").length<10 && /#{1,5}\s/.test(normalized)){
+    normalized=normalized.replace(/\s+(#{1,5})\s+(?=[A-Z0-9IV])/g,"\n\n$1 ")
+       .replace(/\s+---\s+/g,"\n\n---\n\n");
+  }
+  const lines=normalized.split("\n");
   const out=[];let currentList="",inTable=false;
   const closeList=()=>{if(currentList){out.push("</"+currentList+">");currentList=""}};
   const closeTable=()=>{if(inTable){out.push("</tbody></table>");inTable=false}};
