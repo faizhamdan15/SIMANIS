@@ -234,9 +234,9 @@ async function generate(e){
   e.preventDefault();
   const ctx=currentContext();
   if(!ctx){status("Pilih kelas dan mata pelajaran terlebih dahulu.",true);return}
-  const jp=Number($("jp").value),meetings=Number($("meetings").value);
-  if(!Number.isInteger(jp)||jp<1||jp>20||!Number.isInteger(meetings)||meetings<1||meetings>40){
-    status("Masukkan alokasi JP 1–20 dan jumlah pertemuan 1–40.",true);return
+  const jp=Number($("jp").value),meetings=Number($("meetings").value),jpSession=Number($("jpSession").value);
+  if(!Number.isInteger(jp)||jp<1||jp>20||!Number.isInteger(jpSession)||jpSession<1||jpSession>6||!Number.isInteger(meetings)||meetings<1||meetings>40){
+    status("Masukkan JP per minggu (1–20), JP per pertemuan (1–6), dan jumlah pertemuan (1–40).",true);return
   }
   if($("result").value.trim()&&!confirm("Teks editor yang belum disimpan akan dikosongkan saat memulai perangkat baru. Lanjutkan?"))return;
   setBusy(true);
