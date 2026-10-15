@@ -1,4 +1,6 @@
-# SIMANIS AI — Asisten Perangkat Pembelajaran (Tanpa API)
+# SIMANIS AI — Asisten Perangkat Pembelajaran
+
+> Catatan versi terkini: **mode AI langsung** sudah ditambahkan menggunakan Gemini API, dengan tombol yang membuat perangkat langsung di editor SIMANIS. Mode prompt manual di bawah tetap tersedia sebagai fallback. Lihat `docs/SIMANIS_AI_DIRECT_GEMINI.md` untuk panduan integrasi, privasi, kuota dan pengaturan kunci API.
 
 **Status (15 Oktober 2026):** kode Pull Request #5 telah digabung ke `main`; deployment Vercel produksi berstatus READY; migrasi Supabase `simanis_ai_manual_teacher_workspace_20261015` berhasil dipasang. Modul SIMANIS AI sudah diberi akses kepada peran GURU, WALI_KELAS, dan SUPER_ADMIN. **Uji end-to-end login dan simpan memakai akun guru asli masih perlu dilakukan.** Pustaka CP terverifikasi masih kosong; alur CP manual tersedia.
 
