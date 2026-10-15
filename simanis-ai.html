@@ -39,6 +39,9 @@
     .ai-btn.link{text-decoration:none}
     .ai-warning{padding:10px 12px;border:1px solid #f0db9d;background:#fffaf0;color:#765b1e;border-radius:10px;font-size:10px;line-height:1.6;margin-top:11px}
     .ai-small{font:500 10px/1.7 Inter,sans-serif;color:#6b7d74;margin:9px 0}
+    .ai-allocation{padding:11px 13px;background:#eef8f2;border:1px solid #cfe8d9;border-radius:10px;font-size:11px;line-height:1.55;color:#145a3c;font-weight:700}
+    #printBody h1{font-size:21px;margin:10px 0 16px}#printBody h2{font-size:16px;margin:20px 0 10px}#printBody h3{font-size:13px;margin:15px 0 8px}
+    #printBody table{border-collapse:collapse;width:100%;margin:10px 0;font-size:10pt}#printBody th,#printBody td{padding:6px 8px;border:1px solid #b9c5bd;vertical-align:top}#printBody th{background:#eaf3ec}#printBody p,#printBody li{line-height:1.6}
     .ai-stage{color:#0b7a4b;font-weight:900;letter-spacing:.06em;font-size:9px;text-transform:uppercase;margin-bottom:6px}
     .ai-manual-summary{cursor:pointer;font-size:11px;font-weight:800;color:#1b583e;line-height:1.5}
     .ai-manual-summary:hover{color:#098353}
@@ -58,7 +61,7 @@
     @media print{.sidebar,.topbar,.ai-hero,.ai-form-panel,.ai-prompt-card,.ai-actions,.ai-status,.ai-note,.ai-meta,.ai-history-panel,.ai-instructions{display:none!important}
       .app,.content,.main,.ai-main,.ai-grid,.ai-result-panel,.ai-editor-card,.ai-card{display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important}
       .ai-doc-title{border:0;font-size:20px}.ai-document{border:0!important;resize:none!important;height:auto!important;min-height:0!important;white-space:pre-wrap;font-size:11pt;overflow:visible!important}
-      #printBody{display:block!important;white-space:pre-wrap;font:11pt/1.65 Georgia,serif;color:#111}
+      #printBody{display:block!important;white-space:normal;font:11pt/1.65 Georgia,serif;color:#111}
       #result{display:none!important} }
   </style>
 </head>
@@ -111,11 +114,16 @@
                 <label class="ai-label">Semester<select id="semester"><option>Ganjil</option><option>Genap</option><option>Setahun</option></select></label>
                 <label class="ai-label">JP per Minggu<input id="jp" type="number" min="1" max="20" value="4" required></label>
               </div>
-              <label class="ai-label">Jumlah Pertemuan<input id="meetings" type="number" min="1" max="40" value="8" required></label>
+              <div class="ai-double">
+                <label class="ai-label">Jumlah Pertemuan<input id="meetings" type="number" min="1" max="40" value="8" required></label>
+                <label class="ai-label">JP per Pertemuan<input id="jpSession" type="number" min="1" max="6" value="2" required></label>
+              </div>
+              <div class="ai-allocation" id="allocationInfo" role="status">8 pertemuan × 2 JP = 16 JP = 720 menit (asumsi 1 JP = 45 menit).</div>
               <label class="ai-label">Materi / Topik<input id="topic" maxlength="180" placeholder="Contoh: Stoikiometri dan reaksi kimia"></label>
               <label class="ai-label">Kebutuhan Guru (opsional)<textarea id="notes" maxlength="700" placeholder="Contoh: pembelajaran berbasis proyek, kelas heterogen, praktikum sederhana"></textarea></label>
               <button class="ai-btn primary" id="directGenerateBtn" type="button" disabled>✦ Buat Langsung dengan AI</button>
               <div class="ai-help" id="apiAvailability" role="status">Memeriksa koneksi AI ...</div>
+              <div class="ai-help">Untuk Modul Ajar mendalam, SIMANIS menulis seluruh pertemuan secara terpisah beserta asesmen, LKPD, kunci dan rubrik. Karena panjang, satu modul dibatasi maksimal 12 pertemuan; pecah topik besar menjadi beberapa modul.</div>
               <button class="ai-btn" id="generateBtn" type="submit">Alternatif: Siapkan Prompt Manual</button>
             </form>
             <div class="ai-note"><strong>Privasi dan verifikasi:</strong> jika menggunakan fitur AI langsung, konteks pembelajaran (kelas, mata pelajaran, CP, topik dan catatan guru) dikirim ke Gemini API milik Google. Paket gratis dapat menggunakan data untuk peningkatan produk Google. Jangan masukkan informasi pribadi siswa. Guru wajib memeriksa seluruh isi sebelum ditandai final.</div>
