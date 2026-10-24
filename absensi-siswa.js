@@ -146,7 +146,26 @@ async function loadAttendance(){
   renderAll()
 }
 
-function filteredRows(){const q=$("searchInput").value.trim().toLowerCase();const st=$("statusFilter").value;return rows.filter(r=>{const hay=`${r.full_name||""} ${r.nis||""} ${r.nisn||""}`.toLowerCase();return (!q||hay.includes(q))&&(!st||r.attendance_status===st)})}
+// Pengurutan nama A–Z menggunakan aturan bahasa Indonesia.
+const studentAttendanceCollator=new Intl.Collator("id-ID",{sensitivity:"base",numeric:true,ignorePunctuation:true});
+function sortStudentAttendanceByName(items){
+ return [...items].sort((a,b)=>{
+   const byName=studentAttendanceCollator.compare(String(a.full_name||"").trim(),String(b.full_name||"").trim());
+   if(byName)return byName;
+   const byRoll=Number(a.roll_number??Number.MAX_SAFE_INTEGER)-Number(b.roll_number??Number.MAX_SAFE_INTEGER);
+   if(byRoll)return byRoll;
+   const byNis=studentAttendanceCollator.compare(String(a.nis||""),String(b.nis||""));
+   return byNis||studentAttendanceCollator.compare(String(a.enrollment_id||""),String(b.enrollment_id||""));
+ });
+}
+function filteredRows(){
+ const q=$("searchInput").value.trim().toLowerCase(),st=$("statusFilter").value;
+ const result=rows.filter(r=>{
+   const hay=`${r.full_name||""} ${r.nis||""} ${r.nisn||""}`.toLowerCase();
+   return (!q||hay.includes(q))&&(!st||r.attendance_status===st);
+ });
+ return sortStudentAttendanceByName(result);
+}
 function renderStats(){const total=rows.length;const present=rows.filter(r=>["HADIR","TERLAMBAT"].includes(r.attendance_status)).length;const excused=rows.filter(r=>["IZIN","SAKIT"].includes(r.attendance_status)).length;const missing=rows.filter(r=>["ALFA","BELUM_DIABSEN"].includes(r.attendance_status)).length;$("statTotal").textContent=total;$("statPresent").textContent=present;$("statExcused").textContent=excused;$("statMissing").textContent=missing}
 function classScheduleText(classId){
   const day=dayNameFromISO($("attendanceDate").value);
