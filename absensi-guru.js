@@ -17,6 +17,8 @@ function routeFor(code){return {
   PKM_HUMASY:"unit-kerja.html?unit=PKM_HUMASY",KEPALA_TU:"unit-kerja.html?unit=KEPALA_TU",
   KALAB_IPA:"unit-kerja.html?unit=KALAB_IPA",KALAB_BISNIS:"unit-kerja.html?unit=KALAB_BISNIS"
 }[code]||"#";}
+const STAFF_WORK_DAYS=["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Ahad"];
+let canEditStaffWork=false,staffWorkPanelReady=false;
 function statusLabel(s){return {HADIR:"Hadir",TERLAMBAT:"Terlambat",IZIN:"Izin",SAKIT:"Sakit",DINAS:"Dinas",ALFA:"Alfa",BELUM_ABSEN:"Belum Absen",TIDAK_ADA_JADWAL:"Tidak Ada Jadwal"}[s]||s}
 function isAdmin(){return ADMIN_ROLES.includes(profile?.role)}
 
@@ -44,14 +46,157 @@ function wireActions(){document.querySelectorAll("[data-checkin]").forEach(b=>b.
 async function checkIn(id){try{await api.db.rpc("teacher_check_in",{p_teacher_id:id,p_method:isAdmin()?"ADMIN":"MANUAL",p_note:null});await loadAttendance()}catch(e){alert("Check-in gagal: "+e.message)}}
 async function checkOut(id){try{await api.db.rpc("teacher_check_out",{p_teacher_id:id,p_method:isAdmin()?"ADMIN":"MANUAL",p_note:null});await loadAttendance()}catch(e){alert("Check-out gagal: "+e.message)}}
 
-function openManage(id){const r=rows.find(x=>x.teacher_id===id);if(!r)return;$("teacherId").value=id;$("modalDate").value=$("attendanceDate").value;$("teacherInfo").textContent=`${r.teacher_name} · ${r.has_schedule?`Jadwal ${String(r.scheduled_start).slice(0,5)}–${String(r.scheduled_end).slice(0,5)}`:"Tidak ada jadwal mengajar"}`;$("attendanceStatus").value=["BELUM_ABSEN","TIDAK_ADA_JADWAL"].includes(r.attendance_status)?(r.has_schedule?"HADIR":"DINAS"):r.attendance_status;$("checkInTime").value=r.check_in?formatTime(r.check_in).replace('.',':'):"";$("checkOutTime").value=r.check_out?formatTime(r.check_out).replace('.',':'):"";$("attendanceNote").value=r.note||"";$("formMessage").textContent="";toggleTimeFields();$("attendanceModal").classList.remove("hidden")}
+function openManage(id){const r=rows.find(x=>x.teacher_id===id);if(!r)return;$("teacherId").value=id;$("modalDate").value=$("attendanceDate").value;$("teacherInfo").textContent=`${r.teacher_name} · ${r.has_schedule?`Jadwal ${String(r.scheduled_start).slice(0,5)}–${String(r.scheduled_end).slice(0,5)}`:"Tidak ada jadwal kerja/mengajar"}`;$("attendanceStatus").value=["BELUM_ABSEN","TIDAK_ADA_JADWAL"].includes(r.attendance_status)?(r.has_schedule?"HADIR":"DINAS"):r.attendance_status;$("checkInTime").value=r.check_in?formatTime(r.check_in).replace('.',':'):"";$("checkOutTime").value=r.check_out?formatTime(r.check_out).replace('.',':'):"";$("attendanceNote").value=r.note||"";$("formMessage").textContent="";toggleTimeFields();$("attendanceModal").classList.remove("hidden")}
 function closeModal(){$("attendanceModal").classList.add("hidden")}
 function toggleTimeFields(){const noTime=["IZIN","SAKIT","DINAS","ALFA"].includes($("attendanceStatus").value);$("checkInTime").disabled=noTime;$("checkOutTime").disabled=noTime;if(noTime){$("checkInTime").value="";$("checkOutTime").value=""}}
 
 async function saveAttendance(e){e.preventDefault();const btn=$("saveBtn");btn.disabled=true;btn.textContent="Menyimpan...";try{await api.db.rpc("save_teacher_attendance_admin",{p_teacher_id:$("teacherId").value,p_date:$("modalDate").value,p_status:$("attendanceStatus").value,p_note:$("attendanceNote").value.trim()||null,p_check_in_time:$("checkInTime").value||null,p_check_out_time:$("checkOutTime").value||null});closeModal();await loadAttendance()}catch(err){$("formMessage").textContent="Gagal menyimpan: "+err.message}finally{btn.disabled=false;btn.textContent="Simpan"}}
 async function clearAttendance(){if(!confirm("Hapus catatan absensi guru ini?"))return;try{const ok=await api.db.rpc("clear_teacher_attendance_admin",{p_teacher_id:$("teacherId").value,p_date:$("modalDate").value});closeModal();await loadAttendance();if(!ok)alert("Tidak ada catatan tersimpan yang perlu dihapus.")}catch(e){alert("Gagal menghapus: "+e.message)}}
 
+
+function staffWorkStatus(message,error=false){
+ const el=$("staffWorkStatus");
+ el.textContent=message;el.style.color=error?"#af3226":"#176044";
+}
+function buildStaffWorkDays(){
+ $("staffWorkDays").innerHTML=STAFF_WORK_DAYS.map((day,i)=>{
+   const d=i+1;
+   return '<div class="staff-work-row" data-workday="'+d+'">'+
+     '<label><input type="checkbox" data-work-enabled="'+d+'"> '+day+'</label>'+
+     '<input type="time" data-work-start="'+d+'" aria-label="Jam masuk '+day+'" disabled>'+
+     '<input type="time" data-work-end="'+d+'" aria-label="Jam pulang '+day+'" disabled>'+
+     '<input type="text" maxlength="150" data-work-note="'+d+'" placeholder="Catatan kerja (opsional)" aria-label="Catatan '+day+'" disabled>'+
+     '</div>';
+ }).join("");
+ document.querySelectorAll("[data-work-enabled]").forEach(input=>{
+   input.onchange=()=>setWorkDayEnabled(Number(input.dataset.workEnabled),input.checked);
+ });
+}
+function workEl(day,kind){
+ return document.querySelector('[data-work-'+kind+'="'+day+'"]');
+}
+function setWorkDayEnabled(day,enabled){
+ const box=workEl(day,"enabled");
+ if(box)box.checked=enabled;
+ for(const kind of ["start","end","note"]){
+   const element=workEl(day,kind);
+   element.disabled=!enabled;
+ }
+}
+function setWorkDaysRange(endDay){
+ for(let day=1;day<=7;day++)setWorkDayEnabled(day,day<=endDay);
+ staffWorkStatus("Pilihan hari berubah. Tentukan jam masuk dan pulang, lalu simpan.");
+}
+async function loadStaffWorkSchedule(){
+ const id=$("staffWorkTeacher").value,selectedDate=$("staffWorkFrom").value;
+ for(let day=1;day<=7;day++){
+   setWorkDayEnabled(day,false);
+   for(const kind of ["start","end","note"])workEl(day,kind).value="";
+ }
+ if(!id){staffWorkStatus("Pilih staf terlebih dahulu.");return}
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)){staffWorkStatus("Isi tanggal mulai berlaku.",true);return}
+ try{
+   const records=await api.db.select("staff_work_schedules",
+     "select=day_of_week,start_time,end_time,effective_from,effective_until,note"+
+     "&teacher_id=eq."+encodeURIComponent(id)+"&order=effective_from.desc&limit=250")||[];
+   const active=new Map();
+   // Data historis dipertahankan oleh backend; tampilkan versi yang berlaku saat tanggal dipilih.
+   for(const r of records){
+     if(r.effective_from>selectedDate)continue;
+     if(r.effective_until&&r.effective_until<selectedDate)continue;
+     if(!active.has(Number(r.day_of_week)))active.set(Number(r.day_of_week),r);
+   }
+   for(const [day,r] of active){
+     if(day<1||day>7)continue;
+     setWorkDayEnabled(day,true);
+     workEl(day,"start").value=String(r.start_time||"").slice(0,5);
+     workEl(day,"end").value=String(r.end_time||"").slice(0,5);
+     workEl(day,"note").value=r.note||"";
+   }
+   staffWorkStatus(active.size+" hari kerja berlaku mulai tanggal terpilih. Jadwal yang tidak dipilih tidak akan dihitung alfa.");
+ }catch(err){staffWorkStatus("Gagal mengambil jadwal: "+err.message,true)}
+}
+async function saveStaffWorkSchedule(){
+ if(!canEditStaffWork)return;
+ const teacherId=$("staffWorkTeacher").value,from=$("staffWorkFrom").value;
+ if(!teacherId){staffWorkStatus("Pilih staf yang akan dijadwalkan.",true);return}
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||from<todayYMD()){
+   staffWorkStatus("Tanggal mulai berlaku harus hari ini atau tanggal mendatang (WIB).",true);return
+ }
+ const days=[];
+ for(let day=1;day<=7;day++){
+   if(!workEl(day,"enabled").checked)continue;
+   const start=workEl(day,"start").value,end=workEl(day,"end").value,note=workEl(day,"note").value.trim();
+   if(!start||!end||end<=start){
+     staffWorkStatus(STAFF_WORK_DAYS[day-1]+": jam masuk harus lebih awal dari jam pulang.",true);return
+   }
+   if(note.length>150){staffWorkStatus("Catatan maksimal 150 karakter.",true);return}
+   days.push({day_of_week:day,start_time:start,end_time:end,note});
+ }
+ if(!days.length&&!confirm("Semua hari kerja akan dinonaktifkan mulai "+from+". Lanjutkan?"))return;
+ if(!confirm("Simpan "+days.length+" hari kerja untuk staf terpilih mulai "+from+"? Riwayat sebelum tanggal tersebut akan tetap berlaku."))return;
+ const btn=$("staffWorkSave");btn.disabled=true;btn.textContent="Menyimpan...";
+ try{
+   const count=await api.db.rpc("set_staff_work_schedule",{
+     p_teacher_id:teacherId,p_effective_from:from,p_days:days
+   });
+   staffWorkStatus("Jadwal kerja berhasil disimpan ("+count+" hari). Absensi mengikuti jadwal baru sejak "+from+".");
+   await loadAttendance();
+ }catch(err){staffWorkStatus("Gagal menyimpan jadwal kerja: "+err.message,true)}
+ finally{btn.disabled=false;btn.textContent="Simpan Jadwal Kerja"}
+}
+function applyBulkStaffHours(){
+ const start=$("staffBulkStart").value,end=$("staffBulkEnd").value;
+ if(!start||!end||end<=start){staffWorkStatus("Isi jam masuk dan pulang yang valid terlebih dahulu.",true);return}
+ let applied=0;
+ for(let day=1;day<=7;day++){
+   if(!workEl(day,"enabled").checked)continue;
+   workEl(day,"start").value=start;
+   workEl(day,"end").value=end;
+   applied++;
+ }
+ staffWorkStatus(applied+" hari terpilih menggunakan jam "+start+"–"+end+". Klik Simpan Jadwal Kerja untuk mengaktifkan.");
+}
+async function initStaffWorkPanel(){
+ canEditStaffWork=isAdmin();
+ if(!canEditStaffWork){
+   // Kepala TU yang diberikan jabatan struktural dapat mengatur jadwal, walaupun role dasar GURU.
+   try{
+     const found=await api.db.select("profile_positions",
+       "select=position_code&user_id=eq."+encodeURIComponent(profile.id)+
+       "&position_code=eq.KEPALA_TU&is_active=eq.true&limit=1");
+     canEditStaffWork=Boolean(found?.length);
+   }catch(_){}
+ }
+ if(!canEditStaffWork)return;
+ const btn=$("staffWorkToggle");btn.classList.remove("hidden");
+ buildStaffWorkDays();
+ $("staffWorkFrom").min=todayYMD();
+ $("staffWorkFrom").value=todayYMD();
+ $("staffWorkTeacher").onchange=loadStaffWorkSchedule;
+ $("staffWorkFrom").onchange=loadStaffWorkSchedule;
+ $("staffDaysSix").onclick=()=>setWorkDaysRange(6);
+ $("staffDaysSeven").onclick=()=>setWorkDaysRange(7);
+ $("staffDaysClear").onclick=()=>setWorkDaysRange(0);
+ $("staffApplyHours").onclick=applyBulkStaffHours;
+ $("staffWorkSave").onclick=saveStaffWorkSchedule;
+ btn.onclick=async()=>{
+   $("staffWorkPanel").classList.toggle("hidden");
+   if(!$("staffWorkPanel").classList.contains("hidden")){
+     if(!staffWorkPanelReady){
+       try{
+         const staff=await api.db.select("teachers","select=id,full_name,teacher_code&is_active=eq.true&order=full_name.asc&limit=250");
+         $("staffWorkTeacher").innerHTML='<option value="">Pilih guru atau staf...</option>'+
+           (staff||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.full_name)+
+           (x.teacher_code!=null?" · "+esc(x.teacher_code):"")+'</option>').join("");
+         staffWorkPanelReady=true;
+       }catch(e){staffWorkStatus("Gagal memuat daftar guru/staf: "+e.message,true)}
+     }
+   }
+ };
+}
+
 $("attendanceDate").value=todayYMD();
 $("attendanceDate").onchange=loadAttendance;$("searchInput").oninput=render;$("scheduleFilter").onchange=render;$("statusFilter").onchange=render;$("attendanceStatus").onchange=toggleTimeFields;$("closeModalBtn").onclick=closeModal;$("cancelBtn").onclick=closeModal;$("attendanceForm").onsubmit=saveAttendance;$("clearBtn").onclick=clearAttendance;$("attendanceModal").onclick=e=>{if(e.target===$("attendanceModal"))closeModal()};
 
-(async function boot(){try{api=await window.simanisReady;const session=await api.auth.getSession();if(!session){location.replace("index.html");return}const user=await api.auth.getUser();if(!user){location.replace("index.html");return}profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();if(!isAdmin()){$("clearBtn").classList.add("hidden")}await loadMenu();await loadAttendance();setInterval(()=>{if(document.visibilityState==="visible"&&$("attendanceDate").value===todayYMD())loadAttendance()},5000);$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}}catch(err){console.error(err);alert("Absensi Guru gagal dimuat: "+(err.message||err))}finally{$("loading").classList.add("hidden")}})();
+(async function boot(){try{api=await window.simanisReady;const session=await api.auth.getSession();if(!session){location.replace("index.html");return}const user=await api.auth.getUser();if(!user){location.replace("index.html");return}profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();if(!isAdmin()){$("clearBtn").classList.add("hidden")}await loadMenu();await loadAttendance();await initStaffWorkPanel();setInterval(()=>{if(document.visibilityState==="visible"&&$("attendanceDate").value===todayYMD())loadAttendance()},5000);$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}}catch(err){console.error(err);alert("Absensi Guru gagal dimuat: "+(err.message||err))}finally{$("loading").classList.add("hidden")}})();
