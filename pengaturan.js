@@ -263,6 +263,13 @@ function showCredentials(creds,errors=[]){
 }
 function closeCredentialModal(){$("credentialModal").classList.add("hidden")}
 // Ekspor seluruh akun guru aktif dari SIMANIS, tanpa melihat password lama.
+function dateWIBForExport(){
+  const parts=new Intl.DateTimeFormat("en-US",{
+    timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"
+  }).formatToParts(new Date());
+  const map={};parts.forEach(p=>{map[p.type]=p.value});
+  return map.year+"-"+map.month+"-"+map.day;
+}
 function teacherAccountsCsv(records){
   const collator=new Intl.Collator("id-ID",{sensitivity:"base",numeric:true});
   const sorted=[...records].sort((a,b)=>{
@@ -315,7 +322,7 @@ async function downloadAllTeacherAccounts(){
     const url=URL.createObjectURL(blob),a=document.createElement("a");
     try{
       a.href=url;
-      a.download="semua-akun-guru-simanis-"+new Date().toISOString().slice(0,10)+".csv";
+      a.download="semua-akun-guru-simanis-"+dateWIBForExport()+".csv";
       document.body.appendChild(a);
       a.click();
     }finally{
