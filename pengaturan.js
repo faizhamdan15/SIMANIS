@@ -349,7 +349,7 @@ function teacherAccountRowsWithAvailablePasswords(accounts,resetOutcomes=null){
               "Password Sementara yang Tersedia","Keterangan Password"]];
  for(const a of sorted){
    const record=resultsByUser.get(String(a.user_id));
-   const pass=passByUser.get(String(a.user_id))||"";
+   const pass=(record?.status==="GAGAL"||record?.status==="DILEWATI")?"":(passByUser.get(String(a.user_id))||"");
    let reason=pass?"Password sementara sesi ini":"Password lama tidak bisa diunduh";
    if(record?.status==="GAGAL")reason="Reset gagal/tidak pasti. Periksa akun dan reset secara individual.";
    else if(record?.status==="BERHASIL")reason="Password sementara baru hasil reset";
