@@ -61,6 +61,12 @@
     .credential-table th,.credential-table td{border-bottom:1px solid #e8eeeb;padding:9px;text-align:left;font-size:9px}
     .credential-table th{background:#f7faf8;color:#607269}
     .credential-password{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:900;letter-spacing:.2px}
+     .bulk-reset-warning{border-color:#edc5b5;background:#fff8f5;color:#7e3928;padding:13px 14px}
+     .bulk-reset-warning summary{font-weight:800;font-size:11px;cursor:pointer}
+     .bulk-reset-warning p{font-size:10px;line-height:1.55;margin:10px 0}
+     .bulk-reset-warning button{border-color:#af412a;color:#9d301e;background:white}
+     .bulk-reset-warning button:disabled{opacity:.52;cursor:not-allowed}
+
     .jobdesk-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
     .jobdesk-item{border:1px solid #e1e9e5;border-radius:11px;padding:10px;background:#fbfdfc}
     .jobdesk-item label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
@@ -205,6 +211,7 @@
             </div>
             <div class="actions">
               <button id="downloadAllTeacherAccountsBtn" class="secondary-btn">⬇ Download Semua Akun (CSV)</button>
+              <button id="downloadAllAccountsWithAvailablePasswordsBtn" class="secondary-btn">⬇ Semua Akun + Password Tersedia</button>
               <button id="downloadCredentialsBtn" class="secondary-btn" disabled>⬇ Password Sementara Sesi Ini (0)</button>
               <button id="bulkCreateTeacherAccountsBtn" class="primary-btn">Buat Akun Semua Guru</button>
             </div>
@@ -219,8 +226,16 @@
           </div>
 
           <div class="credential-note">
-            <b>Download Semua Akun</b> berisi daftar guru yang memiliki akun, username, dan statusnya—<b>tanpa password</b>. Password lama tidak dapat dipulihkan. Tombol <b>Password Sementara Sesi Ini</b> hanya mengunduh password yang baru dibuat/reset sejak halaman ini dibuka. Simpan CSV sebelum keluar atau memuat ulang halaman.
+            <strong>Password lama tidak dapat dibaca ulang dari Supabase Auth.</strong> Gunakan <strong>Semua Akun + Password Tersedia</strong> untuk mengunduh seluruh akun, sekaligus password sementara yang <em>baru dibuat/reset pada sesi halaman ini</em>. Password akun lain akan kosong dan ditandai belum tersedia, bukan password lama.
+            <strong>Password Sementara Sesi Ini</strong> hanya berisi password yang diketahui selama halaman masih dibuka.
           </div>
+          <details id="bulkResetDetails" class="credential-note bulk-reset-warning">
+            <summary>Perlu password sementara baru untuk seluruh guru? Buka pilihan reset massal</summary>
+            <p><strong>PENTING:</strong> Mereset password akan langsung membuat password lama tidak berlaku. Guru harus login menggunakan password sementara baru lalu menggantinya. Proses ini hanya untuk akun aktif dengan role GURU/WALI_KELAS, tidak mencakup Super Admin, akun pengelola lain, atau akun nonaktif. Proses tidak bisa dibatalkan.</p>
+            <p>Sebelum melakukan reset, informasikan jadwal perubahan password kepada guru. Setelah proses dimulai, jangan tutup tab hingga file CSV berhasil diunduh. Jika sebagian gagal, unduh daftar keberhasilan lalu ulangi hanya akun yang belum berhasil.</p>
+            <button id="resetAllTeacherPasswordsBtn" type="button" class="secondary-btn">Reset Password Guru Aktif &amp; Unduh CSV</button>
+            <div id="bulkResetStatus" role="status" aria-live="polite" style="font-size:11px;margin-top:8px"></div>
+          </details>
 
           <div class="account-filter">
             <input id="teacherAccountSearch" type="search" placeholder="Cari nama / kode / username..."/>
@@ -411,6 +426,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="pengaturan.js?v=20261025-download-akun-lengkap-v1"></script>
+<script src="pengaturan.js?v=20261025-bulk-credentials-v1"></script>
 </body>
 </html>
