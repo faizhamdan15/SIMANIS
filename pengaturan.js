@@ -194,6 +194,8 @@ function renderTeacherAccounts(){
  document.querySelectorAll("#teacherAccountBody [data-edit-user]").forEach(b=>b.onclick=()=>openUser(b.dataset.editUser));
 
  $("downloadCredentialsBtn").disabled=!lastCredentials.length;
+ $("downloadCredentialsBtn").textContent="⬇ Password Sementara Sesi Ini ("+lastCredentials.length+")";
+ $("downloadAllTeacherAccountsBtn").disabled=!teacherAccounts.some(a=>a.user_id);
 }
 async function callTeacherAccountAdmin(action,payload={}){
  const session=await api.auth.getSession();
@@ -253,26 +255,98 @@ async function resetTeacherPassword(userId){
    msg.className="message ok";msg.textContent="Password berhasil direset. Guru wajib mengganti password saat login.";
  }catch(err){msg.textContent="Gagal: "+err.message}
 }
-function showCredentials(creds,errors=[]){
- lastCredentials=(creds||[]).map(x=>({...x}));
- $("credentialBody").innerHTML=lastCredentials.map(c=>`<tr><td><b>${esc(c.full_name||"-")}</b></td><td>${esc(c.teacher_code||"-")}</td><td><b>${esc(c.username||"-")}</b></td><td class="credential-password">${esc(c.temporary_password||"-")}</td></tr>`).join("");
- $("credentialErrors").textContent=errors.length?`${errors.length} guru gagal diproses: `+errors.map(e=>`${e.full_name||e.teacher_code||"?"}: ${e.error}`).join(" | "):"";
- $("credentialModal").classList.remove("hidden");
+// Password sementara hanya di memori halaman; tidak di database/localStorage.
+// Reset berulang mengganti password lama pada nama akun yang sama.
+const accountNameCollator=new Intl.Collator("id-ID",{sensitivity:"base",numeric:true});
+function credentialKey(x){return String(x.user_id||x.teacher_id||x.username||x.teacher_code||"").trim().toLowerCase()}
+function mergeCredentialsFromSession(creds){
+ for(const input of creds||[]){
+  if(!input||!input.temporary_password)continue;
+  const next={...input},key=credentialKey(next);
+  if(!key)continue;
+  const index=lastCredentials.findIndex(old=>credentialKey(old)===key);
+  if(index>=0)lastCredentials[index]=next;
+  else lastCredentials.push(next);
+ }
+ lastCredentials.sort((a,b)=>accountNameCollator.compare(String(a.full_name||""),String(b.full_name||""))||
+  accountNameCollator.compare(String(a.teacher_code||""),String(b.teacher_code||"")));
+}
+function updateCredentialsButtons(){
  $("downloadCredentialsBtn").disabled=!lastCredentials.length;
+ $("downloadCredentialsBtn").textContent="⬇ Password Sementara Sesi Ini ("+lastCredentials.length+")";
+ $("credentialCount").textContent="("+lastCredentials.length+" akun)";
+}
+function showCredentials(creds,errors=[]){
+ mergeCredentialsFromSession(creds);
+ $("credentialBody").innerHTML=lastCredentials.map(c=>'<tr><td><b>'+esc(c.full_name||"-")+
+   '</b></td><td>'+esc(c.teacher_code||"-")+'</td><td><b>'+esc(c.username||"-")+
+   '</b></td><td class="credential-password">'+esc(c.temporary_password||"-")+'</td></tr>').join("");
+ $("credentialErrors").textContent=errors.length?
+   errors.length+" guru gagal diproses: "+errors.map(e=>String(e.full_name||e.teacher_code||"?")+": "+String(e.error||"Tidak diketahui")).join(" | "):"";
+ $("credentialModal").classList.remove("hidden");
+ updateCredentialsButtons();
 }
 function closeCredentialModal(){$("credentialModal").classList.add("hidden")}
+function safeCsvCell(value){
+ let v=String(value??"").replace(/[\r\n\u0000]+/g," ");
+ // Cegah formula injection di aplikasi spreadsheet.
+ if(/^[\s]*[=+\-@\t\r\n]/.test(v))v="'"+v;
+ return '"'+v.replaceAll('"','""')+'"';
+}
+function downloadTeacherCSV(rows,filename){
+ const csv=rows.map(row=>row.map(safeCsvCell).join(",")).join("\r\n");
+ const blob=new Blob(["\ufeff",csv],{type:"text/csv;charset=utf-8"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function teacherCsvDate(){
+ return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+}
+async function downloadAllTeacherAccounts(){
+ const button=$("downloadAllTeacherAccountsBtn"),msg=$("teacherAccountMessage");
+ if(profile?.role!=="SUPER_ADMIN"){
+  msg.className="message";msg.textContent="Hanya Super Admin yang dapat mengunduh seluruh akun guru.";return;
+ }
+ button.disabled=true;button.textContent="Menyiapkan semua akun...";
+ try{
+  // Ambil seluruh data terkini melalui RPC, bukan hasil pencarian/filter pada layar.
+  const all=await api.db.rpc("settings_get_teacher_accounts",{});
+  if(!Array.isArray(all))throw new Error("Respons daftar akun tidak valid.");
+  teacherAccounts=all;
+  const accounts=all.filter(x=>x&&x.user_id).sort((a,b)=>
+    accountNameCollator.compare(String(a.full_name||""),String(b.full_name||""))||
+    accountNameCollator.compare(String(a.teacher_code||""),String(b.teacher_code||"")));
+  renderTeacherAccounts();
+  if(!accounts.length){
+   msg.className="message";msg.textContent="Belum ada akun guru yang terdaftar untuk diunduh.";return;
+  }
+  const rows=[["Nama Guru","Kode Guru","Username","Email Login","Role","Jobdesk","Status Akun","Wajib Ganti Password","Login Terakhir"]];
+  for(const a of accounts)rows.push([
+   a.full_name||"",a.teacher_code||"",a.username||"",a.email||"",
+   roleLabel(a.role||"GURU"),accountJobdeskText(a),a.account_status||"",
+   a.must_change_password?"Ya":"Tidak",a.last_login_at||""
+  ]);
+  downloadTeacherCSV(rows,"daftar-semua-akun-guru-simanis-"+teacherCsvDate()+".csv");
+  msg.className="message ok";
+  msg.textContent=accounts.length+" akun guru diekspor ke CSV. Username dan status lengkap; password lama tidak tersedia dan tidak disertakan.";
+ }catch(err){msg.className="message";msg.textContent="Gagal mengunduh semua akun: "+(err?.message||err)}
+ finally{button.disabled=!teacherAccounts.some(a=>a.user_id);button.textContent="⬇ Download Semua Akun (CSV)"}
+}
 function downloadCredentials(){
- if(!lastCredentials.length){alert("Belum ada daftar akun dari proses terakhir.");return}
+ if(!lastCredentials.length){alert("Belum ada password sementara yang dibuat atau direset pada sesi halaman ini.");return}
  const rows=[["Nama Guru","Kode Guru","Username","Password Sementara"]];
- lastCredentials.forEach(c=>rows.push([c.full_name||"",c.teacher_code||"",c.username||"",c.temporary_password||""]));
- const csv=rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
- const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
- a.href=url;a.download=`akun-guru-simanis-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),600);
+ for(const c of lastCredentials)rows.push([c.full_name||"",c.teacher_code||"",c.username||"",c.temporary_password||""]);
+ downloadTeacherCSV(rows,"password-sementara-guru-sesi-"+teacherCsvDate()+".csv");
 }
 function printCredentials(){
  if(!lastCredentials.length)return;
  const w=window.open("","_blank","width=900,height=700");
- w.document.write(`<html><head><title>Akun Guru SIMANIS</title><style>body{font-family:Arial;padding:24px}h2{color:#075b3a}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:8px;text-align:left;font-size:12px}th{background:#f1f6f3}.note{font-size:11px;margin:10px 0 18px}</style></head><body><h2>Akun Guru SIMANIS</h2><div class="note">Password bersifat sementara. Guru wajib menggantinya setelah login pertama.</div><table><thead><tr><th>Guru</th><th>Kode</th><th>Username</th><th>Password Sementara</th></tr></thead><tbody>${lastCredentials.map(c=>`<tr><td>${esc(c.full_name)}</td><td>${esc(c.teacher_code)}</td><td>${esc(c.username)}</td><td>${esc(c.temporary_password)}</td></tr>`).join("")}</tbody></table></body></html>`);
+ if(!w){alert("Jendela cetak diblokir. Izinkan pop-up untuk SIMANIS.");return}
+ w.document.write('<html><head><title>Password Sementara Guru SIMANIS</title><style>body{font-family:Arial;padding:24px}h2{color:#075b3a}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:8px;text-align:left;font-size:12px}th{background:#f1f6f3}.note{font-size:11px;margin:10px 0 18px}</style></head><body><h2>Password Sementara Guru SIMANIS</h2><div class="note">Daftar password sementara yang dibuat atau direset selama halaman ini terbuka. Rahasiakan file.</div><table><thead><tr><th>Guru</th><th>Kode</th><th>Username</th><th>Password Sementara</th></tr></thead><tbody>'+
+  lastCredentials.map(c=>'<tr><td>'+esc(c.full_name||"")+'</td><td>'+esc(c.teacher_code||"")+'</td><td>'+
+   esc(c.username||"")+'</td><td>'+esc(c.temporary_password||"")+'</td></tr>').join("")+
+  '</tbody></table></body></html>');
  w.document.close();w.focus();setTimeout(()=>w.print(),250);
 }
 function openJobdesk(userId){
@@ -368,7 +442,7 @@ $("schoolForm").onsubmit=saveSchool;$("uploadLogoBtn").onclick=uploadLogo;
 $("addYearBtn").onclick=()=>openPeriodModal("year");$("addSemesterBtn").onclick=()=>openPeriodModal("semester");$("periodModalClose").onclick=closePeriodModal;$("periodCancelBtn").onclick=closePeriodModal;$("periodForm").onsubmit=savePeriod;$("activeYearSelect").onchange=renderActiveSemesterOptions;$("activatePeriodBtn").onclick=activatePeriod;
 $("userSearch").oninput=renderUsers;$("userRoleFilter").onchange=renderUsers;$("userModalClose").onclick=closeUser;$("userCancelBtn").onclick=closeUser;$("userForm").onsubmit=saveUser;
 $("teacherAccountSearch").oninput=renderTeacherAccounts;$("teacherAccountStatusFilter").onchange=renderTeacherAccounts;$("teacherAccountJobdeskFilter").onchange=renderTeacherAccounts;
-$("bulkCreateTeacherAccountsBtn").onclick=bulkCreateTeacherAccounts;$("downloadCredentialsBtn").onclick=downloadCredentials;
+$("bulkCreateTeacherAccountsBtn").onclick=bulkCreateTeacherAccounts;$("downloadCredentialsBtn").onclick=downloadCredentials;$("downloadAllTeacherAccountsBtn").onclick=downloadAllTeacherAccounts;
 $("credentialModalClose").onclick=closeCredentialModal;$("credentialDownloadBtn").onclick=downloadCredentials;$("credentialPrintBtn").onclick=printCredentials;
 $("jobdeskModalClose").onclick=closeJobdesk;$("jobdeskCancelBtn").onclick=closeJobdesk;$("jobdeskForm").onsubmit=saveJobdesk;
 
