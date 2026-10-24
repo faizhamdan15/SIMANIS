@@ -87,6 +87,20 @@ function setWorkDaysRange(endDay){
  for(let day=1;day<=7;day++)setWorkDayEnabled(day,day<=endDay);
  staffWorkStatus("Pilihan hari berubah. Tentukan jam masuk dan pulang, lalu simpan.");
 }
+// Kebijakan madrasah: TU bekerja Sabtu–Kamis, Jumat libur, pukul 07.00–12.30 WIB.
+// Preset hanya mengisi form. TIDAK menyimpan tanpa persetujuan dan pilihan staf dari admin.
+function setTuDefaultSchedule(){
+  for(let day=1;day<=7;day++){
+    const workday=day!==5;
+    setWorkDayEnabled(day,workday);
+    workEl(day,"start").value=workday?"07:00":"";
+    workEl(day,"end").value=workday?"12:30":"";
+    if(!workday)workEl(day,"note").value="";
+  }
+  $("staffBulkStart").value="07:00";
+  $("staffBulkEnd").value="12:30";
+  staffWorkStatus("Pola standar TU disiapkan: Sabtu–Kamis 07.00–12.30; Jumat libur. Belum disimpan — pilih staf, periksa, lalu klik Simpan Jadwal Kerja.");
+}
 async function loadStaffWorkSchedule(){
  const id=$("staffWorkTeacher").value,selectedDate=$("staffWorkFrom").value;
  for(let day=1;day<=7;day++){
@@ -113,7 +127,11 @@ async function loadStaffWorkSchedule(){
      workEl(day,"end").value=String(r.end_time||"").slice(0,5);
      workEl(day,"note").value=r.note||"";
    }
-   staffWorkStatus(active.size+" hari kerja berlaku mulai tanggal terpilih. Jadwal yang tidak dipilih tidak akan dihitung alfa.");
+   if(active.size===0){
+     setTuDefaultSchedule();
+   }else{
+     staffWorkStatus(active.size+" hari kerja berlaku pada tanggal terpilih. Jumat/hari tanpa jadwal tidak dihitung alfa.");
+   }
  }catch(err){staffWorkStatus("Gagal mengambil jadwal: "+err.message,true)}
 }
 async function saveStaffWorkSchedule(){
@@ -175,6 +193,7 @@ async function initStaffWorkPanel(){
  $("staffWorkFrom").value=todayYMD();
  $("staffWorkTeacher").onchange=loadStaffWorkSchedule;
  $("staffWorkFrom").onchange=loadStaffWorkSchedule;
+ $("staffDaysTu").onclick=setTuDefaultSchedule;
  $("staffDaysSix").onclick=()=>setWorkDaysRange(6);
  $("staffDaysSeven").onclick=()=>setWorkDaysRange(7);
  $("staffDaysClear").onclick=()=>setWorkDaysRange(0);
