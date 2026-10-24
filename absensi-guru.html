@@ -29,6 +29,9 @@
     .staff-work-tools button.primary,.staff-work-toggle{background:#075b3a;border-color:#075b3a;color:#fff}
     .staff-work-tools input{border:1px solid #c8ddd0;border-radius:9px;padding:8px;max-width:130px}
     .staff-work-status{font-size:11px;color:#265e40;margin-top:12px;min-height:20px}
+    .staff-work-access{display:flex;flex-direction:column;gap:7px;align-items:flex-start;max-width:350px}
+    .staff-work-access-hint{font-size:10px;line-height:1.5;color:#516b5b}
+    .staff-work-toggle[aria-expanded="true"]{background:#0d8154;border-color:#0d8154}
     @media(max-width:650px){.staff-work-grid{grid-template-columns:1fr}.staff-work-row{grid-template-columns:1fr 1fr}.staff-work-row label{grid-column:1/-1}}
 
     @media(max-width:850px){.att-toolbar{grid-template-columns:1fr 1fr}.att-table-wrap{display:none}.att-cards{display:grid;gap:10px}}
@@ -47,7 +50,10 @@
     <header class="topbar"><div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Absensi Guru</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
     <main class="main">
       <section class="page-head"><div><h2>Absensi Guru & Staf</h2><p>Guru mengikuti jadwal pelajaran. Staf TU dapat menggunakan jadwal kerja harian; hari tanpa jadwal tidak dihitung alfa.</p></div>
-        <button id="staffWorkToggle" type="button" class="staff-work-toggle hidden">Atur Jadwal Kerja TU</button>
+        <div class="staff-work-access">
+          <button id="staffWorkToggle" type="button" class="staff-work-toggle" aria-controls="staffWorkPanel" aria-expanded="false">Atur Jadwal Kerja TU</button>
+          <div id="staffWorkAccessHint" class="staff-work-access-hint" role="status">Memeriksa izin pengaturan jadwal TU...</div>
+        </div>
       </section>
       <section id="staffWorkPanel" class="staff-work-panel hidden" aria-label="Pengaturan jadwal kerja harian">
         <h3>Jadwal Kerja Harian Tata Usaha / Staf</h3>
@@ -110,6 +116,6 @@
   </div><div class="modal-actions"><button type="button" id="clearBtn" class="secondary-btn">Hapus Catatan</button><button type="button" id="cancelBtn" class="secondary-btn">Batal</button><button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button></div></form>
 </div></div>
 
-<script src="config.js"></script><script src="sdk-loader.js"></script><script src="absensi-guru.js?v=20261025-tu-harian"></script>
+<script src="config.js"></script><script src="sdk-loader.js"></script><script src="absensi-guru.js?v=20261025-tu-button-fix-1"></script>
 </body>
 </html>
