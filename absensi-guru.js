@@ -176,15 +176,29 @@ function applyBulkStaffHours(){
  staffWorkStatus(applied+" hari terpilih menggunakan jam "+start+"–"+end+". Klik Simpan Jadwal Kerja untuk mengaktifkan.");
 }
 async function initStaffWorkPanel(){
+ const btn=$("staffWorkToggle");
+ const hint=$("staffWorkAccessHint");
+ // Tombol tampak sejak HTML dimuat. Hak untuk MENYIMPAN tetap diperiksa oleh RPC Supabase.
+ btn.textContent="Atur Jadwal Kerja TU";
+ btn.setAttribute("aria-expanded","false");
  canEditStaffWork=isAdmin();
  if(!canEditStaffWork){
-   // Kepala TU yang diberikan jabatan struktural dapat mengatur jadwal, walaupun role dasar GURU.
+   // Akun dasar GURU bisa saja merangkap Kepala TU.
    try{
      canEditStaffWork=(await api.db.rpc("has_staff_position",{p_position_code:"KEPALA_TU"}))===true;
-   }catch(_){}
+   }catch(error){
+     console.warn("Izin jabatan Kepala TU belum terbaca:",error?.message||error);
+   }
  }
- if(!canEditStaffWork)return;
- const btn=$("staffWorkToggle");btn.classList.remove("hidden");
+ if(!canEditStaffWork){
+   const role=formatRole(profile?.role);
+   const message="Akun aktif berperan "+role+". Mengatur jadwal kerja membutuhkan akun Super Admin, TU, Waka Kurikulum, atau jabatan Kepala TU. Silakan masuk dengan akun tersebut atau minta Super Admin memberikan hak yang tepat.";
+   btn.textContent="🔒 Atur Jadwal Kerja TU";
+   hint.textContent="Pengaturan hanya untuk Super Admin/Kepala TU. Klik tombol untuk keterangan.";
+   btn.onclick=()=>{hint.textContent=message;alert(message)};
+   return;
+ }
+ hint.textContent="Akses pengelola terverifikasi. Klik tombol untuk memilih staf dan menerapkan jadwal Sabtu–Kamis 07.00–12.30 (Jumat libur).";
  buildStaffWorkDays();
  $("staffWorkFrom").min=todayYMD();
  $("staffWorkFrom").value=todayYMD();
@@ -197,17 +211,23 @@ async function initStaffWorkPanel(){
  $("staffApplyHours").onclick=applyBulkStaffHours;
  $("staffWorkSave").onclick=saveStaffWorkSchedule;
  btn.onclick=async()=>{
-   $("staffWorkPanel").classList.toggle("hidden");
-   if(!$("staffWorkPanel").classList.contains("hidden")){
-     if(!staffWorkPanelReady){
-       try{
-         const staff=await api.db.select("teachers","select=id,full_name,teacher_code&is_active=eq.true&order=full_name.asc&limit=250");
-         $("staffWorkTeacher").innerHTML='<option value="">Pilih guru atau staf...</option>'+
-           (staff||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.full_name)+
-           (x.teacher_code!=null?" · "+esc(x.teacher_code):"")+'</option>').join("");
-         staffWorkPanelReady=true;
-       }catch(e){staffWorkStatus("Gagal memuat daftar guru/staf: "+e.message,true)}
-     }
+   const panel=$("staffWorkPanel");
+   panel.classList.toggle("hidden");
+   const isOpen=!panel.classList.contains("hidden");
+   btn.setAttribute("aria-expanded",String(isOpen));
+   hint.textContent=isOpen?
+      "Pilih staf, periksa enam hari kerja (Jumat libur), lalu Simpan Jadwal Kerja.":
+      "Panel jadwal TU ditutup. Klik tombol untuk membuka kembali.";
+   if(!isOpen)return;
+   if(!staffWorkPanelReady){
+     try{
+       const staff=await api.db.select("teachers","select=id,full_name,teacher_code&is_active=eq.true&order=full_name.asc&limit=250");
+       $("staffWorkTeacher").innerHTML='<option value="">Pilih guru atau staf...</option>'+
+         (staff||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.full_name)+
+         (x.teacher_code!=null?" · "+esc(x.teacher_code):"")+'</option>').join("");
+       staffWorkPanelReady=true;
+       if(!staff?.length)staffWorkStatus("Belum ada data staf yang dapat dipilih. Hubungi Super Admin untuk memastikan akun punya akses data staf.",true);
+     }catch(e){staffWorkStatus("Gagal memuat daftar staf: "+e.message,true)}
    }
  };
 }
@@ -215,4 +235,4 @@ async function initStaffWorkPanel(){
 $("attendanceDate").value=todayYMD();
 $("attendanceDate").onchange=loadAttendance;$("searchInput").oninput=render;$("scheduleFilter").onchange=render;$("statusFilter").onchange=render;$("attendanceStatus").onchange=toggleTimeFields;$("closeModalBtn").onclick=closeModal;$("cancelBtn").onclick=closeModal;$("attendanceForm").onsubmit=saveAttendance;$("clearBtn").onclick=clearAttendance;$("attendanceModal").onclick=e=>{if(e.target===$("attendanceModal"))closeModal()};
 
-(async function boot(){try{api=await window.simanisReady;const session=await api.auth.getSession();if(!session){location.replace("index.html");return}const user=await api.auth.getUser();if(!user){location.replace("index.html");return}profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();if(!isAdmin()){$("clearBtn").classList.add("hidden")}await loadMenu();await loadAttendance();await initStaffWorkPanel();setInterval(()=>{if(document.visibilityState==="visible"&&$("attendanceDate").value===todayYMD())loadAttendance()},5000);$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}}catch(err){console.error(err);alert("Absensi Guru gagal dimuat: "+(err.message||err))}finally{$("loading").classList.add("hidden")}})();
+(async function boot(){try{api=await window.simanisReady;const session=await api.auth.getSession();if(!session){location.replace("index.html");return}const user=await api.auth.getUser();if(!user){location.replace("index.html");return}profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();if(!isAdmin()){$("clearBtn").classList.add("hidden")}await initStaffWorkPanel();await loadMenu();await loadAttendance();setInterval(()=>{if(document.visibilityState==="visible"&&$("attendanceDate").value===todayYMD())loadAttendance()},5000);$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}}catch(err){console.error(err);alert("Absensi Guru gagal dimuat: "+(err.message||err))}finally{$("loading").classList.add("hidden")}})();

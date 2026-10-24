@@ -26,6 +26,15 @@ Memberikan jadwal presensi **kerja harian** bagi tenaga TU/staf yang tidak mempu
 
 Pada **Jumat**, staf tanpa jadwal pelajaran tidak dihitung alfa. Pada **Ahad**, staf yang ditetapkan mengikuti jadwal kerja 07.00–12.30 dan bisa check-in/check-out. Batas toleransi keterlambatan mengikuti pengaturan absensi (saat inspeksi: 10 menit), bukan angka yang disetel di form.
 
+## Mengatasi tombol pengaturan yang tidak muncul
+
+Mulai perbaikan 25 Oktober 2026, tombol **Atur Jadwal Kerja TU** selalu ditampilkan di bagian atas halaman Absensi Guru & Staf. Sebelumnya tombol sepenuhnya disembunyikan bila akun tidak berperan SUPER_ADMIN/TU/WAKA_KURIKULUM atau Kepala TU, sehingga tidak ada penjelasan kepada pengguna.
+
+- Super Admin dan Kepala TU (termasuk guru yang mempunyai posisi struktural KEPALA_TU) dapat membuka dan menyimpan jadwal.
+- Akun Guru biasa juga melihat tombol, tetapi ditandai ikon gembok dan saat diklik akan dijelaskan bahwa akun pengelola diperlukan; backend tetap memvalidasi izin saat menyimpan.
+- Pemeriksaan hak akses tombol berjalan sebelum pemuatan sidebar dan daftar kehadiran agar tampilannya tidak hilang bila layanan absensi bermasalah.
+- Jika UI lama masih tampil, muat ulang `Ctrl+F5`, keluar dan login kembali, lalu cek judul Absensi Guru & Staf.
+
 ## Perilaku tanggal dan hari
 - `day_of_week`: 1=Senin, 2=Selasa, 3=Rabu, 4=Kamis, 5=Jumat, 6=Sabtu, 7=Ahad (ISO).
 - `effective_from` dan `effective_until` membuat perubahan jadwal berlaku dari tanggal yang diatur, tanpa mengubah jadwal sebelum tanggal tersebut. Semua tanggal dibandingkan pada zona `Asia/Jakarta`.
