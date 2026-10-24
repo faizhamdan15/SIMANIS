@@ -180,10 +180,7 @@ async function initStaffWorkPanel(){
  if(!canEditStaffWork){
    // Kepala TU yang diberikan jabatan struktural dapat mengatur jadwal, walaupun role dasar GURU.
    try{
-     const found=await api.db.select("profile_positions",
-       "select=position_code&user_id=eq."+encodeURIComponent(profile.id)+
-       "&position_code=eq.KEPALA_TU&is_active=eq.true&limit=1");
-     canEditStaffWork=Boolean(found?.length);
+     canEditStaffWork=(await api.db.rpc("has_staff_position",{p_position_code:"KEPALA_TU"}))===true;
    }catch(_){}
  }
  if(!canEditStaffWork)return;
