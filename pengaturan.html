@@ -204,7 +204,8 @@
               <p style="margin:3px 0 0;font-size:9px;color:var(--muted)">Buat akun login untuk guru aktif, hubungkan otomatis ke master guru, lalu tetapkan jobdesk strukturalnya.</p>
             </div>
             <div class="actions">
-              <button id="downloadCredentialsBtn" class="secondary-btn" disabled>Download Akun Terakhir</button>
+              <button id="downloadAllTeacherAccountsBtn" type="button" class="secondary-btn" disabled>Unduh Semua Akun Guru (CSV)</button>
+               <button id="downloadCredentialsBtn" type="button" class="secondary-btn" disabled>Unduh Password Sementara Terakhir</button>
               <button id="bulkCreateTeacherAccountsBtn" class="primary-btn">Buat Akun Semua Guru</button>
             </div>
           </div>
@@ -218,7 +219,7 @@
           </div>
 
           <div class="credential-note">
-            Password sementara <b>tidak disimpan di database SIMANIS</b>. Password hanya ditampilkan sekali setelah akun dibuat/reset. Simpan CSV hasil pembuatan akun sebelum menutup halaman.
+            <b>Unduh Semua Akun Guru</b> berisi nama, kode guru, username, email login, role, jobdesk, dan status seluruh guru aktif (termasuk yang belum memiliki akun), <b>tanpa password</b>. Password sementara <b>tidak disimpan di database SIMANIS</b> dan hanya bisa diunduh sesaat setelah akun dibuat atau direset melalui tombol <b>Unduh Password Sementara Terakhir</b>. Tidak ada password yang diubah saat mengunduh.
           </div>
 
           <div class="account-filter">
@@ -410,6 +411,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="pengaturan.js?v=20260928-01"></script>
+<script src="pengaturan.js?v=20261025-export-all-teachers-1"></script>
 </body>
 </html>
