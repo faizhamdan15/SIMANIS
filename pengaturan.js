@@ -1,6 +1,7 @@
 const $=id=>document.getElementById(id);
 let api,profile,overview={school:{},academic_years:[],semesters:[],users:[],teachers:[],modules:[],permissions:[]},positionData=[],teacherAccounts=[],lastCredentials=[];
 const TEACHER_LOGIN_DOMAIN="akun.manuriska.sch.id";
+let bulkPasswordResetRunning=false;
 const ROLES=["SUPER_ADMIN","KEPALA_MADRASAH","TU","WAKA_KURIKULUM","WAKA_KESISWAAN","BENDAHARA","GURU","WALI_KELAS"];
 const BRAND_BUCKET="system-branding";
 
@@ -196,6 +197,8 @@ function renderTeacherAccounts(){
  $("downloadCredentialsBtn").disabled=!lastCredentials.length;
  $("downloadCredentialsBtn").textContent="⬇ Password Sementara Sesi Ini ("+lastCredentials.length+")";
  $("downloadAllTeacherAccountsBtn").disabled=!teacherAccounts.some(a=>a.user_id);
+ $("downloadAllAccountsWithAvailablePasswordsBtn").disabled=!teacherAccounts.some(a=>a.user_id);
+ $("resetAllTeacherPasswordsBtn").disabled=bulkPasswordResetRunning||!teacherAccounts.some(a=>a.user_id&&a.is_active===true&&["GURU","WALI_KELAS"].includes(a.role)&&a.user_id!==profile?.id);
 }
 async function callTeacherAccountAdmin(action,payload={}){
  const session=await api.auth.getSession();
@@ -333,6 +336,140 @@ async function downloadAllTeacherAccounts(){
  }catch(err){msg.className="message";msg.textContent="Gagal mengunduh semua akun: "+(err?.message||err)}
  finally{button.disabled=!teacherAccounts.some(a=>a.user_id);button.textContent="⬇ Download Semua Akun (CSV)"}
 }
+
+// Never query existing passwords. Match ONLY temporary credentials generated in this open tab.
+function teacherAccountRowsWithAvailablePasswords(accounts,resetOutcomes=null){
+ const passByUser=new Map(lastCredentials.filter(c=>c?.user_id&&c?.temporary_password)
+   .map(c=>[String(c.user_id),String(c.temporary_password)]));
+ const resultsByUser=new Map((resetOutcomes||[]).map(x=>[String(x.user_id),x]));
+ const sorted=[...accounts].filter(a=>a&&a.user_id).sort((a,b)=>
+   accountNameCollator.compare(String(a.full_name||""),String(b.full_name||""))||
+   accountNameCollator.compare(String(a.teacher_code||""),String(b.teacher_code||"")));
+ const rows=[["Nama Guru","Kode Guru","Username","Email Login","Role","Status Akun",
+              "Password Sementara yang Tersedia","Keterangan Password"]];
+ for(const a of sorted){
+   const record=resultsByUser.get(String(a.user_id));
+   const pass=(record?.status==="GAGAL"||record?.status==="DILEWATI")?"":(passByUser.get(String(a.user_id))||"");
+   let reason=pass?"Password sementara sesi ini":"Password lama tidak bisa diunduh";
+   if(record?.status==="GAGAL")reason="Reset gagal/tidak pasti. Periksa akun dan reset secara individual.";
+   else if(record?.status==="BERHASIL")reason="Password sementara baru hasil reset";
+   else if(record?.status==="DILEWATI")reason="Tidak direset (akun admin/nonaktif/role lain)";
+   rows.push([a.full_name||"",a.teacher_code||"",a.username||"",a.email||"",
+     roleLabel(a.role||"GURU"),a.account_status||"",pass,reason]);
+ }
+ return rows;
+}
+async function downloadAllAccountsWithAvailablePasswords(){
+ const btn=$("downloadAllAccountsWithAvailablePasswordsBtn"),msg=$("teacherAccountMessage");
+ if(profile?.role!=="SUPER_ADMIN"){
+   msg.className="message";msg.textContent="Hanya Super Admin yang dapat mengunduh akun guru.";return;
+ }
+ btn.disabled=true;
+ const label=btn.textContent;btn.textContent="Menyiapkan akun dan password yang tersedia...";
+ try{
+   const accounts=await api.db.rpc("settings_get_teacher_accounts",{});
+   if(!Array.isArray(accounts))throw new Error("Daftar akun guru tidak dapat dimuat.");
+   const all=accounts.filter(a=>a&&a.user_id);
+   if(!all.length)throw new Error("Belum ada akun guru terdaftar.");
+   teacherAccounts=accounts;
+   const rows=teacherAccountRowsWithAvailablePasswords(accounts);
+   downloadTeacherCSV(rows,"semua-akun-dan-password-tersedia-"+teacherCsvDate()+".csv");
+   const available=rows.slice(1).filter(r=>Boolean(r[6])).length;
+   msg.className="message ok";
+   msg.textContent="Berhasil mengunduh "+all.length+" akun. Password sementara yang masih tersedia di sesi ini: "+
+     available+". Password lainnya kosong karena tidak dapat dibaca kembali. Tidak ada password yang direset.";
+ }catch(e){msg.className="message";msg.textContent="Gagal mengunduh: "+(e?.message||e)}
+ finally{btn.textContent=label;btn.disabled=!teacherAccounts.some(a=>a.user_id)}
+}
+// Critical: this routine is never invoked automatically.
+// Requires the school Super Admin to knowingly invalidate every targeted current password.
+// Keep credentials in volatile session memory and offer CSV immediately after processing.
+async function resetAllTeacherPasswordsAndDownload(){
+ const btn=$("resetAllTeacherPasswordsBtn"),status=$("bulkResetStatus"),msg=$("teacherAccountMessage");
+ if(bulkPasswordResetRunning)return;
+ if(profile?.role!=="SUPER_ADMIN"){
+   status.textContent="Reset massal hanya untuk Super Admin.";return;
+ }
+ let accounts;
+ try{
+   accounts=await api.db.rpc("settings_get_teacher_accounts",{});
+   if(!Array.isArray(accounts))throw Error("Daftar guru belum tersedia.");
+ }catch(e){status.textContent="Gagal memuat daftar akun: "+(e?.message||e);return}
+ const accountsWithLogin=accounts.filter(a=>a&&a.user_id);
+ const targets=accountsWithLogin.filter(a=>a.is_active===true&&
+   ["GURU","WALI_KELAS"].includes(String(a.role||""))&&a.user_id!==profile.id);
+ const skipped=accountsWithLogin.filter(a=>!targets.includes(a));
+ if(!targets.length){
+   status.textContent="Tidak ada akun guru aktif berperan GURU/WALI_KELAS yang bisa direset.";return;
+ }
+ const count=targets.length;
+ const first=confirm("PERINGATAN KEAMANAN\n\nAnda akan MERESET password "+
+   count+" akun guru aktif. Password lama langsung tidak berlaku; guru harus diberi password baru dan diminta menggantinya saat login.\n\n"+
+   skipped.length+" akun administrator/nonaktif/role lain TIDAK akan direset.\n\n"+
+   "Bila guru sedang menggunakan SIMANIS, pergantian password dapat memutus login berikutnya.\n\nLanjutkan ke konfirmasi akhir?");
+ if(!first){status.textContent="Dibatalkan. Tidak ada password yang diubah.";return}
+ const phrase="RESET "+count+" PASSWORD GURU";
+ const typed=prompt("Konfirmasi tindakan penting.\n\nKetik persis:\n"+phrase+
+   "\n\nJangan lanjutkan sebelum siap mendistribusikan password baru.");
+ if(typed!==phrase){
+   status.textContent="Konfirmasi tidak cocok/dibatalkan. Tidak ada password yang diubah.";return;
+ }
+ if(!confirm("Konfirmasi TERAKHIR: reset password "+count+" guru sekarang? Tindakan tidak dapat dibatalkan.")){
+   status.textContent="Dibatalkan. Tidak ada password yang diubah.";return;
+ }
+ bulkPasswordResetRunning=true;
+ btn.disabled=true;btn.textContent="Mereset password guru...";
+ const results=[];
+ let succeeded=0,failed=0;
+ // Serial to avoid bursts/429 and ease audit; a failed step is never retried silently.
+ // Once reset succeeded, keep a session copy so admin can download credentials any time.
+ try{
+   for(let i=0;i<targets.length;i++){
+     const item=targets[i];
+     status.textContent="Proses "+(i+1)+"/"+count+": "+(item.full_name||"Guru")+
+       " — berhasil "+succeeded+", perlu diperiksa "+failed+". Jangan tutup halaman.";
+     try{
+       const response=await callTeacherAccountAdmin("reset_password",{user_id:item.user_id});
+       const credential=response?.credentials;
+       if(!credential?.temporary_password||String(credential.user_id)!==String(item.user_id)){
+         throw Error("Server tidak mengembalikan password yang dapat dipastikan milik akun ini.");
+       }
+       mergeCredentialsFromSession([credential]);
+       succeeded++;
+       results.push({user_id:item.user_id,status:"BERHASIL"});
+       updateCredentialsButtons();
+     }catch(e){
+       failed++;
+       results.push({user_id:item.user_id,status:"GAGAL"});
+       console.warn("SIMANIS bulk password reset failed for one account:",String(e?.message||e).slice(0,130));
+     }
+   }
+   for(const a of skipped)results.push({user_id:a.user_id,status:"DILEWATI"});
+   // Include all teacher accounts in the CSV, including those skipped or failed.
+   // A blank password never pretends to be the old password.
+   const report=teacherAccountRowsWithAvailablePasswords(accounts,results);
+   downloadTeacherCSV(report,"akun-guru-password-baru-"+teacherCsvDate()+".csv");
+   status.textContent="Selesai: "+succeeded+" password baru berhasil diperoleh, "+failed+
+     " gagal/tidak pasti, "+skipped.length+" tidak direset. File CSV berhasil diminta untuk diunduh. "+
+     "Jangan sebarkan secara publik; bagikan masing-masing password secara privat.";
+   msg.className=failed?"message":"message ok";
+   msg.textContent=succeeded+" password berhasil dibuat. "+failed+
+     " akun perlu diperiksa secara individual. Password lama pada akun berhasil direset sudah tidak berlaku. "+
+     "Anda juga bisa mengunduh ulang password sementara sesi ini selagi halaman belum ditutup.";
+ }catch(e){
+   status.textContent="Proses terhenti atau gagal mengunduh file: "+(e?.message||e)+
+     ". "+succeeded+" password sempat berubah. Klik Password Sementara Sesi Ini sebelum menutup halaman.";
+ }finally{
+   bulkPasswordResetRunning=false;
+   btn.disabled=!teacherAccounts.some(a=>a.user_id&&a.is_active===true&&
+     ["GURU","WALI_KELAS"].includes(String(a.role||""))&&a.user_id!==profile?.id);
+   btn.textContent="Reset Password Guru Aktif & Unduh CSV";
+   try{
+     const current=await api.db.rpc("settings_get_teacher_accounts",{});
+     if(Array.isArray(current)){teacherAccounts=current;renderTeacherAccounts()}
+   }catch(_){}
+ }
+}
 function downloadCredentials(){
  if(!lastCredentials.length){alert("Belum ada password sementara yang dibuat atau direset pada sesi halaman ini.");return}
  const rows=[["Nama Guru","Kode Guru","Username","Password Sementara"]];
@@ -442,7 +579,7 @@ $("schoolForm").onsubmit=saveSchool;$("uploadLogoBtn").onclick=uploadLogo;
 $("addYearBtn").onclick=()=>openPeriodModal("year");$("addSemesterBtn").onclick=()=>openPeriodModal("semester");$("periodModalClose").onclick=closePeriodModal;$("periodCancelBtn").onclick=closePeriodModal;$("periodForm").onsubmit=savePeriod;$("activeYearSelect").onchange=renderActiveSemesterOptions;$("activatePeriodBtn").onclick=activatePeriod;
 $("userSearch").oninput=renderUsers;$("userRoleFilter").onchange=renderUsers;$("userModalClose").onclick=closeUser;$("userCancelBtn").onclick=closeUser;$("userForm").onsubmit=saveUser;
 $("teacherAccountSearch").oninput=renderTeacherAccounts;$("teacherAccountStatusFilter").onchange=renderTeacherAccounts;$("teacherAccountJobdeskFilter").onchange=renderTeacherAccounts;
-$("bulkCreateTeacherAccountsBtn").onclick=bulkCreateTeacherAccounts;$("downloadCredentialsBtn").onclick=downloadCredentials;$("downloadAllTeacherAccountsBtn").onclick=downloadAllTeacherAccounts;
+$("bulkCreateTeacherAccountsBtn").onclick=bulkCreateTeacherAccounts;$("downloadCredentialsBtn").onclick=downloadCredentials;$("downloadAllTeacherAccountsBtn").onclick=downloadAllTeacherAccounts;$("downloadAllAccountsWithAvailablePasswordsBtn").onclick=downloadAllAccountsWithAvailablePasswords;$("resetAllTeacherPasswordsBtn").onclick=resetAllTeacherPasswordsAndDownload;
 $("credentialModalClose").onclick=closeCredentialModal;$("credentialDownloadBtn").onclick=downloadCredentials;$("credentialPrintBtn").onclick=printCredentials;
 $("jobdeskModalClose").onclick=closeJobdesk;$("jobdeskCancelBtn").onclick=closeJobdesk;$("jobdeskForm").onsubmit=saveJobdesk;
 
