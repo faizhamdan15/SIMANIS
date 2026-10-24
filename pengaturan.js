@@ -194,6 +194,7 @@ function renderTeacherAccounts(){
  document.querySelectorAll("#teacherAccountBody [data-edit-user]").forEach(b=>b.onclick=()=>openUser(b.dataset.editUser));
 
  $("downloadCredentialsBtn").disabled=!lastCredentials.length;
+ $("downloadAllTeacherAccountsBtn").disabled=!teacherAccounts.length;
 }
 async function callTeacherAccountAdmin(action,payload={}){
  const session=await api.auth.getSession();
@@ -261,6 +262,76 @@ function showCredentials(creds,errors=[]){
  $("downloadCredentialsBtn").disabled=!lastCredentials.length;
 }
 function closeCredentialModal(){$("credentialModal").classList.add("hidden")}
+// Ekspor seluruh akun guru aktif dari SIMANIS, tanpa melihat password lama.
+function teacherAccountsCsv(records){
+  const collator=new Intl.Collator("id-ID",{sensitivity:"base",numeric:true});
+  const sorted=[...records].sort((a,b)=>{
+    const byName=collator.compare(String(a.full_name||""),String(b.full_name||""));
+    return byName||collator.compare(String(a.teacher_code??""),String(b.teacher_code??""));
+  });
+  const data=[[
+    "No","Nama Guru","Kode Guru","Username","Email Login",
+    "Role","Jobdesk","Status Akun","Status Login","Login Terakhir","Wajib Ganti Password"
+  ]];
+  sorted.forEach((a,index)=>{
+    data.push([
+      index+1,
+      a.full_name??"",
+      a.teacher_code??"",
+      a.user_id?a.username??"":"",
+      a.user_id?a.email??"":"",
+      a.user_id?a.role??"GURU":"",
+      accountJobdeskText(a),
+      a.account_status||"NO_ACCOUNT",
+      a.user_id?(a.is_active?"Aktif":"Nonaktif"):"Belum memiliki akun",
+      a.user_id?fmtDateTime(a.last_login_at):"",
+      a.user_id?(a.must_change_password?"Ya":"Tidak"):""
+    ]);
+  });
+  // Mitigasi injeksi formula CSV dari nama, username atau jabatan.
+  const escapeCell=value=>{
+    const v=String(value??"");
+    const safe=/^[\s\u0000-\u001f]*[=+\-@]/.test(v)?"'"+v:v;
+    return '"'+safe.replaceAll('"','""')+'"';
+  };
+  return "\ufeff"+data.map(row=>row.map(escapeCell).join(",")).join("\r\n");
+}
+async function downloadAllTeacherAccounts(){
+  const btn=$("downloadAllTeacherAccountsBtn"),msg=$("teacherAccountMessage");
+  if(btn.disabled)return;
+  btn.disabled=true;
+  const oldLabel=btn.textContent;
+  btn.textContent="Menyiapkan Semua Akun...";
+  try{
+    // Ambil ulang SEMUA guru aktif dari RPC khusus Super Admin.
+    // Filter pencarian dan filter status di layar tidak membatasi isi CSV.
+    const current=await api.db.rpc("settings_get_teacher_accounts",{});
+    if(!Array.isArray(current))throw new Error("Daftar akun guru tidak tersedia.");
+    if(!current.length)throw new Error("Tidak ada guru aktif untuk diekspor.");
+    teacherAccounts=current;
+    renderTeacherAccounts();
+    const csv=teacherAccountsCsv(current);
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    const url=URL.createObjectURL(blob),a=document.createElement("a");
+    try{
+      a.href=url;
+      a.download="semua-akun-guru-simanis-"+new Date().toISOString().slice(0,10)+".csv";
+      document.body.appendChild(a);
+      a.click();
+    }finally{
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }
+    msg.className="message ok";
+    msg.textContent=current.length+" guru tercantum dalam CSV. File ini berisi data akun/username dan status, tanpa password. Filter layar tidak membatasi ekspor.";
+  }catch(error){
+    msg.className="message";
+    msg.textContent="Gagal mengunduh seluruh akun guru: "+(error.message||error);
+  }finally{
+    btn.textContent=oldLabel;
+    btn.disabled=!teacherAccounts.length;
+  }
+}
 function downloadCredentials(){
  if(!lastCredentials.length){alert("Belum ada daftar akun dari proses terakhir.");return}
  const rows=[["Nama Guru","Kode Guru","Username","Password Sementara"]];
@@ -368,7 +439,7 @@ $("schoolForm").onsubmit=saveSchool;$("uploadLogoBtn").onclick=uploadLogo;
 $("addYearBtn").onclick=()=>openPeriodModal("year");$("addSemesterBtn").onclick=()=>openPeriodModal("semester");$("periodModalClose").onclick=closePeriodModal;$("periodCancelBtn").onclick=closePeriodModal;$("periodForm").onsubmit=savePeriod;$("activeYearSelect").onchange=renderActiveSemesterOptions;$("activatePeriodBtn").onclick=activatePeriod;
 $("userSearch").oninput=renderUsers;$("userRoleFilter").onchange=renderUsers;$("userModalClose").onclick=closeUser;$("userCancelBtn").onclick=closeUser;$("userForm").onsubmit=saveUser;
 $("teacherAccountSearch").oninput=renderTeacherAccounts;$("teacherAccountStatusFilter").onchange=renderTeacherAccounts;$("teacherAccountJobdeskFilter").onchange=renderTeacherAccounts;
-$("bulkCreateTeacherAccountsBtn").onclick=bulkCreateTeacherAccounts;$("downloadCredentialsBtn").onclick=downloadCredentials;
+$("bulkCreateTeacherAccountsBtn").onclick=bulkCreateTeacherAccounts;$("downloadAllTeacherAccountsBtn").onclick=downloadAllTeacherAccounts;$("downloadCredentialsBtn").onclick=downloadCredentials;
 $("credentialModalClose").onclick=closeCredentialModal;$("credentialDownloadBtn").onclick=downloadCredentials;$("credentialPrintBtn").onclick=printCredentials;
 $("jobdeskModalClose").onclick=closeJobdesk;$("jobdeskCancelBtn").onclick=closeJobdesk;$("jobdeskForm").onsubmit=saveJobdesk;
 
