@@ -51,7 +51,7 @@
       </section>
       <section id="staffWorkPanel" class="staff-work-panel hidden" aria-label="Pengaturan jadwal kerja harian">
         <h3>Jadwal Kerja Harian Tata Usaha / Staf</h3>
-        <p>Pilih staf, hari masuk, serta jam kerja. Jadwal mulai berlaku pada tanggal yang ditentukan. Tidak perlu membuat jadwal mata pelajaran. Hanya admin yang dapat mengubahnya; absensi sebelum tanggal berlaku tidak ikut berubah.</p>
+        <p><strong>Jadwal standar TU:</strong> Sabtu, Ahad, Senin, Selasa, Rabu, dan Kamis pukul <strong>07.00–12.30 WIB</strong>; <strong>Jumat libur</strong>. Pilih staf dan simpan jadwal sejak tanggal yang ditentukan. Tanpa jadwal mata pelajaran. Riwayat tanggal sebelumnya tidak diubah.</p>
         <div class="staff-work-grid">
           <label>Nama Guru / Staf
             <select id="staffWorkTeacher"><option value="">Pilih guru atau staf...</option></select>
@@ -62,14 +62,15 @@
         </div>
         <div id="staffWorkDays" aria-label="Hari dan jam kerja"></div>
         <div class="staff-work-tools">
+          <button id="staffDaysTu" type="button" class="primary">Jadwal TU: Sabtu–Kamis · 07.00–12.30 (Jumat Libur)</button>
           <button id="staffDaysSix" type="button">Pilih Senin–Sabtu</button>
           <button id="staffDaysSeven" type="button">Pilih Senin–Ahad</button>
           <button id="staffDaysClear" type="button">Kosongkan Hari</button>
         </div>
         <div class="staff-work-tools">
           <span style="font-size:11px;font-weight:700">Salin jam ke hari terpilih:</span>
-          <input type="time" id="staffBulkStart" aria-label="Jam masuk untuk hari terpilih">
-          <input type="time" id="staffBulkEnd" aria-label="Jam pulang untuk hari terpilih">
+          <input type="time" id="staffBulkStart" value="07:00" aria-label="Jam masuk untuk hari terpilih">
+          <input type="time" id="staffBulkEnd" value="12:30" aria-label="Jam pulang untuk hari terpilih">
           <button id="staffApplyHours" type="button">Terapkan Jam</button>
           <button id="staffWorkSave" type="button" class="primary">Simpan Jadwal Kerja</button>
         </div>
