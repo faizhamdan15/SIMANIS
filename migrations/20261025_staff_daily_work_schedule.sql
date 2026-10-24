@@ -1,52 +1,123 @@
--- SIMANIS / Jadwal Kerja Harian Tata Usaha (tanpa jadwal pelajaran).
--- REVIEW sebelum migrasi produksi: tidak memasukkan staf secara otomatis.
--- Konfigurasi berlaku sejak effective_from, tidak menandai tanggal sebelumnya sebagai ALFA.
+-- SIMANIS • Riwayat jadwal kerja harian TU dengan tanggal efektif.
+-- Fitur terpisah dari tabel jadwal pelajaran; tidak mengisi staf secara otomatis.
+-- Tidak mengubah data absensi historis sebelum jadwal berlaku.
 begin;
 
 create table if not exists public.staff_work_schedules (
+  id uuid primary key default gen_random_uuid(),
   teacher_id uuid not null references public.teachers(id) on delete cascade,
   day_of_week smallint not null check(day_of_week between 1 and 7),
   start_time time not null,
   end_time time not null,
-  is_active boolean not null default true,
-  effective_from date not null default (timezone('Asia/Jakarta', now()))::date,
+  effective_from date not null,
+  effective_until date,
   note text check (note is null or char_length(note) <= 150),
   updated_by uuid references auth.users(id),
-  updated_at timestamptz not null default now(),
-  primary key (teacher_id, day_of_week),
-  constraint staff_work_schedules_valid_hours check (end_time > start_time)
+  created_at timestamptz not null default now(),
+  constraint staff_work_schedule_valid_hours check (end_time > start_time),
+  constraint staff_work_schedule_valid_dates check (effective_until is null or effective_until >= effective_from),
+  unique(teacher_id,day_of_week,effective_from)
 );
-
-create index if not exists staff_work_schedules_active_day_idx
-  on public.staff_work_schedules (day_of_week, is_active, effective_from);
+create index if not exists staff_work_schedule_lookup_idx
+ on public.staff_work_schedules(teacher_id,day_of_week,effective_from,effective_until);
 
 alter table public.staff_work_schedules enable row level security;
-grant select,insert,update on public.staff_work_schedules to authenticated;
+grant select on public.staff_work_schedules to authenticated;
 revoke all on public.staff_work_schedules from anon;
+revoke insert,update,delete on public.staff_work_schedules from authenticated;
 
 drop policy if exists staff_work_schedules_read on public.staff_work_schedules;
 create policy staff_work_schedules_read on public.staff_work_schedules
- for select to authenticated using (
-   teacher_id = (select public.current_teacher_id())
-   or (select public.current_app_role()) in ('SUPER_ADMIN','TU','WAKA_KURIKULUM')
-   or public.has_staff_position('KEPALA_TU')
- );
-drop policy if exists staff_work_schedules_admin_insert on public.staff_work_schedules;
-create policy staff_work_schedules_admin_insert on public.staff_work_schedules
- for insert to authenticated with check (
-   (select public.current_app_role()) in ('SUPER_ADMIN','TU','WAKA_KURIKULUM')
-   or public.has_staff_position('KEPALA_TU')
- );
-drop policy if exists staff_work_schedules_admin_update on public.staff_work_schedules;
-create policy staff_work_schedules_admin_update on public.staff_work_schedules
- for update to authenticated
- using (
-   (select public.current_app_role()) in ('SUPER_ADMIN','TU','WAKA_KURIKULUM')
-   or public.has_staff_position('KEPALA_TU')
- ) with check (
-   (select public.current_app_role()) in ('SUPER_ADMIN','TU','WAKA_KURIKULUM')
-   or public.has_staff_position('KEPALA_TU')
- );
+  for select to authenticated
+  using (
+    teacher_id = (select public.current_teacher_id())
+    or (select public.current_app_role()) in ('SUPER_ADMIN','TU','WAKA_KURIKULUM')
+    or public.has_staff_position('KEPALA_TU')
+  );
+
+-- Simpan jadwal penuh per staf sejak tanggal yang dipilih, dalam satu transaksi.
+-- Rekaman lama ditutup di H-1; rekaman masa depan diganti tanpa mengubah masa lalu.
+create or replace function public.set_staff_work_schedule(
+ p_teacher_id uuid, p_effective_from date, p_days jsonb
+) returns integer
+language plpgsql security definer set search_path = public,pg_temp
+as $$
+declare
+  v_today date := (timezone('Asia/Jakarta',now()))::date;
+  v_item jsonb;
+  v_day smallint;
+  v_start time;
+  v_end time;
+  v_seen smallint[] := '{}'::smallint[];
+  v_count integer := 0;
+  v_note text;
+begin
+  if auth.uid() is null or
+    not (
+      public.current_app_role() in ('SUPER_ADMIN','TU','WAKA_KURIKULUM')
+      or public.has_staff_position('KEPALA_TU')
+    ) then
+      raise exception 'Hanya pengelola absensi yang dapat mengatur jadwal kerja.';
+  end if;
+  if not exists (select 1 from public.teachers t
+     where t.id=p_teacher_id and t.is_active=true) then
+    raise exception 'Staf belum ada atau tidak aktif.';
+  end if;
+  if p_effective_from is null or p_effective_from < v_today then
+    raise exception 'Tanggal mulai tidak boleh sebelum hari ini (WIB).';
+  end if;
+  if p_days is null or jsonb_typeof(p_days) <> 'array' or jsonb_array_length(p_days) > 7 then
+    raise exception 'Daftar hari kerja tidak valid.';
+  end if;
+
+  for v_item in select value from jsonb_array_elements(p_days) loop
+    if jsonb_typeof(v_item)<>'object'
+       or not (v_item ? 'day_of_week')
+       or not (v_item ? 'start_time')
+       or not (v_item ? 'end_time') then
+      raise exception 'Data hari kerja tidak lengkap.';
+    end if;
+    v_day := (v_item->>'day_of_week')::smallint;
+    v_start := (v_item->>'start_time')::time;
+    v_end := (v_item->>'end_time')::time;
+    if v_day not between 1 and 7 or v_day=any(v_seen) then
+      raise exception 'Hari kerja harus unik dan bernilai 1 sampai 7.';
+    end if;
+    if v_start is null or v_end is null or v_end<=v_start then
+      raise exception 'Jam masuk harus lebih awal dari jam pulang.';
+    end if;
+    if length(coalesce(v_item->>'note',''))>150 then
+      raise exception 'Catatan hari kerja terlalu panjang.';
+    end if;
+    v_seen:=array_append(v_seen,v_day);
+  end loop;
+
+  perform pg_advisory_xact_lock(20261025,hashtext(p_teacher_id::text));
+  delete from public.staff_work_schedules w
+   where w.teacher_id=p_teacher_id and w.effective_from>=p_effective_from;
+  update public.staff_work_schedules w
+   set effective_until=p_effective_from-1
+   where w.teacher_id=p_teacher_id
+     and w.effective_from<p_effective_from
+     and (w.effective_until is null or w.effective_until>=p_effective_from);
+
+  for v_item in select value from jsonb_array_elements(p_days) loop
+    v_day:=(v_item->>'day_of_week')::smallint;
+    v_start:=(v_item->>'start_time')::time;
+    v_end:=(v_item->>'end_time')::time;
+    v_note:=nullif(trim(v_item->>'note'),'');
+    insert into public.staff_work_schedules (
+      teacher_id,day_of_week,start_time,end_time,effective_from,note,updated_by
+    ) values (
+      p_teacher_id,v_day,v_start,v_end,p_effective_from,v_note,auth.uid()
+    );
+    v_count:=v_count+1;
+  end loop;
+  return v_count;
+end;
+$$;
+revoke all on function public.set_staff_work_schedule(uuid,date,jsonb) from public,anon;
+grant execute on function public.set_staff_work_schedule(uuid,date,jsonb) to authenticated;
 
 -- Keep the exact original RPC signatures, preserving callers and existing permissions.
 
@@ -83,9 +154,8 @@ day_schedule as (
 staff_day as (
     select w.teacher_id, w.start_time, w.end_time, w.note
     from public.staff_work_schedules w
-    where w.is_active = true
-      and w.day_of_week = extract(isodow from p_date)::smallint
-      and p_date >= w.effective_from
+    where w.day_of_week = extract(isodow from p_date)::smallint
+      and p_date between w.effective_from and coalesce(w.effective_until,'infinity'::date)
 )
 select
     t.id as teacher_id,
@@ -98,11 +168,14 @@ select
     coalesce(ds.scheduled_end, ws.end_time) as scheduled_end,
 
     coalesce(ds.teaching_slots, 0)::bigint as teaching_slots,
-    coalesce(ds.schedule_detail,
-      'Jadwal Kerja TU' ||
-      case when nullif(trim(ws.note), '') is not null
-        then ' · ' || left(trim(ws.note), 140) else '' end
-    ) as schedule_detail,
+    case
+      when ds.teacher_id is not null then ds.schedule_detail
+      when ws.teacher_id is not null then
+        'Jadwal Kerja TU' ||
+        case when nullif(trim(ws.note), '') is not null
+          then ' · ' || left(trim(ws.note), 140) else '' end
+      else null
+    end as schedule_detail,
 
     case
         when ds.teacher_id is null and ws.teacher_id is null then 'TIDAK_ADA_JADWAL'
@@ -204,7 +277,7 @@ begin
     from public.staff_work_schedules w
     where w.teacher_id = p_teacher_id
       and w.day_of_week = extract(isodow from v_date)::smallint
-      and w.is_active = true and v_date >= w.effective_from;
+      and v_date between w.effective_from and coalesce(w.effective_until,'infinity'::date);
     v_has_schedule := v_scheduled_start is not null;
   end if;
 
@@ -295,7 +368,7 @@ begin
     from public.staff_work_schedules w
     where w.teacher_id = p_teacher_id
       and w.day_of_week = extract(isodow from p_date)::smallint
-      and w.is_active = true and p_date >= w.effective_from;
+      and p_date between w.effective_from and coalesce(w.effective_until,'infinity'::date);
   end if;
 
   if v_scheduled_start is null and v_final_status = 'ALFA' then
