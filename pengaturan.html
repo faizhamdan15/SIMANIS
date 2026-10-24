@@ -204,7 +204,8 @@
               <p style="margin:3px 0 0;font-size:9px;color:var(--muted)">Buat akun login untuk guru aktif, hubungkan otomatis ke master guru, lalu tetapkan jobdesk strukturalnya.</p>
             </div>
             <div class="actions">
-              <button id="downloadCredentialsBtn" class="secondary-btn" disabled>Download Akun Terakhir</button>
+              <button id="downloadAllTeacherAccountsBtn" class="secondary-btn">⬇ Download Semua Akun (CSV)</button>
+              <button id="downloadCredentialsBtn" class="secondary-btn" disabled>⬇ Password Sementara Sesi Ini (0)</button>
               <button id="bulkCreateTeacherAccountsBtn" class="primary-btn">Buat Akun Semua Guru</button>
             </div>
           </div>
@@ -218,7 +219,7 @@
           </div>
 
           <div class="credential-note">
-            Password sementara <b>tidak disimpan di database SIMANIS</b>. Password hanya ditampilkan sekali setelah akun dibuat/reset. Simpan CSV hasil pembuatan akun sebelum menutup halaman.
+            <b>Download Semua Akun</b> berisi daftar guru yang memiliki akun, username, dan statusnya—<b>tanpa password</b>. Password lama tidak dapat dipulihkan. Tombol <b>Password Sementara Sesi Ini</b> hanya mengunduh password yang baru dibuat/reset sejak halaman ini dibuka. Simpan CSV sebelum keluar atau memuat ulang halaman.
           </div>
 
           <div class="account-filter">
@@ -368,10 +369,10 @@
 
 <div id="credentialModal" class="modal-backdrop hidden">
   <div class="modal" style="max-width:900px">
-    <div class="modal-head"><h3>Akun / Password Sementara</h3><button id="credentialModalClose" class="modal-close">✕</button></div>
+    <div class="modal-head"><h3>Password Sementara Sesi Ini <span id="credentialCount"></span></h3><button id="credentialModalClose" class="modal-close">✕</button></div>
     <div class="modal-body">
       <div class="credential-note">
-        Salin atau download daftar ini sekarang. Demi keamanan, password sementara tidak dapat ditampilkan kembali setelah modal ditutup.
+        Password sementara yang baru diterbitkan selama halaman ini terbuka terkumpul di sini, termasuk hasil pembuatan/reset akun sebelumnya pada sesi yang sama. Password tidak disimpan di database atau penyimpanan browser. Download sebelum keluar/memuat ulang; simpan di tempat aman.
       </div>
       <div class="table-wrap">
         <table class="credential-table">
@@ -383,7 +384,7 @@
     </div>
     <div class="modal-actions">
       <button id="credentialPrintBtn" type="button" class="secondary-btn">Cetak</button>
-      <button id="credentialDownloadBtn" type="button" class="primary-btn" style="width:auto">Download CSV</button>
+      <button id="credentialDownloadBtn" type="button" class="primary-btn" style="width:auto">Download Semua Password Baru (CSV)</button>
     </div>
   </div>
 </div>
@@ -410,6 +411,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="pengaturan.js?v=20260928-01"></script>
+<script src="pengaturan.js?v=20261025-download-akun-lengkap-v1"></script>
 </body>
 </html>
