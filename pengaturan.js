@@ -2,6 +2,7 @@ const $=id=>document.getElementById(id);
 let api,profile,overview={school:{},academic_years:[],semesters:[],users:[],teachers:[],modules:[],permissions:[]},positionData=[],teacherAccounts=[],lastCredentials=[];
 const TEACHER_LOGIN_DOMAIN="akun.manuriska.sch.id";
 let bulkPasswordResetRunning=false;
+let credentialCsvObjectUrl=null;
 const ROLES=["SUPER_ADMIN","KEPALA_MADRASAH","TU","WAKA_KURIKULUM","WAKA_KESISWAAN","BENDAHARA","GURU","WALI_KELAS"];
 const BRAND_BUCKET="system-branding";
 
@@ -194,8 +195,7 @@ function renderTeacherAccounts(){
  document.querySelectorAll("[data-account-jobdesk]").forEach(b=>b.onclick=()=>openJobdesk(b.dataset.accountJobdesk));
  document.querySelectorAll("#teacherAccountBody [data-edit-user]").forEach(b=>b.onclick=()=>openUser(b.dataset.editUser));
 
- $("downloadCredentialsBtn").disabled=!lastCredentials.length;
- $("downloadCredentialsBtn").textContent="⬇ Password Sementara Sesi Ini ("+lastCredentials.length+")";
+ updateCredentialsButtons();
  $("downloadAllTeacherAccountsBtn").disabled=!teacherAccounts.some(a=>a.user_id);
  $("downloadAllAccountsWithAvailablePasswordsBtn").disabled=!teacherAccounts.some(a=>a.user_id);
  $("resetAllTeacherPasswordsBtn").disabled=bulkPasswordResetRunning||!teacherAccounts.some(a=>a.user_id&&a.is_active===true&&["GURU","WALI_KELAS"].includes(a.role)&&a.user_id!==profile?.id);
@@ -263,10 +263,12 @@ async function resetTeacherPassword(userId){
 const accountNameCollator=new Intl.Collator("id-ID",{sensitivity:"base",numeric:true});
 function credentialKey(x){return String(x.user_id||x.teacher_id||x.username||x.teacher_code||"").trim().toLowerCase()}
 function mergeCredentialsFromSession(creds){
+ let changed=false;
  for(const input of creds||[]){
   if(!input||!input.temporary_password)continue;
   const next={...input},key=credentialKey(next);
   if(!key)continue;
+  if(!changed){revokeCredentialCsvDownloadLink();changed=true;}
   const index=lastCredentials.findIndex(old=>credentialKey(old)===key);
   if(index>=0)lastCredentials[index]=next;
   else lastCredentials.push(next);
@@ -275,9 +277,14 @@ function mergeCredentialsFromSession(creds){
   accountNameCollator.compare(String(a.teacher_code||""),String(b.teacher_code||"")));
 }
 function updateCredentialsButtons(){
- $("downloadCredentialsBtn").disabled=!lastCredentials.length;
- $("downloadCredentialsBtn").textContent="⬇ Password Sementara Sesi Ini ("+lastCredentials.length+")";
- $("credentialCount").textContent="("+lastCredentials.length+" akun)";
+ const count=lastCredentials.length;
+ // Jangan nonaktifkan tombol ketika jumlah nol: beri pengguna penjelasan yang jelas.
+ $("downloadCredentialsBtn").disabled=false;
+ $("downloadCredentialsBtn").textContent="⬇ Password Sementara Sesi Ini ("+count+")";
+ $("credentialCount").textContent="("+count+" akun)";
+ $("credentialSessionHint").textContent=count?
+   count+" password sementara tersedia sejak halaman ini dibuka. Klik 'Password Sementara Sesi Ini' untuk mengunduh CSV, lalu simpan di tempat aman.":
+   "Belum ada password baru pada halaman ini. Klik 'Password Sementara Sesi Ini (0)' untuk informasi. Password lama tidak dapat diambil kembali.";
 }
 function showCredentials(creds,errors=[]){
  mergeCredentialsFromSession(creds);
@@ -470,11 +477,48 @@ async function resetAllTeacherPasswordsAndDownload(){
    }catch(_){}
  }
 }
+function revokeCredentialCsvDownloadLink(){
+ if(credentialCsvObjectUrl){
+  URL.revokeObjectURL(credentialCsvObjectUrl);
+  credentialCsvObjectUrl=null;
+ }
+ const link=$("credentialManualDownloadLink");
+ if(link){link.removeAttribute("href");link.classList.add("hidden")}
+}
 function downloadCredentials(){
- if(!lastCredentials.length){alert("Belum ada password sementara yang dibuat atau direset pada sesi halaman ini.");return}
+ const msg=$("teacherAccountMessage");
+ if(profile?.role!=="SUPER_ADMIN"){
+  msg.className="message";
+  msg.textContent="Hanya Super Admin yang dapat mengunduh password sementara.";
+  return false;
+ }
+ if(!lastCredentials.length){
+  const explain="Belum ada password sementara baru pada SESI HALAMAN INI. Jika akun dibuat/reset kemarin, atau Anda sudah refresh, keluar, atau membuka halaman baru, password tersebut tidak bisa ditampilkan ulang. Gunakan Download Semua Akun untuk daftar username. Jika guru membutuhkan password baru, gunakan Reset Password pada akun guru itu (password lama langsung tidak berlaku). Tidak ada password yang direset otomatis.";
+  msg.className="message";
+  msg.textContent=explain;
+  $("credentialSessionHint").textContent="Password sementara sesi ini: 0. "+explain;
+  alert(explain);
+  return false;
+ }
  const rows=[["Nama Guru","Kode Guru","Username","Password Sementara"]];
- for(const c of lastCredentials)rows.push([c.full_name||"",c.teacher_code||"",c.username||"",c.temporary_password||""]);
- downloadTeacherCSV(rows,"password-sementara-guru-sesi-"+teacherCsvDate()+".csv");
+ for(const c of lastCredentials){
+  rows.push([c.full_name||"",c.teacher_code||"",c.username||"",c.temporary_password||""]);
+ }
+ // Siapkan link HTML yang dapat diklik manual jika browser memblokir download otomatis.
+ // Hanya URL memori yang berlaku dalam tab ini. Tidak disimpan di database/localStorage.
+ revokeCredentialCsvDownloadLink();
+ const csv=rows.map(row=>row.map(safeCsvCell).join(",")).join("\r\n");
+ credentialCsvObjectUrl=URL.createObjectURL(new Blob(["\ufeff",csv],{type:"text/csv;charset=utf-8"}));
+ const link=$("credentialManualDownloadLink");
+ link.href=credentialCsvObjectUrl;
+ link.download="password-sementara-guru-sesi-"+teacherCsvDate()+".csv";
+ link.classList.remove("hidden");
+ $("credentialModal").classList.remove("hidden");
+ $("credentialErrors").textContent="CSV berisi "+lastCredentials.length+" password baru sudah disiapkan. Jika file tidak otomatis terunduh, klik 'Jika belum terunduh, klik di sini' di bawah.";
+ msg.className="message ok";
+ msg.textContent="File CSV "+lastCredentials.length+" password sementara disiapkan untuk diunduh. Jika unduhan tidak muncul, gunakan tautan manual pada jendela password sementara.";
+ link.click();
+ return true;
 }
 function printCredentials(){
  if(!lastCredentials.length)return;
@@ -581,6 +625,7 @@ $("userSearch").oninput=renderUsers;$("userRoleFilter").onchange=renderUsers;$("
 $("teacherAccountSearch").oninput=renderTeacherAccounts;$("teacherAccountStatusFilter").onchange=renderTeacherAccounts;$("teacherAccountJobdeskFilter").onchange=renderTeacherAccounts;
 $("bulkCreateTeacherAccountsBtn").onclick=bulkCreateTeacherAccounts;$("downloadCredentialsBtn").onclick=downloadCredentials;$("downloadAllTeacherAccountsBtn").onclick=downloadAllTeacherAccounts;$("downloadAllAccountsWithAvailablePasswordsBtn").onclick=downloadAllAccountsWithAvailablePasswords;$("resetAllTeacherPasswordsBtn").onclick=resetAllTeacherPasswordsAndDownload;
 $("credentialModalClose").onclick=closeCredentialModal;$("credentialDownloadBtn").onclick=downloadCredentials;$("credentialPrintBtn").onclick=printCredentials;
+window.addEventListener("pagehide",revokeCredentialCsvDownloadLink);
 $("jobdeskModalClose").onclick=closeJobdesk;$("jobdeskCancelBtn").onclick=closeJobdesk;$("jobdeskForm").onsubmit=saveJobdesk;
 
 $("permissionRole").onchange=renderPermissions;$("exportConfigBtn").onclick=exportConfig;$("refreshBtn").onclick=loadOverview;
