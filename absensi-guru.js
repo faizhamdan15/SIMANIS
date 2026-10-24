@@ -32,7 +32,25 @@ renderStats();render();$("dateCaption").textContent=`Data absensi tanggal ${new 
 
 function renderStats(){const scheduled=rows.filter(r=>r.has_schedule);$("statScheduled").textContent=scheduled.length;$("statPresent").textContent=scheduled.filter(r=>["HADIR","TERLAMBAT"].includes(r.attendance_status)).length;$("statExcused").textContent=scheduled.filter(r=>["IZIN","SAKIT","DINAS"].includes(r.attendance_status)).length;$("statMissing").textContent=scheduled.filter(r=>["BELUM_ABSEN","ALFA"].includes(r.attendance_status)).length}
 
-function filtered(){const q=$("searchInput").value.trim().toLowerCase(),sf=$("scheduleFilter").value,st=$("statusFilter").value;return rows.filter(r=>{const hay=`${r.teacher_code??""} ${r.teacher_name||""} ${r.schedule_detail||""}`.toLowerCase();return(!q||hay.includes(q))&&(sf==="ALL"||(sf==="SCHEDULED"&&r.has_schedule)||(sf==="NONE"&&!r.has_schedule))&&(!st||r.attendance_status===st)})}
+// Daftar absensi menggunakan abjad nama, bukan kode pegawai dari RPC.
+const attendanceNameCollator=new Intl.Collator("id-ID",{sensitivity:"base",numeric:true,ignorePunctuation:true});
+function sortAttendanceByName(items){
+ return [...items].sort((a,b)=>{
+   const nameA=String(a.teacher_name||"").trim(),nameB=String(b.teacher_name||"").trim();
+   const byName=attendanceNameCollator.compare(nameA,nameB);
+   if(byName)return byName;
+   const byCode=attendanceNameCollator.compare(String(a.teacher_code??""),String(b.teacher_code??""));
+   return byCode||attendanceNameCollator.compare(String(a.teacher_id??""),String(b.teacher_id??""));
+ });
+}
+function filtered(){
+ const q=$("searchInput").value.trim().toLowerCase(),sf=$("scheduleFilter").value,st=$("statusFilter").value;
+ const matching=rows.filter(r=>{
+  const hay=`${r.teacher_code??""} ${r.teacher_name||""} ${r.schedule_detail||""}`.toLowerCase();
+  return(!q||hay.includes(q))&&(sf==="ALL"||(sf==="SCHEDULED"&&r.has_schedule)||(sf==="NONE"&&!r.has_schedule))&&(!st||r.attendance_status===st);
+ });
+ return sortAttendanceByName(matching);
+}
 
 function actionHtml(r){const today=$("attendanceDate").value===todayYMD();let out=[];if(today&&r.has_schedule){if(r.attendance_status==="BELUM_ABSEN")out.push(`<button class="primary" data-checkin="${r.teacher_id}">Check In</button>`);if(["HADIR","TERLAMBAT"].includes(r.attendance_status)&&r.check_in&&!r.check_out)out.push(`<button class="primary" data-checkout="${r.teacher_id}">Check Out</button>`)}if(isAdmin())out.push(`<button data-manage="${r.teacher_id}">Kelola</button>`);return out.join("")||"-"}
 
