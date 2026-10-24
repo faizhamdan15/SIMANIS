@@ -211,7 +211,7 @@ where t.is_active = true
 order by
     case when t.teacher_code is null then 999999 else t.teacher_code end,
     t.full_name;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.teacher_check_in(p_teacher_id uuid, p_method text DEFAULT 'MANUAL'::text, p_note text DEFAULT NULL::text)
@@ -321,7 +321,7 @@ begin
 
   return v_result;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.save_teacher_attendance_admin(p_teacher_id uuid, p_date date, p_status text, p_note text DEFAULT NULL::text, p_check_in_time time without time zone DEFAULT NULL::time without time zone, p_check_out_time time without time zone DEFAULT NULL::time without time zone)
@@ -426,6 +426,6 @@ begin
 
   return v_result;
 end;
-$function$
+$function$;
 
 commit;
