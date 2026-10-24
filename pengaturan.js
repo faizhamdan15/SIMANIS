@@ -288,7 +288,7 @@ function showCredentials(creds,errors=[]){
 }
 function closeCredentialModal(){$("credentialModal").classList.add("hidden")}
 function safeCsvCell(value){
- let v=String(value??"");
+ let v=String(value??"").replace(/[\r\n\u0000]+/g," ");
  // Cegah formula injection di aplikasi spreadsheet.
  if(/^[\s]*[=+\-@\t\r\n]/.test(v))v="'"+v;
  return '"'+v.replaceAll('"','""')+'"';
@@ -331,7 +331,7 @@ async function downloadAllTeacherAccounts(){
   msg.className="message ok";
   msg.textContent=accounts.length+" akun guru diekspor ke CSV. Username dan status lengkap; password lama tidak tersedia dan tidak disertakan.";
  }catch(err){msg.className="message";msg.textContent="Gagal mengunduh semua akun: "+(err?.message||err)}
- finally{button.disabled=false;button.textContent="⬇ Download Semua Akun (CSV)"}
+ finally{button.disabled=!teacherAccounts.some(a=>a.user_id);button.textContent="⬇ Download Semua Akun (CSV)"}
 }
 function downloadCredentials(){
  if(!lastCredentials.length){alert("Belum ada password sementara yang dibuat atau direset pada sesi halaman ini.");return}
