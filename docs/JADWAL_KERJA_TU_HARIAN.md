@@ -1,17 +1,30 @@
 # SIMANIS — Jadwal Kerja Harian Tata Usaha & Staf
 
 ## Tujuan
-Memberikan jadwal presensi **kerja harian** bagi tenaga TU/staf yang tidak mempunyai jadwal mengajar. Jangan membuat jadwal mata pelajaran palsu. Jam masuk, jam pulang, hari kerja, dan tanggal mulai ditetapkan oleh pengelola SIMANIS, **bukan diisi otomatis**.
+Memberikan jadwal presensi **kerja harian** bagi tenaga TU/staf yang tidak mempunyai jadwal mengajar. Jangan membuat jadwal mata pelajaran palsu. **Kebijakan jam kerja yang sudah dikonfirmasi:** masuk setiap hari kecuali **Jumat**, jam **07.00–12.30 WIB**. Maka hari kerja: **Sabtu, Ahad, Senin, Selasa, Rabu, Kamis** (6 hari). SIMANIS menyediakan preset form untuk pola tersebut, namun **admin tetap harus memilih nama staf dan menekan Simpan**; jadwal tidak otomatis diterapkan kepada guru atau staf lain.
 
 ## Alur pengguna
 1. Super Admin, TU, Waka Kurikulum, atau pengguna berjabatan Kepala TU masuk ke **Absensi Guru & Staf**.
 2. Klik **Atur Jadwal Kerja TU**. Pilih satu nama guru/staf aktif (data berasal dari tabel `teachers`).
 3. Pilih **tanggal mulai berlaku**, hanya hari ini atau tanggal mendatang (WIB).
-4. Centang hari kerja yang relevan. Tersedia pintasan **Senin–Sabtu**, **Senin–Ahad**, atau **Kosongkan Hari**. Hari Jumat dan Ahad bisa diaktifkan bila memang masuk kerja.
-5. Isi jam masuk–pulang masing-masing hari, atau gunakan **Salin jam ke hari terpilih**, lalu Simpan.
+4. Klik preset **Jadwal TU: Sabtu–Kamis · 07.00–12.30 (Jumat Libur)**. Sistem mencentang Senin, Selasa, Rabu, Kamis, Sabtu, Ahad (ISO 1,2,3,4,6,7) dan mengosongkan Jumat (ISO 5). Jika staf mempunyai jadwal berbeda, admin dapat mengeditnya. Pilihan lainnya **Senin–Sabtu**, **Senin–Ahad** dan **Kosongkan Hari** tetap tersedia.
+5. Periksa jam kerja yang sudah terisi **07.00 sampai 12.30** pada keenam hari; preset tidak menyimpan otomatis. Pilih staf dan tanggal efektif, lalu tekan **Simpan Jadwal Kerja**.
 6. Setelah migrasi aktif, halaman absensi menampilkan **Jadwal Kerja TU** bagi staf yang tidak memiliki jam mengajar di hari itu. `Check In`, `Check Out`, toleransi keterlambatan, status Izin/Sakit/Dinas, dan ALFA pada hari kerja berjalan menggunakan tabel absensi yang sama, tanpa menggandakan catatan.
 
 **Penting:** Petugas belum diberi jadwal hanya karena memiliki akun atau tidak mempunyai jadwal mengajar. Administrator wajib memilih staf yang benar dan menyimpan jam kerja secara eksplisit.
+
+## Validasi khusus jadwal TU
+| Hari | Bekerja | Jam |
+|---|---|---|
+| Sabtu | Ya | 07.00–12.30 |
+| Ahad | Ya | 07.00–12.30 |
+| Senin | Ya | 07.00–12.30 |
+| Selasa | Ya | 07.00–12.30 |
+| Rabu | Ya | 07.00–12.30 |
+| Kamis | Ya | 07.00–12.30 |
+| Jumat | **Libur** | **Tidak dibuatkan jadwal** |
+
+Pada **Jumat**, staf tanpa jadwal pelajaran tidak dihitung alfa. Pada **Ahad**, staf yang ditetapkan mengikuti jadwal kerja 07.00–12.30 dan bisa check-in/check-out. Batas toleransi keterlambatan mengikuti pengaturan absensi (saat inspeksi: 10 menit), bukan angka yang disetel di form.
 
 ## Perilaku tanggal dan hari
 - `day_of_week`: 1=Senin, 2=Selasa, 3=Rabu, 4=Kamis, 5=Jumat, 6=Sabtu, 7=Ahad (ISO).
@@ -42,7 +55,7 @@ Data produksi saat implementasi: 38 entri `teachers` aktif; 4 tanpa jadwal mata 
 
 ## Daftar periksa
 - [x] Struktur SQL, pembatasan peran, validitas jam dan tanggal efektif ditinjau.
-- [x] HTML 7 hari kerja termasuk Jumat/Ahad dan form admin terpasang.
+- [x] UI preset Sabtu–Kamis 07.00–12.30, Jumat tidak terpilih; form admin tetap mendukung pengecualian per staf.
 - [x] JS lulus pemeriksaan sintaks, ID referensi lengkap, mock UI menyimpan 7 hari berbeda.
 - [ ] Migrasi Supabase staging dan uji transaksi/RLS.
 - [ ] Uji nyata admin, guru, TU, scanner/QR serta rekap sebelum produksi.
