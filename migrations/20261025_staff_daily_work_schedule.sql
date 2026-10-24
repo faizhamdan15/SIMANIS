@@ -31,8 +31,13 @@ create policy staff_work_schedules_read on public.staff_work_schedules
   for select to authenticated
   using (
     teacher_id = (select public.current_teacher_id())
-    or (select public.current_app_role()) in ('SUPER_ADMIN','TU','WAKA_KURIKULUM')
+    or (select public.current_app_role()) in (
+      'SUPER_ADMIN','KEPALA_MADRASAH','TU','WAKA_KURIKULUM','WAKA_KESISWAAN'
+    )
+    or public.is_admin_head_manager()
     or public.has_staff_position('KEPALA_TU')
+    or public.has_staff_position('PKM_KURIKULUM')
+    or public.has_staff_position('PKM_KESISWAAN')
   );
 
 -- Simpan jadwal penuh per staf sejak tanggal yang dipilih, dalam satu transaksi.
