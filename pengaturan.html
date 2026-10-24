@@ -212,7 +212,7 @@
             <div class="actions">
               <button id="downloadAllTeacherAccountsBtn" class="secondary-btn">⬇ Download Semua Akun (CSV)</button>
               <button id="downloadAllAccountsWithAvailablePasswordsBtn" class="secondary-btn">⬇ Semua Akun + Password Tersedia</button>
-              <button id="downloadCredentialsBtn" class="secondary-btn" disabled>⬇ Password Sementara Sesi Ini (0)</button>
+              <button id="downloadCredentialsBtn" type="button" class="secondary-btn">⬇ Password Sementara Sesi Ini (0)</button>
               <button id="bulkCreateTeacherAccountsBtn" class="primary-btn">Buat Akun Semua Guru</button>
             </div>
           </div>
@@ -227,14 +227,16 @@
 
           <div class="credential-note">
             <strong>Password lama tidak dapat dibaca ulang dari Supabase Auth.</strong> Gunakan <strong>Semua Akun + Password Tersedia</strong> untuk mengunduh seluruh akun, sekaligus password sementara yang <em>baru dibuat/reset pada sesi halaman ini</em>. Password akun lain akan kosong dan ditandai belum tersedia, bukan password lama.
-            <strong>Password Sementara Sesi Ini</strong> hanya berisi password yang diketahui selama halaman masih dibuka.
+            <strong>Password Sementara Sesi Ini</strong> hanya berisi password yang diketahui selama halaman masih dibuka. Jika tombol menunjukkan (0), artinya belum ada password baru pada sesi ini; <strong>bukan berarti unduh sedang rusak</strong>. Untuk akun lama, password tidak dapat dibaca ulang dan tidak akan direset otomatis.
           </div>
+          <div id="credentialSessionHint" role="status" aria-live="polite" style="font-size:11px;margin:9px 0 2px;color:#576b60">Belum ada password baru pada sesi halaman ini. Tombol di atas dapat diklik untuk membaca penjelasan.</div>
           <details id="bulkResetDetails" class="credential-note bulk-reset-warning">
             <summary>Perlu password sementara baru untuk seluruh guru? Buka pilihan reset massal</summary>
             <p><strong>PENTING:</strong> Mereset password akan langsung membuat password lama tidak berlaku. Guru harus login menggunakan password sementara baru lalu menggantinya. Proses ini hanya untuk akun aktif dengan role GURU/WALI_KELAS, tidak mencakup Super Admin, akun pengelola lain, atau akun nonaktif. Proses tidak bisa dibatalkan.</p>
             <p>Sebelum melakukan reset, informasikan jadwal perubahan password kepada guru. Setelah proses dimulai, jangan tutup tab hingga file CSV berhasil diunduh. Jika sebagian gagal, unduh daftar keberhasilan lalu ulangi hanya akun yang belum berhasil.</p>
             <button id="resetAllTeacherPasswordsBtn" type="button" class="secondary-btn">Reset Password Guru Aktif &amp; Unduh CSV</button>
             <div id="bulkResetStatus" role="status" aria-live="polite" style="font-size:11px;margin-top:8px"></div>
+
           </details>
 
           <div class="account-filter">
@@ -400,6 +402,7 @@
     <div class="modal-actions">
       <button id="credentialPrintBtn" type="button" class="secondary-btn">Cetak</button>
       <button id="credentialDownloadBtn" type="button" class="primary-btn" style="width:auto">Download Semua Password Baru (CSV)</button>
+      <a id="credentialManualDownloadLink" class="secondary-btn hidden" style="width:auto;text-decoration:none" download>Jika belum terunduh, klik di sini</a>
     </div>
   </div>
 </div>
@@ -426,6 +429,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="pengaturan.js?v=20261025-bulk-credentials-v1"></script>
+<script src="pengaturan.js?v=20261025-password-sesi-ux-v2"></script>
 </body>
 </html>
