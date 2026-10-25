@@ -323,7 +323,9 @@ function renderMonthlyRecap(){
  $("monthlyRecapDownload").disabled=false;
  $("monthlyRecapPrint").disabled=false;
  recapMessage("Rekap "+recapMonthLabel(monthlyRecapKey)+": "+shown.length+" dari "+totals.teacher_count+
-   " guru/staf ditampilkan. File CSV dan cetakan selalu mencakup SELURUH guru/staf yang terdaftar. Data sampai hari ini (WIB).");
+   " guru/staf ditampilkan. Unduhan selalu mencakup SELURUH guru/staf. "+
+   (totals.automatic_absence_days>0?"⚠ "+totals.automatic_absence_days+" hari Alfa otomatis belum diverifikasi; jangan dianggap ketidakhadiran pasti. ":"")+
+   "Data sampai hari ini (WIB).");
 }
 function invalidateMonthlyRecap(){
  monthlyRecapRows=[];monthlyRecapKey="";
@@ -416,7 +418,11 @@ function printMonthlyRecap(){
   '<p class="note">*Alfa otomatis termasuk dalam total Alfa, yaitu hari terjadwal tanpa catatan absensi; perlu diverifikasi. Hari tanpa jadwal dan tanggal mendatang tidak dihitung. Persentase hadir = (hadir + terlambat) / hari terjadwal.</p>'+
   '</body></html>';
  w.document.open();w.document.write(html);w.document.close();w.focus();
- w.addEventListener("load",()=>{w.print()},{once:true});
+ let printed=false;
+ const startPrint=()=>{if(printed)return;printed=true;try{w.print()}catch(e){console.warn("Gagal membuka dialog cetak:",e)}};
+ w.addEventListener("load",startPrint,{once:true});
+ // Beberapa browser sudah menuntaskan load sebelum listener dipasang.
+ setTimeout(startPrint,500);
  recapMessage("Jendela cetak dibuka. Pilih 'Simpan sebagai PDF' pada opsi tujuan printer, atau cetak langsung.");
 }
 async function initMonthlyRecap(){
