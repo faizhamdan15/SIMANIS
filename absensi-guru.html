@@ -32,6 +32,31 @@
     .staff-work-access{display:flex;flex-direction:column;gap:7px;align-items:flex-start;max-width:350px}
     .staff-work-access-hint{font-size:10px;line-height:1.5;color:#516b5b}
     .staff-work-toggle[aria-expanded="true"]{background:#0d8154;border-color:#0d8154}
+    .monthly-recap-panel{background:#fff;border:1px solid #d6e6dd;border-radius:17px;padding:18px;margin:0 0 20px}
+    .monthly-recap-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .monthly-recap-head h3{margin:0;font-size:17px;color:#12553a}
+    .monthly-recap-note{font-size:11px;line-height:1.6;color:#567365;margin:6px 0 14px}
+    .monthly-recap-toolbar{display:flex;align-items:end;flex-wrap:wrap;gap:10px;margin-bottom:13px}
+    .monthly-recap-toolbar label{font-size:10px;color:#3b594b;font-weight:800;display:grid;gap:5px}
+    .monthly-recap-toolbar input{border:1px solid #c7dcd0;background:white;padding:10px;border-radius:10px;font-size:12px;min-height:40px}
+    .monthly-recap-toolbar button{border:1px solid #bdd4c4;border-radius:10px;background:#075b3a;color:white;padding:11px 13px;min-height:40px;font-size:11px;font-weight:800;cursor:pointer}
+    .monthly-recap-toolbar button.secondary{background:white;color:#155038}
+    .monthly-recap-toolbar button:disabled{opacity:.5;cursor:not-allowed}
+    .monthly-recap-toolbar .month-search{flex:1;min-width:160px}
+    .monthly-recap-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:15px}
+    .monthly-recap-summary article{background:#f4faf6;border-radius:11px;padding:11px}
+    .monthly-recap-summary strong{display:block;font-size:19px;color:#12603e;margin-bottom:3px}
+    .monthly-recap-summary small{color:#496858;font-size:10px}
+    .monthly-recap-table-wrap{overflow-x:auto;border:1px solid #e4ede8;border-radius:11px}
+    .monthly-recap-table{border-collapse:collapse;min-width:1330px;width:100%}
+    .monthly-recap-table th,.monthly-recap-table td{padding:10px 9px;border-bottom:1px solid #e8eee9;text-align:right;font-size:10px;white-space:nowrap}
+    .monthly-recap-table th{background:#f3f9f5;color:#28543e;font-size:9px;position:sticky;top:0}
+    .monthly-recap-table td:nth-child(2),.monthly-recap-table th:nth-child(2){text-align:left}
+    .monthly-recap-table tr:last-child td{border-bottom:0}
+    .monthly-recap-table .month-total{font-weight:900;background:#e8f3ec}
+    .monthly-recap-table .month-warn{color:#a74c21;font-weight:800}
+    .monthly-recap-status{min-height:22px;font-size:11px;color:#276242;line-height:1.55}
+    @media(max-width:680px){.monthly-recap-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.monthly-recap-toolbar button{flex:1}}
     @media(max-width:650px){.staff-work-grid{grid-template-columns:1fr}.staff-work-row{grid-template-columns:1fr 1fr}.staff-work-row label{grid-column:1/-1}}
 
     @media(max-width:850px){.att-toolbar{grid-template-columns:1fr 1fr}.att-table-wrap{display:none}.att-cards{display:grid;gap:10px}}
@@ -51,6 +76,7 @@
     <main class="main">
       <section class="page-head"><div><h2>Absensi Guru & Staf</h2><p>Guru mengikuti jadwal pelajaran. Staf TU dapat menggunakan jadwal kerja harian; hari tanpa jadwal tidak dihitung alfa.</p></div>
         <div class="staff-work-access">
+          <button id="monthlyRecapToggle" type="button" class="staff-work-toggle" aria-controls="monthlyRecapPanel" aria-expanded="false">📊 Rekap Absensi Bulanan</button>
           <button id="staffWorkToggle" type="button" class="staff-work-toggle" aria-controls="staffWorkPanel" aria-expanded="false">Atur Jadwal Kerja TU</button>
           <div id="staffWorkAccessHint" class="staff-work-access-hint" role="status">Memeriksa izin pengaturan jadwal TU...</div>
         </div>
@@ -81,6 +107,41 @@
           <button id="staffWorkSave" type="button" class="primary">Simpan Jadwal Kerja</button>
         </div>
         <div class="staff-work-status" id="staffWorkStatus" role="status">Belum ada perubahan.</div>
+      </section>
+      <section id="monthlyRecapPanel" class="monthly-recap-panel hidden" aria-label="Rekap Absensi Guru dan Staf Bulanan">
+        <div class="monthly-recap-head">
+          <div>
+            <h3>Rekap Absensi Guru &amp; Staf Bulanan</h3>
+            <p class="monthly-recap-note">Hitung per guru berdasarkan <strong>hari terjadwal</strong> dari jadwal mengajar atau jadwal kerja TU. Hari tanpa jadwal dan tanggal mendatang tidak dihitung. Data hingga hari berjalan (WIB).</p>
+          </div>
+        </div>
+        <div class="monthly-recap-toolbar">
+          <label>Bulan dan Tahun <input type="month" id="monthlyRecapMonth" required></label>
+          <button type="button" id="monthlyRecapLoad">Tampilkan Rekap</button>
+          <label class="month-search">Cari Guru / Staf <input type="search" id="monthlyRecapSearch" placeholder="Cari nama atau kode..." aria-label="Cari nama guru di rekap bulanan"></label>
+          <button class="secondary" type="button" id="monthlyRecapDownload" disabled>⬇ Unduh Excel (CSV)</button>
+          <button class="secondary" type="button" id="monthlyRecapPrint" disabled>🖨 Cetak / PDF</button>
+        </div>
+        <div id="monthlyRecapStatus" class="monthly-recap-status" role="status" aria-live="polite">Pilih bulan lalu klik Tampilkan Rekap.</div>
+        <a id="monthlyRecapManualDownload" class="hidden" style="font-size:11px;font-weight:800;color:#0b7246;display:inline-block;margin-bottom:10px" download>⬇ Klik di sini untuk unduh manual</a>
+        <div id="monthlyRecapResult" class="hidden">
+          <div class="monthly-recap-summary">
+            <article><strong id="monthlyRecapTeachers">0</strong><small>Guru / Staf</small></article>
+            <article><strong id="monthlyRecapScheduled">0</strong><small>Total Hari Terjadwal</small></article>
+            <article><strong id="monthlyRecapPresent">0</strong><small>Hadir + Terlambat</small></article>
+            <article><strong id="monthlyRecapAutoAlfa">0</strong><small>Alfa Otomatis (Perlu Verifikasi)</small></article>
+          </div>
+          <div class="monthly-recap-table-wrap">
+            <table class="monthly-recap-table">
+              <thead><tr>
+                <th>No.</th><th>Nama Guru / Staf</th><th>Kode</th><th>Jadwal</th><th>Hadir</th><th>Terlambat</th><th>Izin</th><th>Sakit</th><th>Dinas</th><th>Alfa</th><th>Alfa Otomatis*</th><th>Belum Absen</th><th>Tercatat</th><th>Menit Terlambat</th><th>Kehadiran</th>
+              </tr></thead>
+              <tbody id="monthlyRecapBody"></tbody>
+              <tfoot id="monthlyRecapFooter"></tfoot>
+            </table>
+          </div>
+        </div>
+        <p class="monthly-recap-note" style="margin-top:13px"><strong>*Alfa otomatis adalah bagian dari total Alfa</strong>, yakni jadwal yang sudah lewat tetapi belum memiliki catatan absensi; perlu diperiksa sebelum digunakan sebagai dasar keputusan resmi. Persentase kehadiran = (Hadir + Terlambat) ÷ Hari Terjadwal × 100%. Jadwal lampau mengikuti data jadwal yang masih tersimpan di SIMANIS.</p>
       </section>
       <section class="stats">
         <article class="stat"><div class="stat-head"><span>Terjadwal</span><span class="stat-icon">📚</span></div><div id="statScheduled" class="stat-value">-</div><div class="stat-sub">Guru/staf memiliki jadwal</div></article>
@@ -116,6 +177,6 @@
   </div><div class="modal-actions"><button type="button" id="clearBtn" class="secondary-btn">Hapus Catatan</button><button type="button" id="cancelBtn" class="secondary-btn">Batal</button><button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button></div></form>
 </div></div>
 
-<script src="config.js"></script><script src="sdk-loader.js"></script><script src="absensi-guru.js?v=20261025-nama-az-1"></script>
+<script src="config.js"></script><script src="sdk-loader.js"></script><script src="absensi-guru.js?v=20261025-rekap-bulanan-v1"></script>
 </body>
 </html>

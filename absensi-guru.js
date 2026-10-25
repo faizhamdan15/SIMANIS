@@ -250,7 +250,207 @@ async function initStaffWorkPanel(){
  };
 }
 
+
+// Rekap absensi bulanan (baca saja). Angka berdasarkan RPC pengelola terautentikasi,
+// memakai definisi hari terjadwal yang sama dengan tampilan Absensi Guru harian.
+const MONTHLY_RECAP_COUNT_FIELDS=[
+ "scheduled_days","present_days","late_days","leave_days","sick_days",
+ "duty_days","absence_days","automatic_absence_days","pending_days",
+ "recorded_days","total_late_minutes"
+];
+let monthlyRecapRows=[],monthlyRecapKey="",monthlyRecapLoading=false,monthlyRecapDownloadUrl=null;
+function recapNum(value){const n=Number(value);return Number.isFinite(n)&&n>=0?n:0}
+function recapMonthLabel(key){
+ const [year,month]=String(key).split("-").map(Number);
+ return new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"Asia/Jakarta"})
+  .format(new Date(Date.UTC(year,month-1,15)));
+}
+function recapTotals(data){
+ const totals={};
+ for(const field of MONTHLY_RECAP_COUNT_FIELDS){
+  totals[field]=data.reduce((sum,row)=>sum+recapNum(row[field]),0);
+ }
+ totals.teacher_count=data.length;
+ totals.attendance_rate=totals.scheduled_days?
+  Math.round((totals.present_days+totals.late_days)*1000/totals.scheduled_days)/10:0;
+ return totals;
+}
+function recapPercent(row){
+ if(!recapNum(row.scheduled_days))return "—";
+ return recapNum(row.attendance_rate).toLocaleString("id-ID",{maximumFractionDigits:1,minimumFractionDigits:1})+"%";
+}
+function recapMessage(message,isError=false){
+ const el=$("monthlyRecapStatus");
+ el.textContent=message;el.style.color=isError?"#a32b27":"#276242";
+}
+function recapSorted(data){
+ return [...data].sort((a,b)=>
+  attendanceNameCollator.compare(String(a.teacher_name||"").trim(),String(b.teacher_name||"").trim())||
+  attendanceNameCollator.compare(String(a.teacher_code??""),String(b.teacher_code??""))||
+  attendanceNameCollator.compare(String(a.teacher_id??""),String(b.teacher_id??"")));
+}
+function recapVisibleRows(){
+ const q=$("monthlyRecapSearch").value.trim().toLowerCase();
+ if(!q)return monthlyRecapRows;
+ return monthlyRecapRows.filter(x=>String(x.teacher_name||"").toLowerCase().includes(q)||
+  String(x.teacher_code??"").toLowerCase().includes(q));
+}
+function recapCell(value,className=""){
+ return '<td'+(className?' class="'+className+'"':'')+'>'+esc(value)+'</td>';
+}
+function monthlyRecapTableRow(row,no){
+ const auto=recapNum(row.automatic_absence_days);
+ return "<tr>"+recapCell(no)+recapCell(row.teacher_name||"-")+recapCell(row.teacher_code??"-")+
+  MONTHLY_RECAP_COUNT_FIELDS.map(field=>recapCell(recapNum(row[field]),field==="automatic_absence_days"&&auto?"month-warn":"")).join("")+
+  recapCell(recapPercent(row))+"</tr>";
+}
+function monthlyRecapFooter(totals){
+ return '<tr class="month-total">'+recapCell("Σ")+recapCell("TOTAL SELURUH GURU / STAF")+
+  recapCell("-")+MONTHLY_RECAP_COUNT_FIELDS.map(field=>recapCell(totals[field])).join("")+
+  recapCell(totals.scheduled_days?totals.attendance_rate.toLocaleString("id-ID",{minimumFractionDigits:1,maximumFractionDigits:1})+"%":"—")+"</tr>";
+}
+function renderMonthlyRecap(){
+ if(!monthlyRecapKey)return;
+ const shown=recapVisibleRows(),totals=recapTotals(monthlyRecapRows);
+ $("monthlyRecapTeachers").textContent=totals.teacher_count;
+ $("monthlyRecapScheduled").textContent=totals.scheduled_days;
+ $("monthlyRecapPresent").textContent=totals.present_days+totals.late_days;
+ $("monthlyRecapAutoAlfa").textContent=totals.automatic_absence_days;
+ $("monthlyRecapBody").innerHTML=shown.length?shown.map((r,i)=>monthlyRecapTableRow(r,i+1)).join(""):
+  '<tr><td colspan="15" style="text-align:center;padding:20px">Nama atau kode guru tidak ditemukan.</td></tr>';
+ $("monthlyRecapFooter").innerHTML=monthlyRecapFooter(totals);
+ $("monthlyRecapResult").classList.remove("hidden");
+ $("monthlyRecapDownload").disabled=false;
+ $("monthlyRecapPrint").disabled=false;
+ recapMessage("Rekap "+recapMonthLabel(monthlyRecapKey)+": "+shown.length+" dari "+totals.teacher_count+
+   " guru/staf ditampilkan. Unduhan selalu mencakup SELURUH guru/staf. "+
+   (totals.automatic_absence_days>0?"⚠ "+totals.automatic_absence_days+" hari Alfa otomatis belum diverifikasi; jangan dianggap ketidakhadiran pasti. ":"")+
+   "Data sampai hari ini (WIB).");
+}
+function invalidateMonthlyRecap(){
+ monthlyRecapRows=[];monthlyRecapKey="";
+ $("monthlyRecapResult").classList.add("hidden");
+ $("monthlyRecapDownload").disabled=true;$("monthlyRecapPrint").disabled=true;
+ clearMonthlyRecapLink();
+ recapMessage("Bulan berubah. Klik Tampilkan Rekap untuk menghitung ulang data.");
+}
+async function loadMonthlyRecap(){
+ const key=$("monthlyRecapMonth").value;
+ if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(key)){
+  recapMessage("Pilih bulan dan tahun yang valid.",true);return;
+ }
+ if(monthlyRecapLoading)return;
+ monthlyRecapLoading=true;
+ const btn=$("monthlyRecapLoad");btn.disabled=true;btn.textContent="Memuat Rekap...";
+ invalidateMonthlyRecap();
+ recapMessage("Menghitung rekap "+recapMonthLabel(key)+" dari jadwal dan catatan absensi...");
+ try{
+  const [year,month]=key.split("-").map(Number);
+  const records=await api.db.rpc("get_teacher_attendance_monthly_summary",{p_year:year,p_month:month});
+  if(!Array.isArray(records))throw Error("Format data rekap tidak valid.");
+  monthlyRecapRows=recapSorted(records);
+  monthlyRecapKey=key;
+  renderMonthlyRecap();
+ }catch(error){recapMessage("Gagal memuat rekap: "+(error.message||error),true)}
+ finally{monthlyRecapLoading=false;btn.disabled=false;btn.textContent="Tampilkan Rekap"}
+}
+function recapCsvCell(value){
+ let safe=String(value??"").replace(/[\r\n\u0000]+/g," ").trim();
+ if(/^[\s]*[=+\-@]/.test(safe))safe="'"+safe;
+ return '"'+safe.replaceAll('"','""')+'"';
+}
+function recapCsvRows(){
+ const headers=["No","Nama Guru / Staf","Kode Guru","Hari Terjadwal",
+  "Hadir","Terlambat","Izin","Sakit","Dinas","Alfa Total",
+  "Alfa Otomatis (Bagian dari Alfa)","Belum Absen","Presensi Tercatat",
+  "Jumlah Menit Terlambat","Persentase Kehadiran (%)"];
+ const result=[headers];
+ monthlyRecapRows.forEach((a,i)=>result.push([
+  i+1,a.teacher_name||"",a.teacher_code??"",
+  ...MONTHLY_RECAP_COUNT_FIELDS.map(field=>recapNum(a[field])),
+  recapNum(a.scheduled_days)?recapNum(a.attendance_rate):""
+ ]));
+ const totals=recapTotals(monthlyRecapRows);
+ result.push(["","TOTAL SELURUH GURU / STAF","",
+  ...MONTHLY_RECAP_COUNT_FIELDS.map(field=>totals[field]),
+  totals.scheduled_days?totals.attendance_rate:""]);
+ result.push(["CATATAN","Alfa otomatis merupakan bagian dari Alfa total dan perlu verifikasi.",""]);
+ result.push(["CATATAN","Tanggal mendatang dan hari tanpa jadwal tidak dihitung.",""]);
+ return result;
+}
+function clearMonthlyRecapLink(){
+ if(monthlyRecapDownloadUrl){
+  URL.revokeObjectURL(monthlyRecapDownloadUrl);
+  monthlyRecapDownloadUrl=null;
+ }
+ const a=$("monthlyRecapManualDownload");
+ if(a){a.removeAttribute("href");a.classList.add("hidden")}
+}
+function downloadMonthlyRecap(){
+ if(!monthlyRecapKey || $("monthlyRecapMonth").value!==monthlyRecapKey || monthlyRecapLoading){
+  recapMessage("Tampilkan rekap bulan yang dipilih terlebih dahulu.",true);return;
+ }
+ clearMonthlyRecapLink();
+ const csv="\ufeff"+recapCsvRows().map(row=>row.map(recapCsvCell).join(",")).join("\r\n");
+ monthlyRecapDownloadUrl=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+ const a=$("monthlyRecapManualDownload");
+ a.href=monthlyRecapDownloadUrl;
+ a.download="rekap-absensi-guru-staf-"+monthlyRecapKey+".csv";
+ a.classList.remove("hidden");
+ a.click();
+ recapMessage("CSV seluruh "+monthlyRecapRows.length+" guru/staf disiapkan. Jika tidak otomatis terunduh, tekan tautan 'Klik di sini untuk unduh manual'. Simpan berkas secara aman.");
+}
+function printMonthlyRecap(){
+ if(!monthlyRecapKey || $("monthlyRecapMonth").value!==monthlyRecapKey){
+  recapMessage("Tampilkan rekap bulan yang dipilih terlebih dahulu.",true);return;
+ }
+ const w=window.open("","_blank");
+ if(!w){recapMessage("Browser memblokir jendela cetak. Izinkan pop-up SIMANIS atau gunakan CSV.",true);return}
+ const totals=recapTotals(monthlyRecapRows);
+ const rows=monthlyRecapRows.map((r,i)=>monthlyRecapTableRow(r,i+1)).join("");
+ const html='<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Rekap Absensi Guru '+esc(recapMonthLabel(monthlyRecapKey))+'</title>'+
+  '<style>@page{size:A4 landscape;margin:12mm}body{font:9px Arial,sans-serif;color:#182e23;margin:0}h2{margin:0 0 3px;font-size:16px;color:#13563b}p{margin:2px 0 10px}table{border-collapse:collapse;width:100%;font-size:8px}th,td{border:1px solid #b9cfc1;padding:4px 3px;text-align:right}th{background:#edf4ef}th:nth-child(2),td:nth-child(2){text-align:left}.month-total{font-weight:bold;background:#ecf3ef}.month-warn{color:#9c4921}.note{font-size:8px;margin-top:10px;line-height:1.5}thead{display:table-header-group}tr{break-inside:avoid}</style></head><body>'+
+  '<h2>REKAP ABSENSI GURU &amp; STAF — MA NURUL ISLAM</h2><p>Periode: '+esc(recapMonthLabel(monthlyRecapKey))+
+  ' | Guru/staf: '+totals.teacher_count+' | Hari terjadwal: '+totals.scheduled_days+
+  ' | Hadir + Terlambat: '+(totals.present_days+totals.late_days)+'</p>'+
+  '<table><thead><tr>'+["No.","Nama Guru / Staf","Kode","Jadwal","Hadir","Telat","Izin","Sakit","Dinas","Alfa","Alfa Otomatis*","Belum","Tercatat","Menit Telat","Kehadiran"].map(x=>'<th>'+esc(x)+'</th>').join("")+
+  '</tr></thead><tbody>'+rows+'</tbody><tfoot>'+monthlyRecapFooter(totals)+'</tfoot></table>'+
+  '<p class="note">*Alfa otomatis termasuk dalam total Alfa, yaitu hari terjadwal tanpa catatan absensi; perlu diverifikasi. Hari tanpa jadwal dan tanggal mendatang tidak dihitung. Persentase hadir = (hadir + terlambat) / hari terjadwal.</p>'+
+  '</body></html>';
+ w.document.open();w.document.write(html);w.document.close();w.focus();
+ let printed=false;
+ const startPrint=()=>{if(printed)return;printed=true;try{w.print()}catch(e){console.warn("Gagal membuka dialog cetak:",e)}};
+ w.addEventListener("load",startPrint,{once:true});
+ // Beberapa browser sudah menuntaskan load sebelum listener dipasang.
+ setTimeout(startPrint,500);
+ recapMessage("Jendela cetak dibuka. Pilih 'Simpan sebagai PDF' pada opsi tujuan printer, atau cetak langsung.");
+}
+async function initMonthlyRecap(){
+ const btn=$("monthlyRecapToggle");
+ $("monthlyRecapMonth").value=todayYMD().slice(0,7);
+ $("monthlyRecapMonth").max=todayYMD().slice(0,7);
+ $("monthlyRecapMonth").onchange=invalidateMonthlyRecap;
+ $("monthlyRecapSearch").oninput=renderMonthlyRecap;
+ $("monthlyRecapLoad").onclick=loadMonthlyRecap;
+ $("monthlyRecapDownload").onclick=downloadMonthlyRecap;
+ $("monthlyRecapPrint").onclick=printMonthlyRecap;
+ window.addEventListener("pagehide",clearMonthlyRecapLink);
+ const allow=["SUPER_ADMIN","TU","WAKA_KURIKULUM","KEPALA_MADRASAH","WAKA_KESISWAAN"].includes(profile?.role)||
+  canEditStaffWork;
+ if(!allow){
+  btn.textContent="🔒 Rekap Absensi Bulanan";
+  btn.onclick=()=>alert("Rekap seluruh guru/staf hanya dapat dibuka oleh pengelola absensi (Super Admin, Kepala Madrasah, TU, Waka, atau Kepala TU).");
+  return;
+ }
+ btn.onclick=()=>{
+  const panel=$("monthlyRecapPanel");panel.classList.toggle("hidden");
+  const opened=!panel.classList.contains("hidden");
+  btn.setAttribute("aria-expanded",String(opened));
+  if(opened&&!monthlyRecapKey)recapMessage("Pilih bulan dan tahun, lalu klik Tampilkan Rekap.");
+ };
+}
+
 $("attendanceDate").value=todayYMD();
 $("attendanceDate").onchange=loadAttendance;$("searchInput").oninput=render;$("scheduleFilter").onchange=render;$("statusFilter").onchange=render;$("attendanceStatus").onchange=toggleTimeFields;$("closeModalBtn").onclick=closeModal;$("cancelBtn").onclick=closeModal;$("attendanceForm").onsubmit=saveAttendance;$("clearBtn").onclick=clearAttendance;$("attendanceModal").onclick=e=>{if(e.target===$("attendanceModal"))closeModal()};
 
-(async function boot(){try{api=await window.simanisReady;const session=await api.auth.getSession();if(!session){location.replace("index.html");return}const user=await api.auth.getUser();if(!user){location.replace("index.html");return}profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();if(!isAdmin()){$("clearBtn").classList.add("hidden")}await initStaffWorkPanel();await loadMenu();await loadAttendance();setInterval(()=>{if(document.visibilityState==="visible"&&$("attendanceDate").value===todayYMD())loadAttendance()},5000);$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}}catch(err){console.error(err);alert("Absensi Guru gagal dimuat: "+(err.message||err))}finally{$("loading").classList.add("hidden")}})();
+(async function boot(){try{api=await window.simanisReady;const session=await api.auth.getSession();if(!session){location.replace("index.html");return}const user=await api.auth.getUser();if(!user){location.replace("index.html");return}profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();if(!isAdmin()){$("clearBtn").classList.add("hidden")}await initStaffWorkPanel();await initMonthlyRecap();await loadMenu();await loadAttendance();setInterval(()=>{if(document.visibilityState==="visible"&&$("attendanceDate").value===todayYMD())loadAttendance()},5000);$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}}catch(err){console.error(err);alert("Absensi Guru gagal dimuat: "+(err.message||err))}finally{$("loading").classList.add("hidden")}})();
