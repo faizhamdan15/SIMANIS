@@ -109,6 +109,7 @@ function renderTodayClasses(){
 
 async function loadClasses(){
   classes=await api.db.rpc("get_my_attendance_classes",{})||[];
+  adminRecapUpdateLinks();
   $("classFilter").innerHTML='<option value="">Pilih Kelas...</option>'+classes.map(c=>`<option value="${c.class_id}">${esc(c.class_name)} · ${c.student_count} siswa${c.can_manage?"":" · lihat saja"}</option>`).join("");
   await refreshTodayProgress();
 
@@ -134,6 +135,7 @@ async function loadClasses(){
 
 async function chooseClass(id){
   selectedClass=classes.find(c=>c.class_id===id)||null;
+  adminRecapUpdateLinks();
   if(!selectedClass){rows=[];renderAll();renderTodayClasses();return}
   await loadAttendance();
   renderTodayClasses();
@@ -258,6 +260,174 @@ async function saveAttendance(){
   finally{btn.textContent="Simpan Absensi";updateSaveInfo()}
 }
 
+
+// Laporan kelas khusus Super Admin: memakai RPC rekap existing (read only, dibatasi
+// akses kelas pada server). Tidak menghitung hari tanpa catatan sebagai ALFA.
+const recapNameSort=new Intl.Collator("id-ID",{sensitivity:"base",numeric:true,ignorePunctuation:true});
+let adminRecapBusy=false,adminRecapObjectUrl=null;
+const ADMIN_RECAP_FIELDS=["hadir_count","terlambat_count","izin_count","sakit_count","alfa_count","total_records"];
+function adminRecapMonthRange(key){
+ if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(key))throw Error("Pilih bulan rekap yang valid.");
+ const [year,month]=key.split("-").map(Number);
+ if(year<2020||year>2100)throw Error("Tahun tidak valid.");
+ const first=key+"-01";
+ const dayEnd=new Date(Date.UTC(year,month,0)).getUTCDate();
+ const end=key+"-"+String(dayEnd).padStart(2,"0");
+ const today=localISODate();
+ if(first>today)throw Error("Bulan yang dipilih belum dimulai. Pilih bulan sekarang atau sebelumnya.");
+ return {first,last:end>today?today:end};
+}
+function adminRecapMonthName(key){
+ const [year,month]=key.split("-").map(Number);
+ return new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"Asia/Jakarta"})
+  .format(new Date(Date.UTC(year,month-1,15)));
+}
+function adminRecapSort(data){
+ return [...data].sort((a,b)=>recapNameSort.compare(String(a.full_name||"").trim(),String(b.full_name||"").trim())||
+  (Number(a.roll_number??99999)-Number(b.roll_number??99999))||
+  recapNameSort.compare(String(a.nis||""),String(b.nis||"")));
+}
+function adminRecapNum(value){
+ const n=Number(value);return Number.isFinite(n)&&n>=0?n:0;
+}
+function adminRecapSums(rows){
+ const total={students:rows.length};
+ for(const key of ADMIN_RECAP_FIELDS)total[key]=rows.reduce((s,r)=>s+adminRecapNum(r[key]),0);
+ total.attendance_percentage=total.total_records?
+  Math.round(10000*(total.hadir_count+total.terlambat_count)/total.total_records)/100:0;
+ return total;
+}
+function adminRecapPercentage(row){
+ if(!adminRecapNum(row.total_records))return "";
+ return adminRecapNum(row.attendance_percentage).toFixed(2);
+}
+function adminRecapCsvCell(value,textCode=false){
+ let v=String(value??"").replace(/[\r\n\u0000-\u001f]+/g," ").trim();
+ if(/^[\s]*[=+\-@]/.test(v)||textCode&&/^0\d+$/.test(v))v="'"+v;
+ return '"'+v.replaceAll('"','""')+'"';
+}
+function adminRecapCsvLine(values){
+ return values.map((v,i)=>adminRecapCsvCell(v,i===4||i===5)).join(";");
+}
+function adminRecapFilename(classLabel,key){
+ return "Rekap_Absensi_Siswa_"+String(classLabel||"Kelas").replace(/[^a-zA-Z0-9]+/g,"_").slice(0,64)+"_"+key+".csv";
+}
+function adminRecapStatus(message,error=false){
+ const node=$("adminRecapStatus");node.textContent=message;node.style.color=error?"#a12b23":"#3d6650";
+}
+function adminRecapRelease(){
+ if(adminRecapObjectUrl){URL.revokeObjectURL(adminRecapObjectUrl);adminRecapObjectUrl=null}
+ const link=$("adminRecapManualLink");link.classList.add("hidden");link.removeAttribute("href");
+}
+function adminRecapGetClass(){
+ return classes.find(c=>c.class_id===$("classFilter").value)||null;
+}
+function adminRecapUpdateLinks(){
+ if(String(profile?.role).toUpperCase()!=="SUPER_ADMIN")return;
+ const currentClass=adminRecapGetClass(),key=$("adminRecapMonth").value;
+ $("adminRecapClassBtn").disabled=adminRecapBusy||!currentClass;
+ $("adminRecapAllBtn").disabled=adminRecapBusy||!classes.length;
+ const link=$("adminRecapReportLink");
+ const qs=new URLSearchParams();
+ if(currentClass)qs.set("class",currentClass.class_id);
+ if(/^\d{4}-\d{2}$/.test(key))qs.set("month",key);
+ link.href="absensi-siswa-laporan.html"+(qs.toString()?"?"+qs.toString():"");
+}
+async function adminRecapFetch(cls,range){
+ const records=await api.db.rpc("get_student_attendance_summary",{
+  p_class_id:cls.class_id,p_subject_id:null,p_date_from:range.first,p_date_to:range.last
+ });
+ if(!Array.isArray(records))throw Error("Data kelas "+cls.class_name+" tidak valid.");
+ return adminRecapSort(records);
+}
+function adminRecapCsvRows(results,key){
+ const lines=[
+  ["REKAP ABSENSI SISWA MA NURUL ISLAM"],
+  ["Periode",adminRecapMonthName(key)],
+  ["Keterangan","Hanya menghitung presensi yang disimpan. Hari tanpa catatan bukan otomatis ALFA."],
+  [],
+  ["Kelas","Wali Kelas","No. Absen","Nama Siswa","NIS","NISN",
+   "Hadir","Terlambat","Izin","Sakit","Alfa","Total Catatan","Kehadiran (%)"]
+ ];
+ const schoolTotals={students:0};
+ ADMIN_RECAP_FIELDS.forEach(k=>schoolTotals[k]=0);
+ for(const {cls,records} of results){
+  const sum=adminRecapSums(records);
+  records.forEach(r=>lines.push([
+   cls.class_name||"",cls.homeroom_teacher||"",r.roll_number??"",r.full_name||"",r.nis||"",r.nisn||"",
+   ...ADMIN_RECAP_FIELDS.map(k=>adminRecapNum(r[k])),adminRecapPercentage(r)
+  ]));
+  lines.push([cls.class_name,"TOTAL KELAS ("+sum.students+" SISWA)","","","","",
+   ...ADMIN_RECAP_FIELDS.map(k=>sum[k]),sum.total_records?sum.attendance_percentage.toFixed(2):""]);
+  schoolTotals.students+=sum.students;
+  ADMIN_RECAP_FIELDS.forEach(k=>schoolTotals[k]+=sum[k]);
+ }
+ if(results.length>1){
+  const pct=schoolTotals.total_records?
+   (100*(schoolTotals.hadir_count+schoolTotals.terlambat_count)/schoolTotals.total_records).toFixed(2):"";
+  lines.push(["SEMUA KELAS","TOTAL MADRASAH ("+schoolTotals.students+" SISWA)","","","","",
+   ...ADMIN_RECAP_FIELDS.map(k=>schoolTotals[k]),pct]);
+ }
+ return lines;
+}
+function adminRecapSave(results,key){
+ adminRecapRelease();
+ const data=adminRecapCsvRows(results,key);
+ const csv="\ufeffsep=;\r\n"+data.map(adminRecapCsvLine).join("\r\n");
+ adminRecapObjectUrl=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+ const link=$("adminRecapManualLink");
+ link.href=adminRecapObjectUrl;
+ link.download=adminRecapFilename(results.length===1?results[0].cls.class_name:"Semua_Kelas",key);
+ link.classList.remove("hidden");
+ link.click();
+}
+async function adminRecapDownload(allClasses=false){
+ if(String(profile?.role).toUpperCase()!=="SUPER_ADMIN"){
+  adminRecapStatus("Unduhan gabungan seluruh kelas hanya tersedia untuk Super Admin.",true);
+  return;
+ }
+ if(adminRecapBusy)return;
+ const selected=adminRecapGetClass();
+ const targets=allClasses?[...classes]:selected?[selected]:[];
+ if(!targets.length){adminRecapStatus("Pilih kelas terlebih dahulu.",true);return}
+ const monthKey=$("adminRecapMonth").value;
+ let range;
+ try{range=adminRecapMonthRange(monthKey)}
+ catch(err){adminRecapStatus(err.message,true);return}
+ adminRecapBusy=true;adminRecapRelease();adminRecapUpdateLinks();
+ const results=[];
+ try{
+  for(let i=0;i<targets.length;i++){
+   const cls=targets[i];
+   adminRecapStatus("Menghitung rekap "+(i+1)+"/"+targets.length+" — "+cls.class_name+"...");
+   const records=await adminRecapFetch(cls,range);
+   results.push({cls,records});
+  }
+  adminRecapSave(results,monthKey);
+  const count=results.reduce((total,x)=>total+x.records.length,0);
+  adminRecapStatus("CSV "+results.length+" kelas ("+count+" siswa) siap diunduh. Jika belum muncul, gunakan tautan unduh manual di bawah. Semua nilai berasal dari catatan presensi yang telah disimpan.");
+ }catch(err){
+  adminRecapRelease();
+  adminRecapStatus("Unduhan dibatalkan karena rekap belum lengkap: "+(err.message||err)+". Tidak ada file parsial yang dibuat.",true);
+ }finally{
+  adminRecapBusy=false;adminRecapUpdateLinks();
+ }
+}
+function adminRecapInit(){
+ const role=String(profile?.role||"").toUpperCase();
+ if(role!=="GURU"&&role!=="WALI_KELAS")$("teacherRecapLinkBtn").hidden=true;
+ if(role!=="SUPER_ADMIN")return;
+ $("adminRecapPanel").classList.remove("hidden");
+ const month=$("adminRecapMonth");
+ month.value=localISODate().slice(0,7);
+ month.max=month.value;
+ month.onchange=()=>{if(adminRecapBusy){adminRecapStatus("Unduhan sedang diproses untuk bulan sebelumnya.");return}adminRecapRelease();adminRecapUpdateLinks()};
+ $("adminRecapClassBtn").onclick=()=>adminRecapDownload(false);
+ $("adminRecapAllBtn").onclick=()=>adminRecapDownload(true);
+ window.addEventListener("pagehide",adminRecapRelease);
+ adminRecapUpdateLinks();
+}
+
 $("attendanceDate").value=localISODate();
 $("classFilter").addEventListener("change",()=>chooseClass($("classFilter").value));
 $("attendanceDate").addEventListener("change",async()=>{
@@ -289,6 +459,7 @@ $("saveBtn").addEventListener("click",saveAttendance);
     const user=await api.auth.getUser();if(!user){location.replace("index.html");return}
     profile=await loadProfile(user);
     applyTeacherUI();
+    adminRecapInit();
     $("sideUserName").textContent=profile.full_name||user.email||"Pengguna";
     $("sideUserRole").textContent=formatRole(profile.role);
     $("headerUser").textContent=profile.full_name||user.email||"Pengguna";

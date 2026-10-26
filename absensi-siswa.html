@@ -31,7 +31,23 @@
     @media(max-width:1050px){.today-class-list{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:850px){.student-att-toolbar{grid-template-columns:1fr 1fr}.student-att-table-wrap{display:none}.student-att-cards{display:grid;gap:10px}.today-class-list{grid-template-columns:1fr}}
     @media(max-width:520px){.student-att-toolbar{grid-template-columns:1fr}.class-info{align-items:flex-start;flex-direction:column}.save-bar{align-items:stretch;flex-direction:column}.save-bar button{width:100%}.today-panel-head{flex-direction:column}}
-  </style>
+  
+    /* Unduhan rekap bulanan khusus Super Admin: konsisten dengan komponen absensi. */
+    #teacherRecapLinkBtn[hidden],.admin-recap-panel.hidden{display:none!important}
+    .admin-recap-panel{border:1px solid #cfe4d8;border-radius:16px;background:linear-gradient(120deg,#f0faf4,#fff);padding:16px;margin:0 0 18px}
+    .admin-recap-panel h3{font-size:15px;color:#075b3a;margin:0 0 5px}
+    .admin-recap-panel p{font-size:11px;line-height:1.6;color:#4b6558;margin:3px 0 12px}
+    .admin-recap-row{display:flex;align-items:end;gap:9px;flex-wrap:wrap}
+    .admin-recap-row label{font-size:10px;font-weight:800;color:#355b46;display:grid;gap:5px}
+    .admin-recap-row input{border:1px solid #c5d8cc;background:#fff;border-radius:10px;padding:10px;font-size:12px;min-height:42px}
+    .admin-recap-row button,.admin-recap-row a{border:1px solid #9dcab2;border-radius:10px;background:#fff;color:#075b3a;padding:11px 13px;min-height:42px;font-size:11px;font-weight:800;text-decoration:none;cursor:pointer}
+    .admin-recap-row button.primary{background:#075b3a;border-color:#075b3a;color:#fff}
+    .admin-recap-row button:disabled{opacity:.45;cursor:not-allowed}
+    .admin-recap-feedback{margin-top:10px;font-size:11px;color:#3d6650;line-height:1.6;min-height:18px}
+    .admin-recap-panel a.admin-manual-link{display:inline-block;margin-top:6px;font-size:11px;font-weight:800;color:#075b3a}
+    .admin-recap-panel a.admin-manual-link.hidden{display:none}
+    @media(max-width:640px){.admin-recap-row{align-items:stretch}.admin-recap-row label,.admin-recap-row button,.admin-recap-row a{width:100%;text-align:center}.admin-recap-row label{text-align:left}}
+</style>
 </head>
 <body>
 <div id="loading" class="loading-overlay">Memuat Absensi Siswa...</div>
@@ -165,12 +181,26 @@
       <div id="classInfo" class="class-info"><div><strong>Pilih kelas untuk mulai absensi</strong><br><span>Daftar kelas menyesuaikan hak akses akun.</span></div></div>
       <p class="student-sort-label" style="font-size:11px;color:#587363;margin:6px 0 14px">Urutan daftar: <strong>Nama Siswa (A–Z)</strong>. Nomor absen tetap mengikuti data kelas.</p>
 
+      <section id="adminRecapPanel" class="admin-recap-panel hidden" aria-label="Download Rekap Absensi Siswa Super Admin">
+        <h3>Rekap Absensi Siswa — Super Admin</h3>
+        <p>Pilih bulan dan kelas pada bagian atas untuk mengunduh rekap kehadiran siswa. Bisa juga unduh <strong>seluruh kelas sekaligus</strong> dalam satu file CSV Excel. Rekap hanya menghitung presensi yang sudah disimpan; hari tanpa catatan tidak dianggap alfa.</p>
+        <div class="admin-recap-row">
+          <label>Bulan Rekap<input id="adminRecapMonth" type="month" aria-label="Pilih bulan rekap absensi siswa" required></label>
+          <button id="adminRecapClassBtn" type="button" class="primary" disabled>⬇ Download Rekap Kelas (CSV)</button>
+          <button id="adminRecapAllBtn" type="button">⬇ Download Semua Kelas (CSV)</button>
+          <a id="adminRecapReportLink" href="absensi-siswa-laporan.html">Lihat / Cetak Laporan PDF</a>
+        </div>
+        <div id="adminRecapStatus" class="admin-recap-feedback" role="status" aria-live="polite">Pilih bulan untuk mengunduh rekap absensi.</div>
+        <a id="adminRecapManualLink" class="admin-manual-link hidden" download>⬇ Unduh file secara manual jika unduhan otomatis tidak muncul</a>
+      </section>
+
+
       <div class="quick-actions">
         <button id="markAllPresent" class="primary">Tandai Semua Hadir</button>
         <button id="markEmptyPresent">Belum → Hadir</button>
         <button id="markEmptyAbsent">Belum → Alfa</button>
         <button id="reloadBtn">Muat Ulang</button>
-        <button type="button" onclick="location.href='absensi-siswa-rekap.html'">Rekap Absensi</button>
+        <button id="teacherRecapLinkBtn" type="button" onclick="location.href='absensi-siswa-rekap.html'">Rekap Absensi Guru</button>
         <button type="button" onclick="location.href='absensi-siswa-analitik.html'">Analitik Absensi</button>
         <button type="button" onclick="location.href='absensi-siswa-laporan.html'">Laporan Bulanan</button>
         <button type="button" onclick="location.href='absensi-siswa-riwayat.html'">Riwayat Perubahan</button>
@@ -189,6 +219,6 @@
 <!-- Cache-busting khusus diagnosis white overlay V8. -->
 <script src="config.js?v=20260927-v8"></script>
 <script src="sdk-loader.js?v=20260927-v8"></script>
-<script src="absensi-siswa.js?v=20261025-nama-az-1"></script>
+<script src="absensi-siswa.js?v=20261026-admin-rekap-kelas-v1"></script>
 </body>
 </html>
