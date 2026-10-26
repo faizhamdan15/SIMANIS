@@ -57,9 +57,8 @@ async function loadUnitFinanceResponsible(){
  card.hidden=false;
  try{
    const holder=String(await api.db.rpc("finance_get_treasurer_name",{})||"").trim();
-   // Gelar pada tampilan Keuangan sesuai koreksi madrasah (master guru tetap utuh).
-   name.textContent=/^Muhkam Habibi,?\s*S\.Pd\.I\.?$/i.test(holder)
-     ?"Muhkam Habibi, S.Pd":(holder||"Belum ditetapkan");
+   // Tampilkan nama beserta gelar sesuai profil pemegang jabatan aktif.
+   name.textContent=holder||"Belum ditetapkan";
  }catch(e){
    console.warn("Gagal memuat PIC keuangan unit:",e?.message||e);
    name.textContent="Penanggung jawab belum dapat dimuat";
