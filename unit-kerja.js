@@ -51,6 +51,20 @@ function qrCanvas(target,text,size=180){
 
 
 async function loadProfile(user){const r=await api.db.select("profiles",`select=id,full_name,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`);if(!r?.[0])throw new Error("Profil pengguna tidak ditemukan.");if(!r[0].is_active)throw new Error("Akun tidak aktif.");return r[0]}
+async function loadUnitFinanceResponsible(){
+ if(unitCode!=="PKM_BENDAHARA_SARPRAS")return;
+ const card=$("unitFinancePic"),name=$("unitFinancePicName");
+ card.hidden=false;
+ try{
+   const holder=String(await api.db.rpc("finance_get_treasurer_name",{})||"").trim();
+   // Gelar pada tampilan Keuangan sesuai koreksi madrasah (master guru tetap utuh).
+   name.textContent=/^Muhkam Habibi,?\s*S\.Pd\.I\.?$/i.test(holder)
+     ?"Muhkam Habibi, S.Pd":(holder||"Belum ditetapkan");
+ }catch(e){
+   console.warn("Gagal memuat PIC keuangan unit:",e?.message||e);
+   name.textContent="Penanggung jawab belum dapat dimuat";
+ }
+}
 async function loadMenu(){myModules=await api.db.rpc("get_my_modules",{})||[];const menu=unitCode==="PKM_BENDAHARA_SARPRAS"?myModules.filter(x=>x.code!=="KEUANGAN"):myModules;$("sidebarMenu").innerHTML=menu.map(x=>`<a href="${x.route||ROUTES[x.code]||"#"}" class="nav-item ${x.code===unitCode?"active":""}"><span class="nav-dot"></span><span>${esc(x.name)}</span></a>`).join("")}
 async function restWrite(path,method,body){
  const s=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG,res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/rest/v1/${path}`,{method,headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${s.access_token}`,"Content-Type":"application/json",Prefer:"return=representation"},body:body===undefined?undefined:JSON.stringify(body)});
@@ -1935,7 +1949,7 @@ $("entryForm").onsubmit=saveEntry;$("entryClose").onclick=closeModal;$("entryCan
  api=await window.simanisReady;const user=await api.auth.getUser();if(!user){location.href="index.html";return}
  profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name;$("sideUserRole").textContent=roleLabel(profile.role);$("headerUser").textContent=profile.full_name;$("currentDate").textContent=localDateID();
  if(!UNITS[unitCode])throw new Error("Parameter unit kerja tidak valid.");if(!await checkAccess())throw new Error("Akun ini tidak ditugaskan pada unit kerja tersebut.");
- await loadMenu();await loadMasters();renderHeader();renderTabs();await loadData();
+ await loadMenu();await loadUnitFinanceResponsible();await loadMasters();renderHeader();renderTabs();await loadData();
  const requestedTab=new URLSearchParams(location.search).get("tab");if(requestedTab&&document.querySelector(`[data-tab="${requestedTab}"]`))setTab(requestedTab);
  const assetParam=new URLSearchParams(location.search).get("asset");
  if(unitCode==="PKM_BENDAHARA_SARPRAS"&&assetParam&&specific.some(a=>a.id===assetParam)){setTab("specific");setTimeout(()=>openAssetDetail(assetParam),100)}
