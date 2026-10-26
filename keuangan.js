@@ -27,15 +27,10 @@ async function loadProfile(user){
   if(!r[0].is_active)throw new Error("Akun tidak aktif.");
   return r[0];
 }
-// Nama Bendahara berasal dari penugasan resmi, bukan akun yang mencetak nota.
-// SIMANIS masih memiliki gelar S.Pd.I dalam master pegawai untuk Muhkam Habibi;
-// penulisan khusus di cetakan Keuangan mengikuti koreksi resmi: S.Pd.
+// Nama Bendahara dan gelar ditampilkan persis seperti penugasan resmi di profil.
+// Tidak diambil dari akun yang mencetak nota atau dimodifikasi di sisi klien.
 function financeTreasurerDisplayName(raw){
- const value=String(raw||"").trim();
- if(/^Muhkam\s+Habibi\s*,\s*S\.\s*Pd\.\s*I\.?$/i.test(value)){
-   return "Muhkam Habibi, S.Pd.";
- }
- return value;
+ return String(raw||"").trim();
 }
 function financeTreasurerSignature(){
  return officialTreasurerName||"__________________";
