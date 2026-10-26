@@ -2,6 +2,26 @@ const $=id=>document.getElementById(id);
 let api,profile,rows=[],categories=[],modulePerm={can_view:false,can_create:false,can_update:false,can_delete:false};
 let feePlans=[],activePlan=null,bills=[],studentPayments=[],classes=[],classRates=[];
 let selectedBillId=null;
+let financeResponsiblePerson="";
+function formatFinanceResponsibleName(rawName){
+  const name=String(rawName||"").trim();
+  // Nama/titel tampilan Keuangan mengikuti koreksi yang diberikan madrasah.
+  // Master guru, akun, dan log transaksi tidak diubah.
+  if(/^Muhkam Habibi,?\s*S\.Pd\.I\.?$/i.test(name))return "Muhkam Habibi, S.Pd";
+  return name;
+}
+async function loadFinanceResponsiblePerson(){
+  const display=$("financeResponsiblePerson");
+  try{
+    const name=await api.db.rpc("get_finance_responsible_person",{});
+    financeResponsiblePerson=formatFinanceResponsibleName(name);
+    display.textContent=financeResponsiblePerson||"Belum ditetapkan";
+  }catch(err){
+    console.warn("Gagal memuat penanggung jawab Keuangan:",err?.message||err);
+    display.textContent="Tidak dapat memuat penanggung jawab";
+    financeResponsiblePerson="";
+  }
+}
 const STORAGE_BUCKET="keuangan-bukti";
 const MAX_FILE_SIZE=10*1024*1024;
 const ALLOWED_MIME=new Set(["application/pdf","image/jpeg","image/png","image/webp"]);
@@ -218,7 +238,7 @@ async function remove(){
 }
 function csvCell(v){return`"${String(v??"").replaceAll('"','""')}"`}
 function exportCsv(){const data=filtered();if(!data.length){alert("Tidak ada transaksi.");return}const header=["No","Tanggal","Status","Jenis","Kategori","Uraian","Penyimpanan","Rekening","Referensi","Nominal","Pembuat"],lines=[header.map(csvCell).join(";")];data.forEach((r,i)=>lines.push([i+1,r.transaction_date,r.status,r.transaction_type==="INCOME"?"Pemasukan":"Pengeluaran",r.category_name,r.description,r.account_type,r.account_name||"",r.reference_number||"",r.amount,r.created_by_name||""].map(csvCell).join(";")));const blob=new Blob(["\ufeffsep=;\r\n"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`laporan-keuangan-${$("monthFilter").value||"semua-periode"}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function printReport(){const data=filtered();if(!data.length){alert("Tidak ada transaksi.");return}const posted=data.filter(r=>r.status==="POSTED"),inc=posted.filter(r=>r.transaction_type==="INCOME").reduce((s,r)=>s+Number(r.amount||0),0),exp=posted.filter(r=>r.transaction_type==="EXPENSE").reduce((s,r)=>s+Number(r.amount||0),0),rowsHtml=data.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(dateLabel(r.transaction_date))}</td><td>${esc(r.status)}</td><td>${r.transaction_type==="INCOME"?"Pemasukan":"Pengeluaran"}</td><td>${esc(r.category_name)}</td><td>${esc(r.description)}</td><td>${esc(r.account_type==="CASH"?"Cash":r.account_name||"Rekening")}</td><td style="text-align:right">${esc(money(r.amount))}</td></tr>`).join(""),w=window.open("","_blank");if(!w){alert("Popup diblokir browser.");return}const today=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"long",year:"numeric"}).format(new Date());w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Laporan Keuangan</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial;font-size:10px}.kop{text-align:center;border-bottom:3px double #111;padding-bottom:8px}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.sum{border:1px solid #bbb;padding:8px}.sum b{display:block;font-size:15px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:5px}.foot{display:flex;justify-content:space-between;margin-top:22px}.sign{width:260px;text-align:center}.space{height:55px}</style></head><body><div class="kop"><h1>MA NURUL ISLAM KARANGCEMPAKA</h1><h3>LAPORAN KEUANGAN</h3></div><p style="text-align:center">Periode: ${esc($("monthFilter").value?monthName($("monthFilter").value):"Semua Periode")}</p><div class="summary"><div class="sum">Pemasukan<b>${esc(money(inc))}</b></div><div class="sum">Pengeluaran<b>${esc(money(exp))}</b></div><div class="sum">Selisih<b>${esc(money(inc-exp))}</b></div></div><table><thead><tr><th>No</th><th>Tanggal</th><th>Status</th><th>Jenis</th><th>Kategori</th><th>Uraian</th><th>Penyimpanan</th><th>Nominal</th></tr></thead><tbody>${rowsHtml}</tbody></table><div class="foot"><div class="sign">Mengetahui,<br>Kepala Madrasah<div class="space"></div><b>__________________</b></div><div class="sign">Karangcempaka, ${today}<br>Bendahara<div class="space"></div><b>__________________</b></div></div></body></html>`);w.document.close();setTimeout(()=>w.print(),400)}
+function printReport(){const data=filtered();if(!data.length){alert("Tidak ada transaksi.");return}const posted=data.filter(r=>r.status==="POSTED"),inc=posted.filter(r=>r.transaction_type==="INCOME").reduce((s,r)=>s+Number(r.amount||0),0),exp=posted.filter(r=>r.transaction_type==="EXPENSE").reduce((s,r)=>s+Number(r.amount||0),0),rowsHtml=data.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(dateLabel(r.transaction_date))}</td><td>${esc(r.status)}</td><td>${r.transaction_type==="INCOME"?"Pemasukan":"Pengeluaran"}</td><td>${esc(r.category_name)}</td><td>${esc(r.description)}</td><td>${esc(r.account_type==="CASH"?"Cash":r.account_name||"Rekening")}</td><td style="text-align:right">${esc(money(r.amount))}</td></tr>`).join(""),w=window.open("","_blank");if(!w){alert("Popup diblokir browser.");return}const today=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"long",year:"numeric"}).format(new Date());w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Laporan Keuangan</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial;font-size:10px}.kop{text-align:center;border-bottom:3px double #111;padding-bottom:8px}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.sum{border:1px solid #bbb;padding:8px}.sum b{display:block;font-size:15px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:5px}.foot{display:flex;justify-content:space-between;margin-top:22px}.sign{width:260px;text-align:center}.space{height:55px}</style></head><body><div class="kop"><h1>MA NURUL ISLAM KARANGCEMPAKA</h1><h3>LAPORAN KEUANGAN</h3></div><p style="text-align:center">Periode: ${esc($("monthFilter").value?monthName($("monthFilter").value):"Semua Periode")}</p><div class="summary"><div class="sum">Pemasukan<b>${esc(money(inc))}</b></div><div class="sum">Pengeluaran<b>${esc(money(exp))}</b></div><div class="sum">Selisih<b>${esc(money(inc-exp))}</b></div></div><table><thead><tr><th>No</th><th>Tanggal</th><th>Status</th><th>Jenis</th><th>Kategori</th><th>Uraian</th><th>Penyimpanan</th><th>Nominal</th></tr></thead><tbody>${rowsHtml}</tbody></table><div class="foot"><div class="sign">Mengetahui,<br>Kepala Madrasah<div class="space"></div><b>__________________</b></div><div class="sign">Karangcempaka, ${today}<br>Penanggung Jawab Keuangan<div class="space"></div><b>${esc(financeResponsiblePerson||"__________________")}</b></div></div></body></html>`);w.document.close();setTimeout(()=>w.print(),400)}
 
 /* ==========================================================
    IURAN PENDIDIKAN TAHUNAN + CICILAN
@@ -571,6 +591,7 @@ $("paymentAccountType").addEventListener("change",togglePaymentBank);$("paymentF
     profile=await loadProfile(user);
     $("sideUserName").textContent=profile.full_name||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||"Pengguna";$("currentDate").textContent=localDateID();
     await loadMenu();if(!modulePerm.can_view)throw new Error("Akun tidak memiliki akses ke modul Keuangan.");
+    await loadFinanceResponsiblePerson();
     await loadMaster();await loadData();
     const params=new URLSearchParams(location.search),requestedTab=params.get("tab");
     if(["cashbook","studentpay","recap"].includes(requestedTab))setTab(requestedTab);
