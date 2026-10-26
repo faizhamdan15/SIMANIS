@@ -390,8 +390,9 @@ async function adminRecapDownload(allClasses=false){
  const selected=adminRecapGetClass();
  const targets=allClasses?[...classes]:selected?[selected]:[];
  if(!targets.length){adminRecapStatus("Pilih kelas terlebih dahulu.",true);return}
+ const monthKey=$("adminRecapMonth").value;
  let range;
- try{range=adminRecapMonthRange($("adminRecapMonth").value)}
+ try{range=adminRecapMonthRange(monthKey)}
  catch(err){adminRecapStatus(err.message,true);return}
  adminRecapBusy=true;adminRecapRelease();adminRecapUpdateLinks();
  const results=[];
@@ -402,7 +403,7 @@ async function adminRecapDownload(allClasses=false){
    const records=await adminRecapFetch(cls,range);
    results.push({cls,records});
   }
-  adminRecapSave(results,$("adminRecapMonth").value);
+  adminRecapSave(results,monthKey);
   const count=results.reduce((total,x)=>total+x.records.length,0);
   adminRecapStatus("CSV "+results.length+" kelas ("+count+" siswa) siap diunduh. Jika belum muncul, gunakan tautan unduh manual di bawah. Semua nilai berasal dari catatan presensi yang telah disimpan.");
  }catch(err){
@@ -420,7 +421,7 @@ function adminRecapInit(){
  const month=$("adminRecapMonth");
  month.value=localISODate().slice(0,7);
  month.max=month.value;
- month.onchange=()=>{adminRecapRelease();adminRecapUpdateLinks()};
+ month.onchange=()=>{if(adminRecapBusy){adminRecapStatus("Unduhan sedang diproses untuk bulan sebelumnya.");return}adminRecapRelease();adminRecapUpdateLinks()};
  $("adminRecapClassBtn").onclick=()=>adminRecapDownload(false);
  $("adminRecapAllBtn").onclick=()=>adminRecapDownload(true);
  window.addEventListener("pagehide",adminRecapRelease);
