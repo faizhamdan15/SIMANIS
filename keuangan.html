@@ -62,6 +62,11 @@
     @media(max-width:1180px){.finance-stats,.student-pay-stats{grid-template-columns:repeat(3,1fr)}.finance-toolbar{grid-template-columns:1fr 1fr 1fr}.student-layout{grid-template-columns:1fr}.student-detail{position:static}}
     @media(max-width:850px){#recapClassGrid{grid-template-columns:1fr 1fr!important}.finance-stats,.student-pay-stats{grid-template-columns:1fr 1fr}.finance-table-wrap,.student-table-wrap{display:none}.finance-cards,.student-cards{display:grid}.finance-toolbar,.student-toolbar{grid-template-columns:1fr 1fr}}
     @media(max-width:850px){#classRateGrid{grid-template-columns:1fr 1fr!important}#rateEditor{grid-template-columns:1fr!important}}@media(max-width:560px){#recapClassGrid{grid-template-columns:1fr!important}.finance-stats,.student-pay-stats,.finance-toolbar,.student-toolbar,.detail-grid{grid-template-columns:1fr}.finance-actions{justify-content:flex-start}#classRateGrid{grid-template-columns:1fr!important}}
+    .finance-pic-header{display:flex;align-items:flex-end;flex-direction:column;gap:7px;max-width:420px}
+    .finance-pic-card{border-radius:13px;border:1px solid #c5e1d1;background:#f2faf5;padding:11px 15px;max-width:100%;min-width:260px;text-align:left}
+    .finance-pic-card span{display:block;font-size:10px;font-weight:700;color:#42735a;margin-bottom:5px}
+    .finance-pic-card strong{display:block;font-size:16px;font-weight:900;color:#075b3a;overflow-wrap:anywhere}
+    @media(max-width:650px){.finance-pic-header{max-width:100%;width:100%;align-items:stretch}.finance-pic-card{min-width:0}}
   </style>
 </head>
 <body>
@@ -77,13 +82,19 @@
   <section class="content">
     <header class="topbar">
       <div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Keuangan</p></div>
-      <div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div>
+      <div class="topbar-right"><small style="font-size:9px;color:#65756b">Akun yang sedang login</small><strong id="headerUser">-</strong><span id="currentDate">-</span></div>
     </header>
 
     <main class="main">
       <section class="page-head">
         <div><h2>Keuangan</h2><p>Buku kas dan pembayaran Iuran Pendidikan siswa.</p></div>
-        <a id="backPkmBtn" href="unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS&tab=finance" class="secondary-btn" style="display:none;text-decoration:none;width:auto">← PKM Bendahara & Sarpras</a>
+        <div class="finance-pic-header">
+          <div class="finance-pic-card" aria-label="Penanggung jawab Keuangan Madrasah">
+            <span>Penanggung Jawab Keuangan · PKM Bendahara &amp; Sarpras</span>
+            <strong id="financeResponsiblePerson">Memuat penanggung jawab...</strong>
+          </div>
+          <a id="backPkmBtn" href="unit-kerja.html?unit=PKM_BENDAHARA_SARPRAS&tab=finance" class="secondary-btn" style="display:none;text-decoration:none;width:auto">← PKM Bendahara & Sarpras</a>
+        </div>
       </section>
 
       <div class="tabbar">
@@ -289,6 +300,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="keuangan.js"></script>
+<script src="keuangan.js?v=20261026-penanggung-jawab-v1"></script>
 </body>
 </html>
