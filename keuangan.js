@@ -219,6 +219,43 @@ function exportExpenseCsv(){
  setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 
+
+function printExpenses(){
+ const data=filteredExpenses();
+ if(!data.length){alert("Belum ada transaksi pengeluaran untuk dicetak.");return}
+ const total=expenseTotals(data),period=$("expenseMonthFilter").value?
+  monthName($("expenseMonthFilter").value):"Semua Bulan";
+ const printWindow=window.open("","_blank");
+ if(!printWindow){alert("Jendela cetak diblokir. Izinkan pop-up pada SIMANIS.");return}
+ const rowsHtml=data.map((r,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(dateLabel(r.transaction_date))+
+  '</td><td>'+esc(r.status==="POSTED"?"Dibukukan":"Dibatalkan")+'</td><td>'+
+  esc(r.category_name||"")+'</td><td>'+esc(r.description||"")+'</td><td>'+
+  esc(r.account_type==="CASH"?"Tunai":r.account_name||"Bank")+
+  '</td><td style="text-align:right">'+esc(money(r.amount))+'</td></tr>').join("");
+ printWindow.document.write('<!doctype html><html lang="id"><head><meta charset="utf-8">'+
+  '<title>Rekap Pengeluaran — '+esc(period)+'</title><style>'+
+  '@page{size:A4 landscape;margin:12mm}body{font:10px Arial,sans-serif;color:#222}'+
+  'h2,h3,p{text-align:center;margin:7px 0}h2{font-size:17px}h3{font-size:13px}'+
+  'table{width:100%;border-collapse:collapse;margin-top:15px}th,td{border:1px solid #aaa;padding:7px;text-align:left}'+
+  'th{background:#f1f1f1}tr{break-inside:avoid}.stats{display:flex;gap:14px;margin:15px 0}'+
+  '.stats div{border:1px solid #ccc;flex:1;padding:10px}.stats b{display:block;font-size:14px;margin-top:5px}'+
+  '.foot{display:flex;justify-content:space-between;margin-top:30px}.signature{width:220px;text-align:center}.sign-space{height:55px}'+
+  '</style></head><body><h2>MA NURUL ISLAM KARANGCEMPAKA</h2>'+
+  '<h3>REKAP PENGELUARAN KEUANGAN</h3><p>Periode: '+esc(period)+'</p>'+
+  '<div class="stats"><div>Total Pengeluaran Dibukukan<b>'+esc(money(total.total))+'</b></div>'+
+  '<div>Pengeluaran Tunai<b>'+esc(money(total.cash))+'</b></div>'+
+  '<div>Pengeluaran Bank<b>'+esc(money(total.bank))+'</b></div></div>'+
+  '<table><thead><tr><th>No.</th><th>Tanggal</th><th>Status</th><th>Kategori</th><th>Uraian</th>'+
+  '<th>Penyimpanan</th><th>Nominal</th></tr></thead><tbody>'+rowsHtml+'</tbody></table>'+
+  '<p style="text-align:left;font-size:9px;margin-top:10px">Transaksi dibatalkan (VOID) tidak mengurangi saldo Buku Kas.</p>'+
+  '<div class="foot"><div class="signature">Mengetahui,<br>Kepala Madrasah'+
+  '<div class="sign-space"></div>__________________</div>'+
+  '<div class="signature">Bendahara<div class="sign-space"></div><b>'+
+  esc(financeTreasurerSignature())+'</b></div></div></body></html>');
+ printWindow.document.close();
+ setTimeout(()=>printWindow.print(),450);
+}
+
 /* ==========================================================
    BUKU KAS V1
 ========================================================== */
