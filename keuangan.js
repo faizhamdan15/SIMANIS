@@ -3,6 +3,7 @@ let api,profile,rows=[],categories=[],modulePerm={can_view:false,can_create:fals
 let feePlans=[],activePlan=null,bills=[],studentPayments=[],classes=[],classRates=[];
 let selectedBillId=null;
 let officialTreasurerName="";
+let expenseCsvObjectUrl=null;
 const STORAGE_BUCKET="keuangan-bukti";
 const MAX_FILE_SIZE=10*1024*1024;
 const ALLOWED_MIME=new Set(["application/pdf","image/jpeg","image/png","image/webp"]);
@@ -95,6 +96,7 @@ async function loadData(){
     api.db.select("v_student_education_payments","select=*&order=payment_date.desc,created_at.desc")
   ]);
   rows=tx||[];bills=b||[];studentPayments=p||[];
+  clearExpenseCsvLink();
   renderMonthOptions();renderExpenseMonthOptions();render();renderStudentModule();renderRecapFilters();renderRecap();
 }
 function renderPlanCard(){
@@ -208,15 +210,22 @@ function expenseCsvRows(data){
  lines.push(["","TOTAL PENGELUARAN DIBUKUKAN","","","","","","",sum.total,""]);
  return lines;
 }
+function clearExpenseCsvLink(){
+ if(expenseCsvObjectUrl){URL.revokeObjectURL(expenseCsvObjectUrl);expenseCsvObjectUrl=null}
+ const link=$("expenseManualDownloadLink");
+ if(link){link.hidden=true;link.removeAttribute("href")}
+}
 function exportExpenseCsv(){
  const data=filteredExpenses();
  if(!data.length){alert("Belum ada transaksi pengeluaran untuk diunduh.");return}
  const csv="\ufeffsep=;\r\n"+expenseCsvRows(data).map(r=>r.map(expenseCsvCell).join(";")).join("\r\n");
- const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
- const link=document.createElement("a");
- link.href=url;link.download="pengeluaran-keuangan-"+($("expenseMonthFilter").value||"semua-periode")+".csv";
- document.body.appendChild(link);link.click();link.remove();
- setTimeout(()=>URL.revokeObjectURL(url),5000);
+ clearExpenseCsvLink();
+ expenseCsvObjectUrl=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+ const link=$("expenseManualDownloadLink");
+ link.href=expenseCsvObjectUrl;
+ link.download="pengeluaran-keuangan-"+($("expenseMonthFilter").value||"semua-periode")+".csv";
+ link.hidden=false;
+ link.click();
 }
 
 
@@ -734,12 +743,13 @@ $("searchInput").addEventListener("input",render);$("monthFilter").addEventListe
 $("addBtn").addEventListener("click",()=>openAdd("INCOME"));
 $("addExpenseQuickBtn").addEventListener("click",()=>openAdd("EXPENSE"));
 $("addExpenseBtn").addEventListener("click",()=>openAdd("EXPENSE"));
-$("expenseSearch").addEventListener("input",renderExpenses);
-$("expenseMonthFilter").addEventListener("change",renderExpenses);
-$("expenseCategoryFilter").addEventListener("change",renderExpenses);
-$("expenseStatusFilter").addEventListener("change",renderExpenses);
+$("expenseSearch").addEventListener("input",()=>{clearExpenseCsvLink();renderExpenses()});
+$("expenseMonthFilter").addEventListener("change",()=>{clearExpenseCsvLink();renderExpenses()});
+$("expenseCategoryFilter").addEventListener("change",()=>{clearExpenseCsvLink();renderExpenses()});
+$("expenseStatusFilter").addEventListener("change",()=>{clearExpenseCsvLink();renderExpenses()});
 $("expenseCsvBtn").addEventListener("click",exportExpenseCsv);
 $("expensePrintBtn").addEventListener("click",printExpenses);
+window.addEventListener("pagehide",clearExpenseCsvLink);
 $("printBtn").addEventListener("click",printReport);$("csvBtn").addEventListener("click",exportCsv);$("closeModal").addEventListener("click",closeModal);$("cancelBtn").addEventListener("click",closeModal);$("deleteBtn").addEventListener("click",remove);$("form").addEventListener("submit",save);$("transactionType").addEventListener("change",renderCategoryOptions);$("accountType").addEventListener("change",toggleBank);$("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
 $("rateClassSelect").addEventListener("change",syncRateEditor);$("saveClassRateBtn").addEventListener("click",saveClassRateUI);$("syncBillsBtn").addEventListener("click",syncBills);
 $("studentClassFilter").addEventListener("change",()=>{renderStudentSelect();$("studentFilter").value="";selectedBillId=null;renderStudentModule()});
