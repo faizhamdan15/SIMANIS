@@ -77,6 +77,7 @@
     .expense-summary-line{color:#96534a;font-size:10px;font-weight:700;margin:0 0 12px;line-height:1.6}
     .expense-cards{display:none;gap:10px}
     .expense-cards .finance-card{border-color:#ecdeda}
+    #expenseManualDownloadLink[hidden]{display:none!important}
     .expense-reminder{background:#fff8f4;border:1px solid #eedbd3;border-radius:12px;padding:11px 13px;color:#78584c;font-size:10px;line-height:1.65;margin-bottom:16px}
     @media(max-width:900px){.expense-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.expense-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:850px){.expense-table-wrap{display:none}.expense-cards{display:grid}}
@@ -155,7 +156,7 @@
             <button id="addExpenseBtn" type="button" class="primary-btn">+ Catat Pengeluaran</button>
           </div>
         </div>
-        <div class="expense-reminder">Nominal pengeluaran dicatat sebagai <strong>uang keluar</strong>, sehingga mengurangi saldo Buku Kas otomatis. Lampirkan bukti pengeluaran (foto atau PDF) bila tersedia. Transaksi dengan status <strong>VOID / Dibatalkan</strong> tidak mengurangi saldo.</div>
+        <div class="expense-reminder">Nominal pengeluaran dicatat sebagai <strong>uang keluar</strong>, sehingga mengurangi saldo Buku Kas otomatis. Lampirkan bukti pengeluaran (foto atau PDF) bila tersedia. Transaksi dengan status <strong>VOID / Dibatalkan</strong> tidak mengurangi saldo. Jika saldo awal belum dicatat dalam Buku Kas, saldo terhitung dapat terlihat negatif.</div>
         <section class="expense-stats">
           <article><span>Total Pengeluaran Terfilter</span><strong id="expenseStatTotal">Rp0</strong></article>
           <article><span>Pengeluaran Tunai</span><strong id="expenseStatCash">Rp0</strong></article>
@@ -169,6 +170,7 @@
           <select id="expenseStatusFilter" aria-label="Filter status pengeluaran"><option value="POSTED">Dibukukan</option><option value="">Semua Status</option><option value="VOID">Dibatalkan</option></select>
         </section>
         <p id="expenseSummaryLine" class="expense-summary-line" role="status" aria-live="polite">Belum ada data pengeluaran.</p>
+        <a id="expenseManualDownloadLink" download hidden style="display:inline-block;color:#075b3a;font-size:11px;font-weight:800;margin:0 0 12px;text-decoration:underline">⬇ Jika file CSV belum terunduh, klik di sini</a>
         <section class="expense-table-wrap">
           <table class="data-table">
             <thead><tr><th>No.</th><th>Tanggal</th><th>Kategori / Uraian</th><th>Penyimpanan</th><th>Status</th><th>Nominal Keluar</th><th>Bukti</th><th>Aksi</th></tr></thead>
