@@ -114,6 +114,111 @@ function setTab(name){
 }
 document.querySelectorAll(".tabbtn").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
 
+
+/* Pengeluaran memakai tabel finance_transactions yang sama dengan Buku Kas. */
+function renderExpenseCategoryOptions(){
+ const field=$("expenseCategoryFilter"),previous=field.value;
+ const cats=categories.filter(x=>["EXPENSE","BOTH"].includes(x.transaction_type));
+ field.innerHTML='<option value="">Semua Kategori Pengeluaran</option>'+
+  cats.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join("");
+ field.value=cats.some(c=>c.id===previous)?previous:"";
+}
+function renderExpenseMonthOptions(){
+ const field=$("expenseMonthFilter"),previous=field.value;
+ const months=[...new Set(rows.filter(r=>r.transaction_type==="EXPENSE")
+  .map(r=>String(r.transaction_date||"").slice(0,7)).filter(Boolean))].sort().reverse();
+ field.innerHTML='<option value="">Semua Bulan</option>'+
+  months.map(k=>'<option value="'+esc(k)+'">'+esc(monthName(k))+'</option>').join("");
+ field.value=months.includes(previous)?previous:"";
+}
+function filteredExpenses(){
+ const q=$("expenseSearch").value.trim().toLocaleLowerCase("id-ID"),
+  month=$("expenseMonthFilter").value,category=$("expenseCategoryFilter").value,
+  status=$("expenseStatusFilter").value;
+ return rows.filter(r=>r.transaction_type==="EXPENSE"
+  &&(!month||String(r.transaction_date||"").startsWith(month))
+  &&(!category||r.category_id===category)
+  &&(!status||r.status===status)
+  &&(!q||[r.category_name,r.description,r.reference_number,r.account_name,r.created_by_name]
+   .join(" ").toLocaleLowerCase("id-ID").includes(q)));
+}
+function expenseTotals(data){
+ const posted=data.filter(r=>r.status==="POSTED");
+ return {
+  total:posted.reduce((a,r)=>a+Number(r.amount||0),0),
+  cash:posted.filter(r=>r.account_type==="CASH").reduce((a,r)=>a+Number(r.amount||0),0),
+  bank:posted.filter(r=>r.account_type==="BANK").reduce((a,r)=>a+Number(r.amount||0),0),
+  posted:posted.length,
+  voided:data.filter(r=>r.status==="VOID").length
+ };
+}
+function renderExpenses(){
+ const data=filteredExpenses(),summary=expenseTotals(data);
+ $("addExpenseBtn").style.display=canCreate()?"":"none";
+ $("expenseStatTotal").textContent=money(summary.total);
+ $("expenseStatCash").textContent=money(summary.cash);
+ $("expenseStatBank").textContent=money(summary.bank);
+ $("expenseStatCount").textContent=summary.posted;
+ $("expenseSummaryLine").textContent=data.length+" transaksi ditampilkan · "+
+  summary.posted+" dibukukan · "+summary.voided+
+  " dibatalkan. Hanya transaksi dibukukan mengurangi saldo Buku Kas.";
+ if(!data.length){
+  $("expenseTableBody").innerHTML='<tr><td colspan="8"><div class="expense-empty">Belum ada pengeluaran yang sesuai filter.</div></td></tr>';
+  $("expenseCards").innerHTML='<div class="expense-empty">Belum ada pengeluaran yang sesuai filter.</div>';
+  return;
+ }
+ $("expenseTableBody").innerHTML=data.map((r,i)=>
+  '<tr><td>'+(i+1)+'</td><td>'+esc(dateLabel(r.transaction_date))+
+  '</td><td><b>'+esc(r.category_name||"-")+'</b><br>'+esc(r.description||"-")+
+  (r.reference_number?'<br><small>Referensi: '+esc(r.reference_number)+'</small>':"")+
+  '</td><td>'+storageLabel(r)+'</td><td>'+typeBadge(r)+
+  '</td><td>'+amountHtml(r)+'</td><td>'+(r.receipt_path?
+   '<button class="mini-btn" data-expense-receipt="'+esc(r.id)+'">Buka Bukti</button>':"—")+
+  '</td><td>'+(canUpdate()?'<button class="mini-btn" data-expense-edit="'+esc(r.id)+'">Edit</button>':"—")+'</td></tr>'
+ ).join("");
+ $("expenseCards").innerHTML=data.map(r=>
+  '<article class="finance-card"><div class="finance-card-top"><span>'+typeBadge(r)+
+  '</span><span>'+amountHtml(r)+'</span></div><h4>'+esc(r.category_name||"-")+
+  '</h4><p>'+esc(r.description||"-")+'</p><p>'+esc(dateLabel(r.transaction_date))+
+  ' · '+storageLabel(r)+'</p><div class="row-actions">'+(r.receipt_path?
+   '<button class="mini-btn" data-expense-receipt="'+esc(r.id)+'">Buka Bukti</button>':"")+
+  (canUpdate()?'<button class="mini-btn" data-expense-edit="'+esc(r.id)+'">Edit</button>':"")+
+  '</div></article>').join("");
+ document.querySelectorAll("[data-expense-edit]").forEach(x=>x.onclick=()=>openEdit(x.dataset.expenseEdit));
+ document.querySelectorAll("[data-expense-receipt]").forEach(x=>x.onclick=()=>openReceipt(x.dataset.expenseReceipt));
+}
+function expenseCsvCell(value){
+ let v=String(value??"").replace(/[\r\n\u0000-\u001f]+/g," ").trim();
+ if(/^[\s]*[=+\-@]/.test(v))v="'"+v;
+ return '"'+v.replaceAll('"','""')+'"';
+}
+function expenseCsvRows(data){
+ const sum=expenseTotals(data);
+ const lines=[
+  ["MA NURUL ISLAM","REKAP PENGELUARAN"],
+  ["Periode",$("expenseMonthFilter").value?monthName($("expenseMonthFilter").value):"Semua Bulan"],
+  ["Catatan","VOID tidak mengurangi saldo Buku Kas."],[],
+  ["No","Tanggal","Status","Kategori","Uraian","Penyimpanan","Rekening","Referensi","Nominal (Rp)","Pencatat"]
+ ];
+ data.forEach((r,i)=>lines.push([
+  i+1,r.transaction_date,r.status==="POSTED"?"Dibukukan":"Dibatalkan",
+  r.category_name||"",r.description||"",r.account_type==="CASH"?"Tunai":"Bank",
+  r.account_name||"",r.reference_number||"",Number(r.amount||0),r.created_by_name||""
+ ]));
+ lines.push(["","TOTAL PENGELUARAN DIBUKUKAN","","","","","","",sum.total,""]);
+ return lines;
+}
+function exportExpenseCsv(){
+ const data=filteredExpenses();
+ if(!data.length){alert("Belum ada transaksi pengeluaran untuk diunduh.");return}
+ const csv="\ufeffsep=;\r\n"+expenseCsvRows(data).map(r=>r.map(expenseCsvCell).join(";")).join("\r\n");
+ const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+ const link=document.createElement("a");
+ link.href=url;link.download="pengeluaran-keuangan-"+($("expenseMonthFilter").value||"semua-periode")+".csv";
+ document.body.appendChild(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+
 /* ==========================================================
    BUKU KAS V1
 ========================================================== */
