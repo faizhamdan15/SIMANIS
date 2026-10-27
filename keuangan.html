@@ -62,6 +62,25 @@
     @media(max-width:1180px){.finance-stats,.student-pay-stats{grid-template-columns:repeat(3,1fr)}.finance-toolbar{grid-template-columns:1fr 1fr 1fr}.student-layout{grid-template-columns:1fr}.student-detail{position:static}}
     @media(max-width:850px){#recapClassGrid{grid-template-columns:1fr 1fr!important}.finance-stats,.student-pay-stats{grid-template-columns:1fr 1fr}.finance-table-wrap,.student-table-wrap{display:none}.finance-cards,.student-cards{display:grid}.finance-toolbar,.student-toolbar{grid-template-columns:1fr 1fr}}
     @media(max-width:850px){#classRateGrid{grid-template-columns:1fr 1fr!important}#rateEditor{grid-template-columns:1fr!important}}@media(max-width:560px){#recapClassGrid{grid-template-columns:1fr!important}.finance-stats,.student-pay-stats,.finance-toolbar,.student-toolbar,.detail-grid{grid-template-columns:1fr}.finance-actions{justify-content:flex-start}#classRateGrid{grid-template-columns:1fr!important}}
+
+    .expense-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .expense-head h3{color:#75432a;margin:0 0 5px;font-size:16px}
+    .expense-head p{color:#63756b;font-size:10px;margin:0;line-height:1.65}
+    .expense-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0 15px}
+    .expense-stats article{background:#fff;border:1px solid #ecdeda;border-radius:13px;padding:15px}
+    .expense-stats span{display:block;font-weight:700;font-size:10px;color:#855647}
+    .expense-stats strong{display:block;font-size:19px;color:#aa4a3b;margin-top:6px}
+    .expense-toolbar{display:grid;grid-template-columns:1.5fr .7fr .85fr .65fr;gap:9px;margin-bottom:12px}
+    .expense-toolbar input,.expense-toolbar select{width:100%;border:1px solid #e2d9d4;background:#fff;padding:11px;border-radius:10px;font-size:11px}
+    .expense-table-wrap{background:#fff;border:1px solid #eadfdc;border-radius:13px;overflow-x:auto}
+    .expense-empty{padding:25px;text-align:center;font-size:11px;color:#85635d}
+    .expense-summary-line{color:#96534a;font-size:10px;font-weight:700;margin:0 0 12px;line-height:1.6}
+    .expense-cards{display:none;gap:10px}
+    .expense-cards .finance-card{border-color:#ecdeda}
+    .expense-reminder{background:#fff8f4;border:1px solid #eedbd3;border-radius:12px;padding:11px 13px;color:#78584c;font-size:10px;line-height:1.65;margin-bottom:16px}
+    @media(max-width:900px){.expense-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.expense-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:850px){.expense-table-wrap{display:none}.expense-cards{display:grid}}
+    @media(max-width:560px){.expense-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.expense-toolbar{grid-template-columns:1fr}.expense-stats strong{font-size:16px}}
   </style>
 </head>
 <body>
@@ -88,6 +107,7 @@
 
       <div class="tabbar">
         <button class="tabbtn active" data-tab="cashbook">Buku Kas</button>
+        <button class="tabbtn" data-tab="expense">Pengeluaran</button>
         <button class="tabbtn" data-tab="studentpay">Pembayaran Siswa</button>
         <button class="tabbtn" data-tab="recap">Rekap Pembayaran</button>
       </div>
@@ -96,7 +116,8 @@
         <div class="finance-actions" style="margin-bottom:12px">
           <button id="printBtn" class="secondary-btn">🖨️ Cetak Laporan</button>
           <button id="csvBtn" class="secondary-btn">⬇️ Export CSV</button>
-          <button id="addBtn" class="primary-btn">+ Transaksi</button>
+          <button id="addExpenseQuickBtn" class="secondary-btn" style="width:auto">− Catat Pengeluaran</button>
+          <button id="addBtn" class="primary-btn">+ Catat Pemasukan</button>
         </div>
 
         <section class="finance-stats">
@@ -123,6 +144,38 @@
           </table>
         </section>
         <section id="financeCards" class="finance-cards"></section>
+      </section>
+
+      <section id="tabExpense" class="tabpanel hidden" aria-label="Pencatatan Pengeluaran Keuangan">
+        <div class="expense-head">
+          <div><h3>Pengeluaran Madrasah</h3><p>Catat dan telusuri pengeluaran kas tunai maupun rekening. Semua transaksi tersimpan pada Buku Kas yang sama.</p></div>
+          <div class="finance-actions">
+            <button id="expensePrintBtn" type="button" class="secondary-btn">🖨️ Cetak Pengeluaran / PDF</button>
+            <button id="expenseCsvBtn" type="button" class="secondary-btn">⬇️ Download CSV</button>
+            <button id="addExpenseBtn" type="button" class="primary-btn">+ Catat Pengeluaran</button>
+          </div>
+        </div>
+        <div class="expense-reminder">Nominal pengeluaran dicatat sebagai <strong>uang keluar</strong>, sehingga mengurangi saldo Buku Kas otomatis. Lampirkan bukti pengeluaran (foto atau PDF) bila tersedia. Transaksi dengan status <strong>VOID / Dibatalkan</strong> tidak mengurangi saldo.</div>
+        <section class="expense-stats">
+          <article><span>Total Pengeluaran Terfilter</span><strong id="expenseStatTotal">Rp0</strong></article>
+          <article><span>Pengeluaran Tunai</span><strong id="expenseStatCash">Rp0</strong></article>
+          <article><span>Pengeluaran Rekening</span><strong id="expenseStatBank">Rp0</strong></article>
+          <article><span>Transaksi Dibukukan</span><strong id="expenseStatCount">0</strong></article>
+        </section>
+        <section class="expense-toolbar">
+          <input id="expenseSearch" type="search" placeholder="Cari kategori, uraian, referensi..." aria-label="Cari pengeluaran"/>
+          <select id="expenseMonthFilter" aria-label="Filter bulan pengeluaran"><option value="">Semua Bulan</option></select>
+          <select id="expenseCategoryFilter" aria-label="Filter kategori pengeluaran"><option value="">Semua Kategori Pengeluaran</option></select>
+          <select id="expenseStatusFilter" aria-label="Filter status pengeluaran"><option value="POSTED">Dibukukan</option><option value="">Semua Status</option><option value="VOID">Dibatalkan</option></select>
+        </section>
+        <p id="expenseSummaryLine" class="expense-summary-line" role="status" aria-live="polite">Belum ada data pengeluaran.</p>
+        <section class="expense-table-wrap">
+          <table class="data-table">
+            <thead><tr><th>No.</th><th>Tanggal</th><th>Kategori / Uraian</th><th>Penyimpanan</th><th>Status</th><th>Nominal Keluar</th><th>Bukti</th><th>Aksi</th></tr></thead>
+            <tbody id="expenseTableBody"></tbody>
+          </table>
+        </section>
+        <section id="expenseCards" class="expense-cards"></section>
       </section>
 
       <section id="tabStudentpay" class="tabpanel hidden">
@@ -289,6 +342,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="keuangan.js?v=20261026-bendahara-gelar-spdi-v2"></script>
+<script src="keuangan.js?v=20261027-pengeluaran-terpisah-v1"></script>
 </body>
 </html>
