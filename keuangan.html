@@ -82,6 +82,31 @@
     @media(max-width:900px){.expense-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.expense-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:850px){.expense-table-wrap{display:none}.expense-cards{display:grid}}
     @media(max-width:560px){.expense-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.expense-toolbar{grid-template-columns:1fr}.expense-stats strong{font-size:16px}}
+
+    .income-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:13px}
+    .income-head h3{color:#075b3a;margin:0 0 5px;font-size:16px}
+    .income-head p{color:#537360;font-size:10px;margin:0;line-height:1.65}
+    .income-note{background:#f1faf4;border:1px solid #cbe5d5;border-radius:12px;padding:12px 14px;color:#365c45;font-size:10px;line-height:1.7;margin-bottom:15px}
+    .income-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:16px}
+    .income-stats article{background:#fff;border:1px solid #d9e9df;border-radius:13px;padding:13px;min-width:0}
+    .income-stats span{display:block;font-weight:700;font-size:10px;color:#427458}
+    .income-stats strong{display:block;font-size:18px;color:#0b7347;margin-top:6px;overflow-wrap:anywhere}
+    .income-toolbar{display:grid;grid-template-columns:1.3fr .7fr .8fr .8fr .8fr;gap:9px;margin-bottom:13px}
+    .income-toolbar input,.income-toolbar select{width:100%;border:1px solid #cfe1d5;background:#fff;padding:11px;border-radius:10px;font-size:11px;min-width:0}
+    .income-summary-line{color:#315c46;font-size:10px;font-weight:700;margin:0 0 12px;line-height:1.6}
+    .income-table-wrap{background:#fff;border:1px solid #d6e8dc;border-radius:13px;overflow-x:auto}
+    .income-empty{padding:24px;font-size:11px;color:#557766;text-align:center}
+    .income-cards{display:none;gap:10px}
+    .income-class-card{border:1px solid #d8e8dc;background:#fff;border-radius:12px;padding:11px;font-size:10px}
+    .income-class-card span{color:#5b7465;display:block;margin-bottom:5px}
+    .income-class-card strong{color:#075b3a;font-size:14px}
+    .income-class-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:8px 0 16px}
+    .income-issue{background:#fff3ee;color:#8f392e;padding:10px 12px;border:1px solid #e7c4b9;border-radius:11px;font-size:10px;line-height:1.6;margin:0 0 14px}
+    .income-issue[hidden],#incomeManualDownloadLink[hidden]{display:none!important}
+    .income-manual-link{color:#075b3a;font-size:11px;font-weight:800;display:inline-block;margin:0 0 10px}
+    @media(max-width:1180px){.income-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.income-toolbar{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:850px){.income-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.income-table-wrap{display:none}.income-cards{display:grid}.income-class-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:560px){.income-toolbar{grid-template-columns:1fr}.income-stats strong{font-size:16px}.income-class-grid{grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body>
@@ -108,6 +133,7 @@
 
       <div class="tabbar">
         <button class="tabbtn active" data-tab="cashbook">Buku Kas</button>
+        <button class="tabbtn" data-tab="income">Pemasukan</button>
         <button class="tabbtn" data-tab="expense">Pengeluaran</button>
         <button class="tabbtn" data-tab="studentpay">Pembayaran Siswa</button>
         <button class="tabbtn" data-tab="recap">Rekap Pembayaran</button>
@@ -147,6 +173,48 @@
         <section id="financeCards" class="finance-cards"></section>
       </section>
 
+      <section id="tabIncome" class="tabpanel hidden" aria-label="Rekap Pemasukan termasuk Pembayaran Siswa">
+        <div class="income-head">
+          <div><h3>Pemasukan Madrasah</h3><p>Seluruh pemasukan Buku Kas, termasuk pembayaran Iuran Pendidikan siswa yang tercatat otomatis.</p></div>
+          <div class="finance-actions">
+            <button id="incomePrintBtn" type="button" class="secondary-btn">🖨️ Cetak Pemasukan / PDF</button>
+            <button id="incomeCsvBtn" type="button" class="secondary-btn">⬇️ Download CSV</button>
+            <button id="incomeOtherBtn" type="button" class="primary-btn">+ Pemasukan Lainnya</button>
+          </div>
+        </div>
+        <div class="income-note"><strong>Pembayaran Siswa → Pemasukan otomatis.</strong> Saat siswa membayar cicilan melalui menu <strong>Pembayaran Siswa</strong>, SIMANIS langsung membukukannya sebagai <strong>Pemasukan – Iuran Pendidikan</strong> pada Buku Kas, lengkap dengan nama siswa dan kelas. <strong>Jangan input kembali secara manual</strong> agar tidak terhitung dua kali. Pembayaran berstatus Batal (VOID) tidak menambah saldo.</div>
+        <section class="income-stats" aria-label="Ringkasan pemasukan sesuai filter">
+          <article><span>Total Pemasukan Dibukukan</span><strong id="incomeStatTotal">Rp0</strong></article>
+          <article><span>Dari Pembayaran Siswa</span><strong id="incomeStatStudent">Rp0</strong></article>
+          <article><span>Pemasukan Lain</span><strong id="incomeStatOther">Rp0</strong></article>
+          <article><span>Masuk Kas Tunai</span><strong id="incomeStatCash">Rp0</strong></article>
+          <article><span>Masuk Rekening</span><strong id="incomeStatBank">Rp0</strong></article>
+        </section>
+        <section class="income-toolbar">
+          <input id="incomeSearch" type="search" placeholder="Cari nama siswa, kelas, uraian, nomor nota..." aria-label="Cari transaksi pemasukan"/>
+          <select id="incomeMonthFilter" aria-label="Filter bulan pemasukan"><option value="">Semua Bulan</option></select>
+          <select id="incomeSourceFilter" aria-label="Filter sumber pemasukan"><option value="">Semua Sumber</option><option value="STUDENT">Pembayaran Siswa</option><option value="OTHER">Pemasukan Lain</option></select>
+          <select id="incomeClassFilter" aria-label="Filter kelas pembayaran"><option value="">Semua Kelas</option></select>
+          <select id="incomeStatusFilter" aria-label="Filter status pemasukan"><option value="POSTED">Dibukukan</option><option value="">Semua Status</option><option value="VOID">Dibatalkan</option></select>
+        </section>
+        <p id="incomeSummaryLine" class="income-summary-line" role="status" aria-live="polite">Belum ada data pemasukan.</p>
+        <p id="incomeSyncNotice" class="income-issue" role="alert" hidden></p>
+        <a id="incomeManualDownloadLink" class="income-manual-link" hidden download>⬇ Jika unduhan CSV tidak otomatis muncul, klik di sini</a>
+        <section class="income-table-wrap">
+          <table class="data-table">
+            <thead><tr><th>No.</th><th>Tanggal</th><th>Sumber / Kategori</th><th>Siswa / Kelas / Uraian</th><th>No. Nota</th><th>Penyimpanan</th><th>Status</th><th>Nominal Masuk</th><th>Aksi</th></tr></thead>
+            <tbody id="incomeTableBody"></tbody>
+          </table>
+        </section>
+        <section id="incomeCards" class="income-cards"></section>
+        <section class="plan-card" style="margin-top:16px">
+          <div class="plan-head">
+            <div><h3>Rekap Pemasukan Pembayaran Siswa per Kelas</h3><p>Hanya cicilan yang berhasil dibukukan. Ringkasan mengikuti filter bulan dan pencarian, tetapi mengabaikan pilihan status Batal.</p></div>
+          </div>
+          <div id="incomeClassGrid" class="income-class-grid" style="margin-top:12px"></div>
+        </section>
+      </section>
+
       <section id="tabExpense" class="tabpanel hidden" aria-label="Pencatatan Pengeluaran Keuangan">
         <div class="expense-head">
           <div><h3>Pengeluaran Madrasah</h3><p>Catat dan telusuri pengeluaran kas tunai maupun rekening. Semua transaksi tersimpan pada Buku Kas yang sama.</p></div>
@@ -181,6 +249,12 @@
       </section>
 
       <section id="tabStudentpay" class="tabpanel hidden">
+        <div class="income-note" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div><strong>Pembayaran siswa otomatis menjadi pemasukan.</strong> Setiap cicilan yang berhasil disimpan langsung masuk ke Buku Kas sebagai Pemasukan – Iuran Pendidikan satu kali. Pembayaran yang dibatalkan tidak menambah saldo.
+            <p id="paymentIncomeFeedback" role="status" aria-live="polite" style="font-size:10px;font-weight:800;margin:6px 0 0"></p>
+          </div>
+          <button id="paymentIncomeTabBtn" class="secondary-btn" type="button" style="width:auto">Lihat Rekap Pemasukan</button>
+        </div>
         <section class="plan-card">
           <div class="plan-head">
             <div>
@@ -303,7 +377,7 @@
         <div class="form-grid">
           <label><span>Tanggal *</span><input id="transactionDate" type="date" required/></label>
           <label><span>Jenis *</span><select id="transactionType"><option value="INCOME">Pemasukan</option><option value="EXPENSE">Pengeluaran</option></select></label>
-          <label><span>Kategori *</span><select id="category" required></select></label>
+          <label><span>Kategori *</span><select id="category" required></select><small id="incomeCategoryHint" class="field-hint">Iuran Pendidikan siswa dicatat otomatis lewat Pembayaran Siswa.</small></label>
           <label><span>Nominal *</span><input id="amount" type="number" min="1" step="1" required placeholder="0"/></label>
           <label><span>Penyimpanan *</span><select id="accountType"><option value="CASH">Cash / Tunai</option><option value="BANK">Rekening / Bank</option></select></label>
           <label id="bankNameWrap" class="bank-wrap hidden"><span>Nama Rekening / Bank *</span><input id="accountName" maxlength="120"/></label>
@@ -344,6 +418,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="keuangan.js?v=20261027-pengeluaran-terpisah-v1"></script>
+<script src="keuangan.js?v=20261028-pemasukan-siswa-1"></script>
 </body>
 </html>
