@@ -19,9 +19,22 @@ function money(n){return new Intl.NumberFormat("id-ID",{style:"currency",currenc
 
 /* Formulir rupiah: angka terlihat 1.000.000, tapi disimpan sebagai Number(1000000). */
 const rupiahIntegerFormatter=new Intl.NumberFormat("id-ID",{maximumFractionDigits:0,useGrouping:true});
+function rupiahInputDigits(raw){
+ let text=String(raw??"").trim();
+ // Tempelan nilai Rupiah dari spreadsheet kadang memiliki ,00 di belakang.
+ // Pecahan selain nol tidak diterima, agar tak salah hitung berlipat.
+ const fractional=text.match(/,(\d{1,2})$/);
+ if(fractional){
+  if(Number(fractional[1])!==0)return null;
+  text=text.slice(0,-fractional[0].length);
+ }
+ return text.replace(/\D/g,"");
+}
 function formatRupiahInput(raw){
- const digits=String(raw??"").replace(/\D/g,"").replace(/^0+(?=\d)/,"").slice(0,15);
- return digits?rupiahIntegerFormatter.format(Number(digits)):"";
+ const digits=rupiahInputDigits(raw);
+ if(digits===null)return String(raw??"");
+ const integer=digits.replace(/^0+(?=\d)/,"").slice(0,15);
+ return integer?rupiahIntegerFormatter.format(Number(integer)):"";
 }
 function rupiahFromNumber(value){
  if(value===null||value===undefined||value==="")return "";
@@ -29,7 +42,8 @@ function rupiahFromNumber(value){
  return Number.isSafeInteger(number)&&number>=0?rupiahIntegerFormatter.format(number):"";
 }
 function readRupiahInput(field){
- const digits=String(field?.value??"").replace(/\D/g,"");
+ const digits=rupiahInputDigits(field?.value);
+ if(digits===null)return NaN;
  if(!digits||digits.length>15)return digits?NaN:0;
  const number=Number(digits);
  return Number.isSafeInteger(number)?number:NaN;
