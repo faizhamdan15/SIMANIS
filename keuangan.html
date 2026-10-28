@@ -135,6 +135,7 @@
       </section>
 
       <div class="tabbar">
+        <button class="tabbtn" data-tab="rapbm">RAPBM 2026/2027</button>
         <button class="tabbtn active" data-tab="cashbook">Buku Kas</button>
         <button class="tabbtn" data-tab="income">Pemasukan</button>
         <button class="tabbtn" data-tab="expense">Pengeluaran</button>
@@ -142,6 +143,20 @@
         <button class="tabbtn" data-tab="recap">Rekap Pembayaran</button>
       </div>
 
+      <section id="tabRapbm" class="tabpanel hidden" aria-label="RAPBM 2026/2027">
+  <div class="plan-card" style="padding:19px;margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap">
+      <div><h2 style="margin:0 0 5px;font-size:19px;color:#075b3a">RAPBM 2026/2027</h2><p style="margin:0;color:#61746a;font-size:11px">Rencana anggaran dan realisasi Buku Kas, Pemasukan, Pengeluaran, serta Pembayaran Siswa secara terintegrasi.</p></div>
+      <div style="display:flex;gap:8px"><button id="rapbmRefresh" type="button" class="secondary-btn" style="width:auto">Muat Ulang</button><button id="rapbmPrint" type="button" class="secondary-btn" style="width:auto">Cetak / PDF</button></div>
+    </div>
+    <div id="rapbmStatus" style="margin-top:13px;font-size:11px;color:#60756b">Memuat RAPBM...</div>
+  </div>
+  <div id="rapbmStats" class="finance-stats" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px"></div>
+  <div class="plan-card" style="padding:18px">
+    <div style="font-size:11px;color:#53675d;margin-bottom:12px">Masukkan rencana nominal dalam rupiah untuk setiap kategori. Realisasi dihitung otomatis dari transaksi <b>POSTED</b> pada tahun ajaran aktif. Pembayaran siswa yang sudah terhubung ke Buku Kas tidak dijumlahkan dua kali.</div>
+    <div style="overflow-x:auto"><table class="data-table" style="width:100%;min-width:760px"><thead><tr><th>Jenis</th><th>Kode / Kategori</th><th>Rencana (Rp)</th><th>Realisasi (Rp)</th><th>Selisih (Rp)</th><th>Capaian</th><th>Aksi</th></tr></thead><tbody id="rapbmRows"></tbody></table></div>
+  </div>
+</section>
       <section id="tabCashbook" class="tabpanel">
         <div class="finance-actions" style="margin-bottom:12px">
           <button id="printBtn" class="secondary-btn">🖨️ Cetak Laporan</button>
