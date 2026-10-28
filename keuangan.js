@@ -97,7 +97,8 @@ async function loadData(){
   ]);
   rows=tx||[];bills=b||[];studentPayments=p||[];
   clearExpenseCsvLink();
-  renderMonthOptions();renderExpenseMonthOptions();render();renderStudentModule();renderRecapFilters();renderRecap();
+  clearIncomeCsvLink();
+  renderMonthOptions();renderExpenseMonthOptions();renderIncomeOptions();render();renderStudentModule();renderRecapFilters();renderRecap();
 }
 function renderPlanCard(){
   $("planName").textContent=activePlan?.name||"Iuran Pendidikan";
@@ -109,6 +110,7 @@ function renderPlanCard(){
 function setTab(name){
   document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
   $("tabCashbook").classList.toggle("hidden",name!=="cashbook");
+  $("tabIncome").classList.toggle("hidden",name!=="income");
   $("tabExpense").classList.toggle("hidden",name!=="expense");
   $("tabStudentpay").classList.toggle("hidden",name!=="studentpay");
   $("tabRecap").classList.toggle("hidden",name!=="recap");
@@ -311,6 +313,52 @@ function exportIncomeCsv(){
  link.href=incomeCsvObjectUrl;
  link.download="rekap-pemasukan-pembayaran-siswa-"+($("incomeMonthFilter").value||"semua-periode")+".csv";
  link.hidden=false;link.click();
+}
+
+
+function printIncomeReport(){
+ const data=filteredIncome();
+ if(!data.length){alert("Belum ada pemasukan sesuai filter untuk dicetak.");return}
+ const totals=incomeTotals(data),period=$("incomeMonthFilter").value?
+  monthName($("incomeMonthFilter").value):"Semua Bulan";
+ const popup=window.open("","_blank");
+ if(!popup){alert("Jendela cetak diblokir. Izinkan pop-up untuk SIMANIS.");return}
+ const rowsHtml=data.map((r,i)=>{
+  const p=incomePaymentForTransaction(r);
+  return '<tr><td>'+(i+1)+'</td><td>'+esc(dateLabel(r.transaction_date))+
+   '</td><td>'+esc(incomeSourceLabel(r))+'</td><td>'+esc(r.category_name||"")+'</td>'+
+   '<td>'+esc(p?.student_name||"-")+'</td><td>'+esc(p?.class_name_snapshot||"-")+
+   '</td><td>'+esc(p?.receipt_number||"-")+'</td><td>'+
+   esc(r.status==="POSTED"?"Dibukukan":"Dibatalkan")+'</td>'+
+   '<td style="text-align:right">'+esc(money(r.amount))+'</td></tr>';
+ }).join("");
+ const html='<!doctype html><html lang="id"><head><meta charset="utf-8">'+
+  '<title>Rekap Pemasukan dan Pembayaran Siswa — '+esc(period)+'</title>'+
+  '<style>@page{size:A4 landscape;margin:12mm}body{font:10px Arial,sans-serif;color:#233}'+
+  'h2,h3,p{text-align:center;margin:7px 0}h2{font-size:16px}h3{font-size:12px}'+
+  '.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:15px 0}'+
+  '.sum{border:1px solid #b7cabc;padding:9px}.sum b{display:block;font-size:14px;margin-top:5px}'+
+  'table{width:100%;border-collapse:collapse;font-size:8px}th,td{border:1px solid #bbb;padding:6px}'+
+  'th{background:#eef5ef}tr{break-inside:avoid}'+
+  '.foot{display:flex;justify-content:space-between;margin-top:25px;text-align:center}'+
+  '.foot div{width:230px}.space{height:52px}.note{text-align:left;margin-top:12px;font-size:9px}'+
+  '</style></head><body><h2>MA NURUL ISLAM KARANGCEMPAKA</h2>'+
+  '<h3>REKAP PEMASUKAN TERMASUK PEMBAYARAN SISWA</h3><p>Periode: '+esc(period)+'</p>'+
+  '<div class="summary"><div class="sum">Total Pemasukan Dibukukan<b>'+
+  esc(money(totals.total))+'</b></div><div class="sum">Dari Pembayaran Siswa<b>'+
+  esc(money(totals.student))+'</b></div><div class="sum">Pemasukan Lain<b>'+
+  esc(money(totals.other))+'</b></div></div>'+
+  '<table><thead><tr><th>No.</th><th>Tanggal</th><th>Sumber</th><th>Kategori</th>'+
+  '<th>Nama Siswa</th><th>Kelas</th><th>Nomor Nota</th><th>Status</th>'+
+  '<th>Nominal (Rp)</th></tr></thead><tbody>'+rowsHtml+'</tbody></table>'+
+  '<p class="note">Sumber data: Buku Kas SIMANIS. Setiap pembayaran siswa yang dibukukan'+
+  ' terhitung satu kali sebagai Pemasukan – Iuran Pendidikan. Transaksi dibatalkan'+
+  ' (VOID) tidak menambah saldo.</p>'+
+  '<div class="foot"><div>Mengetahui,<br>Kepala Madrasah<div class="space"></div>'+
+  '__________________</div><div>Bendahara<div class="space"></div><b>'+
+  esc(financeTreasurerSignature())+'</b></div></div></body></html>';
+ popup.document.write(html);popup.document.close();
+ setTimeout(()=>popup.print(),450);
 }
 
 /* Pengeluaran memakai tabel finance_transactions yang sama dengan Buku Kas. */
@@ -519,7 +567,7 @@ function openLinkedStudentPayment(financeId){
   setTimeout(()=>$("studentDetail")?.scrollIntoView({behavior:"smooth",block:"start"}),50);
 }
 function render(){
-  renderStats();renderExpenses();const data=filtered(),posted=data.filter(r=>r.status==="POSTED");
+  renderStats();renderExpenses();renderIncomes();const data=filtered(),posted=data.filter(r=>r.status==="POSTED");
   const income=posted.filter(r=>r.transaction_type==="INCOME").reduce((s,r)=>s+Number(r.amount||0),0),expense=posted.filter(r=>r.transaction_type==="EXPENSE").reduce((s,r)=>s+Number(r.amount||0),0);
   $("summaryLine").textContent=`${data.length} transaksi · Pemasukan ${money(income)} · Pengeluaran ${money(expense)} · Selisih ${money(income-expense)}`;
   $("addBtn").style.display=canCreate()?"":"none";
@@ -935,6 +983,17 @@ function recapPrint(){
 }
 
 /* EVENTS */
+
+$("incomeOtherBtn").addEventListener("click",()=>openAdd("INCOME"));
+$("incomeSearch").addEventListener("input",()=>{clearIncomeCsvLink();renderIncomes()});
+$("incomeMonthFilter").addEventListener("change",()=>{clearIncomeCsvLink();renderIncomes()});
+$("incomeSourceFilter").addEventListener("change",()=>{clearIncomeCsvLink();renderIncomes()});
+$("incomeClassFilter").addEventListener("change",()=>{clearIncomeCsvLink();renderIncomes()});
+$("incomeStatusFilter").addEventListener("change",()=>{clearIncomeCsvLink();renderIncomes()});
+$("incomeCsvBtn").addEventListener("click",exportIncomeCsv);
+$("incomePrintBtn").addEventListener("click",printIncomeReport);
+window.addEventListener("pagehide",clearIncomeCsvLink);
+
 $("searchInput").addEventListener("input",render);$("monthFilter").addEventListener("change",render);$("typeFilter").addEventListener("change",render);$("categoryFilter").addEventListener("change",render);$("accountFilter").addEventListener("change",render);
 $("addBtn").addEventListener("click",()=>openAdd("INCOME"));
 $("addExpenseQuickBtn").addEventListener("click",()=>openAdd("EXPENSE"));
@@ -969,7 +1028,7 @@ $("paymentAccountType").addEventListener("change",togglePaymentBank);$("paymentF
     await loadOfficialTreasurer();
     await loadMaster();await loadData();
     const params=new URLSearchParams(location.search),requestedTab=params.get("tab");
-    if(["cashbook","expense","studentpay","recap"].includes(requestedTab))setTab(requestedTab);
+    if(["cashbook","income","expense","studentpay","recap"].includes(requestedTab))setTab(requestedTab);
     if(params.get("from")==="pkm"&&$("backPkmBtn"))$("backPkmBtn").style.display="inline-flex";
     $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"};
   }catch(err){console.error(err);alert("Modul Keuangan gagal dimuat: "+err.message)}
