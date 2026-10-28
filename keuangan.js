@@ -96,6 +96,7 @@ async function loadData(){
     api.db.select("v_student_education_payments","select=*&order=payment_date.desc,created_at.desc")
   ]);
   rows=tx||[];bills=b||[];studentPayments=p||[];
+  incomePaymentIndex=new Map(studentPayments.filter(x=>x.finance_transaction_id).map(x=>[x.finance_transaction_id,x]));
   clearExpenseCsvLink();
   clearIncomeCsvLink();
   renderMonthOptions();renderExpenseMonthOptions();renderIncomeOptions();render();renderStudentModule();renderRecapFilters();renderRecap();
@@ -123,8 +124,9 @@ document.querySelectorAll(".tabbtn").forEach(b=>b.onclick=()=>setTab(b.dataset.t
    Hubungkan menggunakan ID finance_transaction_id, bukan kesamaan nominal/kategori.
    Jangan menambahkan nominal studentPayments ke saldo secara terpisah. */
 let incomeCsvObjectUrl=null;
+let incomePaymentIndex=new Map();
 function incomePaymentForTransaction(r){
- return studentPayments.find(p=>p.finance_transaction_id===r.id)||null;
+ return incomePaymentIndex.get(r.id)||null;
 }
 function incomeClassKey(p){
  return String(p?.class_id_snapshot||p?.class_name_snapshot||"");
@@ -554,7 +556,7 @@ function typeBadge(r){if(r.status==="VOID")return'<span class="badge-soft badge-
 function amountHtml(r){const cls=r.status==="VOID"?"money-void":(r.transaction_type==="INCOME"?"money-in":"money-out"),sign=r.transaction_type==="INCOME"?"+":"−";return`<span class="${cls}">${sign} ${money(r.amount)}</span>`}
 function storageLabel(r){return r.account_type==="CASH"?"Cash / Tunai":`Rekening${r.account_name?` · ${esc(r.account_name)}`:""}`}
 function linkedStudentPaymentByFinanceId(financeId){
-  return studentPayments.find(p=>p.finance_transaction_id===financeId)||null;
+  return incomePaymentIndex.get(financeId)||null;
 }
 function isStudentPaymentTransaction(r){
   return !!linkedStudentPaymentByFinanceId(r.id);
