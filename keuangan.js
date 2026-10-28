@@ -585,7 +585,18 @@ function renderCategoryOptions(){
     // Iuran siswa harus dibuat dari menu Pembayaran Siswa saja.
     // Pertahankan kategori jika sedang mengedit data manual lama.
     !(type==="INCOME"&&c.code==="IURAN"&&c.id!==existing?.category_id));
-  if($("category"))$("category").innerHTML=list.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  // Sumber kategori pemasukan/pengeluaran sama persis dengan kategori RAPBM.
+  // Pos yang belum dianggarkan tetap dapat dipakai agar transaksi tidak terblokir.
+  const budgetIndex=new Map(rapbmLines.map(r=>[r.category_id,r]));
+  const ordered=list.slice().sort((a,b)=>{
+    const ai=rapbmLines.findIndex(r=>r.category_id===a.id),bi=rapbmLines.findIndex(r=>r.category_id===b.id);
+    return (ai<0?999:ai)-(bi<0?999:bi);
+  });
+  if($("category"))$("category").innerHTML=ordered.map(c=>{
+    const b=budgetIndex.get(c.id);
+    const suffix=b?.has_plan?" · RAPBM "+money(b.planned_amount):" · RAPBM belum diisi";
+    return `<option value="${c.id}">${esc(c.code+" — "+c.name+suffix)}</option>`;
+  }).join("");
   const hint=$("incomeCategoryHint");
   if(hint)hint.style.display=type==="INCOME"?"block":"none";
   $("categoryFilter").innerHTML='<option value="">Semua Kategori</option>'+categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
@@ -700,7 +711,7 @@ async function save(e){
     if(uploaded){payload.receipt_path=uploaded.path;payload.receipt_name=file.name;payload.receipt_mime=uploaded.mime;payload.receipt_size=file.size}
     if(id)await restWrite(`finance_transactions?id=eq.${encodeURIComponent(id)}`,"PATCH",payload);else if(uploaded)await restWrite(`finance_transactions?id=eq.${encodeURIComponent(finalId)}`,"PATCH",payload);
     const old=$("oldReceiptPath").value;if(uploaded&&old&&old!==uploaded.path){try{await storageDelete(old)}catch{}}
-    closeModal();await loadData();
+    closeModal();await loadData();await loadRapbm();
     if(!id&&submittedType==="EXPENSE")setTab("expense");
   }catch(err){if(uploaded){try{await storageDelete(uploaded.path)}catch{}}$("formMessage").textContent="Gagal menyimpan: "+err.message}finally{btn.disabled=false;btn.textContent="Simpan"}
 }
@@ -1139,6 +1150,8 @@ async function loadRapbm(){
     if(!rapbmYear)throw new Error("Tahun pelajaran 2026/2027 belum ditemukan.");
     rapbmLines=await api.db.select("v_rapbm_realisasi","select=*&academic_year_id=eq."+encodeURIComponent(rapbmYear.id)+"&order=transaction_type.desc,category_name.asc");
     renderRapbm();
+    renderCategoryOptions();
+    renderExpenseCategoryOptions();
     status.textContent="Tahun Pelajaran 2026/2027 · "+rapbmYear.start_date+" s.d. "+rapbmYear.end_date+" · "+rapbmLines.length+" kategori";
   }catch(err){status.textContent="Gagal memuat RAPBM: "+err.message;body.innerHTML='<tr><td colspan="7">RAPBM gagal dimuat. Pastikan akun memiliki izin Keuangan.</td></tr>'}
 }
