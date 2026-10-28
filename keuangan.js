@@ -89,11 +89,24 @@ async function loadMaster(){
   renderPlanCard();
   syncRateEditor();
 }
+// PostgREST dapat membatasi jumlah baris per respons. Ambil semua halaman agar
+// pembayaran siswa dan Buku Kas tidak terpotong saat data semakin bertambah.
+async function loadCompleteFinanceData(view,order){
+  const size=500,maxPages=100,all=[];
+  for(let pageNumber=0;pageNumber<maxPages;pageNumber++){
+    const part=await api.db.select(view,
+      "select=*&order="+order+"&limit="+size+"&offset="+(pageNumber*size));
+    if(!Array.isArray(part))throw new Error("Format data "+view+" tidak valid.");
+    all.push(...part);
+    if(part.length<size)return all;
+  }
+  throw new Error("Data "+view+" melebihi batas laporan. Tidak boleh menampilkan jumlah parsial.");
+}
 async function loadData(){
   const [tx,b,p]=await Promise.all([
-    api.db.select("v_finance_transactions_detail","select=*&order=transaction_date.desc,created_at.desc"),
-    api.db.select("v_student_education_bills","select=*&order=class_name_snapshot.asc,student_name.asc"),
-    api.db.select("v_student_education_payments","select=*&order=payment_date.desc,created_at.desc")
+    loadCompleteFinanceData("v_finance_transactions_detail","transaction_date.desc,created_at.desc,id.desc"),
+    loadCompleteFinanceData("v_student_education_bills","class_name_snapshot.asc,student_name.asc,id.asc"),
+    loadCompleteFinanceData("v_student_education_payments","payment_date.desc,created_at.desc,id.desc")
   ]);
   rows=tx||[];bills=b||[];studentPayments=p||[];
   incomePaymentIndex=new Map(studentPayments.filter(x=>x.finance_transaction_id).map(x=>[x.finance_transaction_id,x]));
