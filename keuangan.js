@@ -845,9 +845,21 @@ async function savePayment(e){
   btn.disabled=true;btn.textContent="Menyimpan...";
   try{
     const res=await api.db.rpc("record_student_education_payment",{p_bill_id:id,p_payment_date:$("paymentDate").value,p_amount:amount,p_account_type:$("paymentAccountType").value,p_account_name:$("paymentAccountName").value.trim()||null,p_reference_number:$("paymentReference").value.trim()||null,p_note:$("paymentNote").value.trim()||null});
-    closePaymentModal();selectedBillId=id;await loadData();
+    // RPC menyimpan Pembayaran Siswa + Buku Kas secara atomik. Jangan menganggap
+    // pembayaran gagal bila yang gagal hanyalah memuat ulang layar setelahnya.
+    closePaymentModal();selectedBillId=id;
+    const paymentReceipt=res?.receipt_number||res?.[0]?.receipt_number||"";
+    $("paymentIncomeFeedback").textContent="Pembayaran "+(paymentReceipt||"siswa")+
+      " telah dicatat sebagai Pemasukan – Iuran Pendidikan di Buku Kas. Tidak perlu input pemasukan ulang.";
+    try{await loadData()}catch(refreshError){
+      console.warn("Pembayaran disimpan, tetapi reload data gagal:",refreshError);
+      alert("Pembayaran BERHASIL disimpan sebagai pemasukan Buku Kas ("+
+        (paymentReceipt||"nota tersedia")+"). Data di layar belum diperbarui. Muat ulang halaman; JANGAN ulangi pembayaran.");
+      return;
+    }
     const paymentId=res?.payment_id||res?.[0]?.payment_id;
-    if(paymentId)printPaymentReceipt(paymentId);else alert("Pembayaran berhasil disimpan.");
+    if(paymentId)printPaymentReceipt(paymentId);
+    else alert("Pembayaran berhasil disimpan dan otomatis tercatat sebagai pemasukan Buku Kas.");
   }catch(err){$("paymentMessage").textContent="Gagal menyimpan pembayaran: "+err.message}
   finally{btn.disabled=false;btn.textContent="Simpan & Cetak Nota"}
 }
@@ -997,6 +1009,7 @@ function recapPrint(){
 
 /* EVENTS */
 
+$("paymentIncomeTabBtn").addEventListener("click",()=>setTab("income"));
 $("incomeOtherBtn").addEventListener("click",()=>openAdd("INCOME"));
 $("incomeSearch").addEventListener("input",()=>{clearIncomeCsvLink();renderIncomes()});
 $("incomeMonthFilter").addEventListener("change",()=>{clearIncomeCsvLink();renderIncomes()});
