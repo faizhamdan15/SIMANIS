@@ -1134,13 +1134,10 @@ async function loadRapbm(){
   const status=$("rapbmStatus"),body=$("rapbmRows");
   try{
     status.textContent="Memuat data rencana dan realisasi...";
-    const years=await api.from("academic_years").select("id,name,start_date,end_date").eq("name","2026/2027").limit(1);
-    if(years.error)throw years.error;
-    rapbmYear=years.data?.[0];
+    const years=await api.db.select("academic_years","select=id,name,start_date,end_date&name=eq.2026%2F2027&limit=1");
+    rapbmYear=years?.[0];
     if(!rapbmYear)throw new Error("Tahun pelajaran 2026/2027 belum ditemukan.");
-    const result=await api.from("v_rapbm_realisasi").select("*").eq("academic_year_id",rapbmYear.id).order("transaction_type",{ascending:false}).order("category_name");
-    if(result.error)throw result.error;
-    rapbmLines=result.data||[];
+    rapbmLines=await api.db.select("v_rapbm_realisasi","select=*&academic_year_id=eq."+encodeURIComponent(rapbmYear.id)+"&order=transaction_type.desc,category_name.asc");
     renderRapbm();
     status.textContent="Tahun Pelajaran 2026/2027 · "+rapbmYear.start_date+" s.d. "+rapbmYear.end_date+" · "+rapbmLines.length+" kategori";
   }catch(err){status.textContent="Gagal memuat RAPBM: "+err.message;body.innerHTML='<tr><td colspan="7">RAPBM gagal dimuat. Pastikan akun memiliki izin Keuangan.</td></tr>'}
@@ -1169,11 +1166,11 @@ async function saveRapbmLine(categoryId,button){
   button.disabled=true;button.textContent="Menyimpan...";
   try{
     const payload={academic_year_id:rapbmYear.id,category_id:categoryId,planned_amount:amount,updated_by:profile.id};
-    let request;
-    if(item.has_plan)request=api.from("rapbm_budget_lines").update(payload).eq("academic_year_id",rapbmYear.id).eq("category_id",categoryId).select("id");
-    else request=api.from("rapbm_budget_lines").insert({...payload,created_by:profile.id}).select("id");
-    const {error}=await request;
-    if(error)throw error;
+    if(item.has_plan){
+      await restWrite("rapbm_budget_lines?academic_year_id=eq."+encodeURIComponent(rapbmYear.id)+"&category_id=eq."+encodeURIComponent(categoryId),"PATCH",payload);
+    }else{
+      await restWrite("rapbm_budget_lines","POST",{...payload,created_by:profile.id});
+    }
     await loadRapbm();
   }catch(err){alert("Gagal menyimpan RAPBM: "+err.message)}
   finally{button.disabled=false;button.textContent="Simpan"}
