@@ -107,6 +107,9 @@
     @media(max-width:1180px){.income-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.income-toolbar{grid-template-columns:repeat(3,minmax(0,1fr))}}
     @media(max-width:850px){.income-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.income-table-wrap{display:none}.income-cards{display:grid}.income-class-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:560px){.income-toolbar{grid-template-columns:1fr}.income-stats strong{font-size:16px}.income-class-grid{grid-template-columns:1fr 1fr}}
+    /* Masukan uang menggunakan format angka Indonesia (1.000.000). */
+    #amount,#paymentAmount,#rateAmountInput{font-variant-numeric:tabular-nums;letter-spacing:.2px;text-align:left;font-weight:750}
+    #amount:focus,#paymentAmount:focus,#rateAmountInput:focus{border-color:#0b7347;outline:2px solid rgba(11,115,71,.14);outline-offset:1px}
   </style>
 </head>
 <body>
@@ -269,7 +272,7 @@
 
           <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:14px;align-items:end" id="rateEditor">
             <label><span>Kelas</span><select id="rateClassSelect"></select></label>
-            <label><span>Nominal Tahunan</span><input id="rateAmountInput" type="number" min="1" step="1000" placeholder="Contoh: 2500000"/></label>
+            <label><span>Nominal Tahunan</span><input id="rateAmountInput" type="text" inputmode="numeric" autocomplete="off" maxlength="22" placeholder="Contoh: 2.500.000" aria-label="Nominal Iuran Pendidikan per kelas dalam rupiah"/></label>
             <button id="saveClassRateBtn" class="secondary-btn" style="width:auto;height:42px">Simpan Nominal Kelas</button>
           </div>
 
@@ -378,7 +381,7 @@
           <label><span>Tanggal *</span><input id="transactionDate" type="date" required/></label>
           <label><span>Jenis *</span><select id="transactionType"><option value="INCOME">Pemasukan</option><option value="EXPENSE">Pengeluaran</option></select></label>
           <label><span>Kategori *</span><select id="category" required></select><small id="incomeCategoryHint" class="field-hint">Iuran Pendidikan siswa dicatat otomatis lewat Pembayaran Siswa.</small></label>
-          <label><span>Nominal *</span><input id="amount" type="number" min="1" step="1" required placeholder="0"/></label>
+          <label><span>Nominal *</span><input id="amount" type="text" inputmode="numeric" autocomplete="off" maxlength="22" required placeholder="Contoh: 1.000.000" aria-label="Nominal transaksi dalam rupiah"/></label>
           <label><span>Penyimpanan *</span><select id="accountType"><option value="CASH">Cash / Tunai</option><option value="BANK">Rekening / Bank</option></select></label>
           <label id="bankNameWrap" class="bank-wrap hidden"><span>Nama Rekening / Bank *</span><input id="accountName" maxlength="120"/></label>
           <label><span>Nomor Referensi</span><input id="referenceNumber" maxlength="120"/></label>
@@ -403,7 +406,7 @@
         <div id="paymentStudentInfo" style="background:#f7faf8;border-radius:12px;padding:11px;margin-bottom:12px;font-size:10px"></div>
         <div class="form-grid">
           <label><span>Tanggal Pembayaran *</span><input id="paymentDate" type="date" required/></label>
-          <label><span>Nominal Cicilan *</span><input id="paymentAmount" type="number" min="1" step="1" required/></label>
+          <label><span>Nominal Cicilan *</span><input id="paymentAmount" type="text" inputmode="numeric" autocomplete="off" maxlength="22" required placeholder="Contoh: 1.000.000" aria-label="Nominal cicilan siswa dalam rupiah"/></label>
           <label><span>Penyimpanan *</span><select id="paymentAccountType"><option value="CASH">Cash / Tunai</option><option value="BANK">Rekening / Bank</option></select></label>
           <label id="paymentBankWrap" class="bank-wrap hidden"><span>Nama Rekening / Bank *</span><input id="paymentAccountName" maxlength="120"/></label>
           <label><span>Nomor Referensi</span><input id="paymentReference" maxlength="120" placeholder="Opsional"/></label>
@@ -418,6 +421,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="keuangan.js?v=20261028-pemasukan-siswa-1"></script>
+<script src="keuangan.js?v=20261028-format-ribuan-id-v1"></script>
 </body>
 </html>
