@@ -16,6 +16,55 @@ function canCreate(){return !!modulePerm.can_create}
 function canUpdate(){return !!modulePerm.can_update}
 function canDelete(){return !!modulePerm.can_delete}
 function money(n){return new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(Number(n||0))}
+
+/* Formulir rupiah: angka terlihat 1.000.000, tapi disimpan sebagai Number(1000000). */
+const rupiahIntegerFormatter=new Intl.NumberFormat("id-ID",{maximumFractionDigits:0,useGrouping:true});
+function rupiahInputDigits(raw){
+ let text=String(raw??"").trim();
+ // Tempelan nilai Rupiah dari spreadsheet kadang memiliki ,00 di belakang.
+ // Pecahan selain nol tidak diterima, agar tak salah hitung berlipat.
+ const fractional=text.match(/,(\d{1,2})$/);
+ if(fractional){
+  if(Number(fractional[1])!==0)return null;
+  text=text.slice(0,-fractional[0].length);
+ }
+ return text.replace(/\D/g,"");
+}
+function formatRupiahInput(raw){
+ const digits=rupiahInputDigits(raw);
+ if(digits===null)return String(raw??"");
+ const integer=digits.replace(/^0+(?=\d)/,"").slice(0,15);
+ return integer?rupiahIntegerFormatter.format(Number(integer)):"";
+}
+function rupiahFromNumber(value){
+ if(value===null||value===undefined||value==="")return "";
+ const number=Number(value);
+ return Number.isSafeInteger(number)&&number>=0?rupiahIntegerFormatter.format(number):"";
+}
+function readRupiahInput(field){
+ const digits=rupiahInputDigits(field?.value);
+ if(digits===null)return NaN;
+ if(!digits||digits.length>15)return digits?NaN:0;
+ const number=Number(digits);
+ return Number.isSafeInteger(number)?number:NaN;
+}
+function bindRupiahField(id){
+ const input=$(id);if(!input)return;
+ input.addEventListener("input",()=>{
+  const caret=input.selectionStart,old=input.value;
+  const before=caret===null?null:(old.slice(0,caret).match(/\d/g)||[]).length;
+  input.value=formatRupiahInput(old);
+  if(before!==null&&document.activeElement===input){
+   let newCaret=0,passed=0;
+   for(;newCaret<input.value.length&&passed<before;newCaret++){
+    if(/\d/.test(input.value[newCaret]))passed++;
+   }
+   try{input.setSelectionRange(newCaret,newCaret)}catch{}
+  }
+ });
+ input.addEventListener("blur",()=>{input.value=formatRupiahInput(input.value)});
+}
+
 function dateLabel(v){return v?new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",year:"numeric"}).format(new Date(v+"T00:00:00")):"-"}
 function monthName(key){if(!key)return"Semua Bulan";const[y,m]=key.split("-").map(Number);return new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric"}).format(new Date(y,m-1,1))}
 function todayInput(){const d=new Date(),pad=n=>String(n).padStart(2,"0");return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
@@ -612,7 +661,7 @@ function openEdit(id){const r=rows.find(x=>x.id===id);if(!r||!canUpdate())return
     alert("Transaksi ini berasal dari Pembayaran Siswa. Edit/batalkan dari menu Pembayaran Siswa agar Buku Kas dan cicilan tetap sinkron.");
     openLinkedStudentPayment(r.id);
     return;
-  }$("form").reset();$("transactionId").value=r.id;$("oldReceiptPath").value=r.receipt_path||"";$("oldReceiptName").value=r.receipt_name||"";$("modalTitle").textContent="Edit Transaksi";$("transactionDate").value=r.transaction_date||"";$("transactionType").value=r.transaction_type||"INCOME";renderCategoryOptions();$("category").value=r.category_id||"";$("amount").value=Number(r.amount||0);$("accountType").value=r.account_type||"CASH";toggleBank();$("accountName").value=r.account_name||"";$("referenceNumber").value=r.reference_number||"";$("description").value=r.description||"";$("status").value=r.status||"POSTED";receiptBox(r);$("deleteBtn").style.display=canDelete()?"":"none";$("formMessage").textContent="";$("modal").classList.remove("hidden")}
+  }$("form").reset();$("transactionId").value=r.id;$("oldReceiptPath").value=r.receipt_path||"";$("oldReceiptName").value=r.receipt_name||"";$("modalTitle").textContent="Edit Transaksi";$("transactionDate").value=r.transaction_date||"";$("transactionType").value=r.transaction_type||"INCOME";renderCategoryOptions();$("category").value=r.category_id||"";$("amount").value=rupiahFromNumber(r.amount);$("accountType").value=r.account_type||"CASH";toggleBank();$("accountName").value=r.account_name||"";$("referenceNumber").value=r.reference_number||"";$("description").value=r.description||"";$("status").value=r.status||"POSTED";receiptBox(r);$("deleteBtn").style.display=canDelete()?"":"none";$("formMessage").textContent="";$("modal").classList.remove("hidden")}
 function closeModal(){$("modal").classList.add("hidden")}
 
 async function restWrite(path,method,body,prefer="return=representation"){
@@ -632,7 +681,7 @@ async function openReceipt(id){const r=rows.find(x=>x.id===id);if(!r?.receipt_pa
 async function save(e){
   e.preventDefault();const btn=$("saveBtn");btn.disabled=true;btn.textContent="Menyimpan...";$("formMessage").textContent="";let uploaded=null;
   try{
-    const id=$("transactionId").value,amount=Number($("amount").value||0);
+    const id=$("transactionId").value,amount=readRupiahInput($("amount"));
     const submittedType=$("transactionType").value;
     const selectedCategory=categories.find(c=>c.id===$("category").value);
     if(!["INCOME","EXPENSE"].includes(submittedType))throw new Error("Jenis transaksi tidak valid.");
@@ -642,7 +691,7 @@ async function save(e){
     if(!id&&submittedType==="INCOME"&&selectedCategory.code==="IURAN"){
       throw new Error("Pembayaran Iuran Pendidikan harus dicatat melalui menu Pembayaran Siswa agar pemasukan dan tagihan otomatis sinkron.");
     }
-    if(amount<=0)throw new Error("Nominal harus lebih dari 0.");if(!$("description").value.trim())throw new Error("Uraian wajib diisi.");if($("accountType").value==="BANK"&&!$("accountName").value.trim())throw new Error("Nama rekening/bank wajib diisi.");
+    if(!Number.isSafeInteger(amount)||amount<=0)throw new Error("Nominal rupiah harus berupa angka bulat lebih dari 0.");if(!$("description").value.trim())throw new Error("Uraian wajib diisi.");if($("accountType").value==="BANK"&&!$("accountName").value.trim())throw new Error("Nama rekening/bank wajib diisi.");
     const file=$("receiptFile").files?.[0];let finalId=id;
     if(!finalId){const ins=await restWrite("finance_transactions","POST",{transaction_date:$("transactionDate").value,transaction_type:$("transactionType").value,category_id:$("category").value,amount,account_type:$("accountType").value,account_name:$("accountType").value==="BANK"?$("accountName").value.trim():null,reference_number:$("referenceNumber").value.trim()||null,description:$("description").value.trim(),status:$("status").value});finalId=ins?.[0]?.id;if(!finalId)throw new Error("ID transaksi baru tidak diterima.")}
     if(file)uploaded=await storageUpload(file,finalId);
@@ -765,15 +814,15 @@ function syncRateEditor(){
   const classId=$("rateClassSelect")?.value||classes[0]?.id||"";
   if($("rateClassSelect")&&!$("rateClassSelect").value&&classId)$("rateClassSelect").value=classId;
   const r=rateForClass(classId);
-  if($("rateAmountInput"))$("rateAmountInput").value=r?.amount?Number(r.amount):"";
+  if($("rateAmountInput"))$("rateAmountInput").value=rupiahFromNumber(r?.amount);
 }
 async function saveClassRateUI(){
   if(!activePlan||!canUpdate())return;
   const classId=$("rateClassSelect").value;
   const c=classes.find(x=>x.id===classId);
-  const amount=Number($("rateAmountInput").value||0);
+  const amount=readRupiahInput($("rateAmountInput"));
   if(!c){alert("Pilih kelas terlebih dahulu.");return}
-  if(!Number.isFinite(amount)||amount<=0){alert("Nominal tahunan harus lebih dari 0.");return}
+  if(!Number.isSafeInteger(amount)||amount<=0){alert("Nominal tahunan harus berupa angka bulat lebih dari 0.");return}
   const existing=rateForClass(classId);
   try{
     if(existing){
@@ -811,10 +860,10 @@ async function setClassRate(classId){
   if(!activePlan||!canUpdate())return;
   const c=classes.find(x=>x.id===classId),existing=rateForClass(classId);
   if(!c)return;
-  const raw=prompt(`Nominal Iuran Pendidikan untuk kelas ${c.name}\nTahun Pelajaran ${activePlan.academic_years?.name||""}:`,String(Number(existing?.amount||0)));
+  const raw=prompt(`Nominal Iuran Pendidikan untuk kelas ${c.name}\nTahun Pelajaran ${activePlan.academic_years?.name||""}:`,rupiahFromNumber(existing?.amount||0));
   if(raw===null)return;
-  const amount=Number(String(raw).replace(/[^\d]/g,""));
-  if(!Number.isFinite(amount)||amount<=0){alert("Nominal harus lebih dari 0.");return}
+  const amount=readRupiahInput({value:raw});
+  if(!Number.isSafeInteger(amount)||amount<=0){alert("Nominal harus berupa angka bulat lebih dari 0.");return}
   try{
     if(existing){
       await restWrite(`education_fee_class_rates?id=eq.${encodeURIComponent(existing.id)}`,"PATCH",{amount});
@@ -839,23 +888,23 @@ async function syncBills(){
 }
 async function adjustBill(id){
   const b=planBills().find(x=>x.id===id);if(!b||!canUpdate())return;
-  const raw=prompt(`Sesuaikan tagihan ${b.student_name}\nSudah dibayar: ${money(b.total_paid)}\nNominal tagihan baru:`,String(Number(b.bill_amount||0)));
+  const raw=prompt(`Sesuaikan tagihan ${b.student_name}\nSudah dibayar: ${money(b.total_paid)}\nNominal tagihan baru:`,rupiahFromNumber(b.bill_amount||0));
   if(raw===null)return;
-  const amount=Number(String(raw).replace(/[^\d]/g,""));
-  if(!Number.isFinite(amount)||amount<Number(b.total_paid)){alert(`Tagihan tidak boleh lebih kecil dari total yang sudah dibayar (${money(b.total_paid)}).`);return}
+  const amount=readRupiahInput({value:raw});
+  if(!Number.isSafeInteger(amount)||amount<Number(b.total_paid)){alert(`Nominal tagihan tidak valid atau lebih kecil dari pembayaran (${money(b.total_paid)}).`);return}
   try{await restWrite(`student_education_bills?id=eq.${encodeURIComponent(id)}`,"PATCH",{bill_amount:amount});await loadData();selectedBillId=id;renderStudentModule()}catch(err){alert("Gagal menyesuaikan tagihan: "+err.message)}
 }
 function togglePaymentBank(){const bank=$("paymentAccountType").value==="BANK";$("paymentBankWrap").classList.toggle("hidden",!bank);$("paymentAccountName").required=bank;if(!bank)$("paymentAccountName").value=""}
 function openPaymentModal(id){
   const b=planBills().find(x=>x.id===id);if(!b)return;
   $("paymentForm").reset();$("paymentBillId").value=id;$("paymentDate").value=todayInput();$("paymentAccountType").value="CASH";togglePaymentBank();
-  $("paymentAmount").max=Number(b.remaining_amount);$("paymentStudentInfo").innerHTML=`<b>${esc(b.student_name)}</b> · ${esc(b.class_name_snapshot||"-")}<br>Tagihan ${money(b.bill_amount)} · Sudah dibayar ${money(b.total_paid)} · <b>Sisa ${money(b.remaining_amount)}</b>`;
+  $("paymentAmount").value="";$("paymentAmount").dataset.maxAmount=String(Number(b.remaining_amount));$("paymentStudentInfo").innerHTML=`<b>${esc(b.student_name)}</b> · ${esc(b.class_name_snapshot||"-")}<br>Tagihan ${money(b.bill_amount)} · Sudah dibayar ${money(b.total_paid)} · <b>Sisa ${money(b.remaining_amount)}</b>`;
   $("paymentMessage").textContent="";$("paymentModal").classList.remove("hidden");
 }
 function closePaymentModal(){$("paymentModal").classList.add("hidden")}
 async function savePayment(e){
-  e.preventDefault();const id=$("paymentBillId").value,b=planBills().find(x=>x.id===id),amount=Number($("paymentAmount").value||0),btn=$("savePaymentBtn");
-  if(!b)return;if(amount<=0||amount>Number(b.remaining_amount)){$("paymentMessage").textContent=`Nominal harus antara Rp1 dan ${money(b.remaining_amount)}.`;return}
+  e.preventDefault();const id=$("paymentBillId").value,b=planBills().find(x=>x.id===id),amount=readRupiahInput($("paymentAmount")),btn=$("savePaymentBtn");
+  if(!b)return;if(!Number.isSafeInteger(amount)||amount<=0||amount>Number(b.remaining_amount)){$("paymentMessage").textContent=`Nominal harus antara Rp1 dan ${money(b.remaining_amount)}.`;return}
   if($("paymentAccountType").value==="BANK"&&!$("paymentAccountName").value.trim()){$("paymentMessage").textContent="Nama rekening/bank wajib diisi.";return}
   btn.disabled=true;btn.textContent="Menyimpan...";
   try{
@@ -1023,6 +1072,7 @@ function recapPrint(){
 }
 
 /* EVENTS */
+["amount","rateAmountInput","paymentAmount"].forEach(bindRupiahField);
 
 $("paymentIncomeTabBtn").addEventListener("click",()=>setTab("income"));
 $("incomeOtherBtn").addEventListener("click",()=>openAdd("INCOME"));
