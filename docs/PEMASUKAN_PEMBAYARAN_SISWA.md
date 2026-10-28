@@ -15,6 +15,7 @@ Di halaman Keuangan kini terdapat tab **Pemasukan** di antara Buku Kas dan Penge
 - Ada indikator jika suatu pembayaran siswa tidak cocok dengan transaksi keuangannya dan peringatan jika ada pemasukan Iuran Pendidikan manual tanpa tautan pembayaran.
 - Riwayat kelas/tahun pelajaran terkait pembayaran tetap bisa dibuka melalui tautan **Lihat Pembayaran** (jika rencana iurannya masih tersedia dalam data master yang dimuat).
 - Hak akses Keuangan yang sudah ada tetap dipakai; tidak ada migrasi, modifikasi data keuangan lama, atau penambahan hak akses.
+- Pembacaan Buku Kas, daftar tagihan, dan riwayat pembayaran memakai halaman API bertahap (500 baris per halaman; urutan stabil) agar rekap tetap lengkap di atas batas default hasil API dan tidak menampilkan total parsial jika terjadi kegagalan.
 
 ## Pengecekan real data saat implementasi
 Per **28 Oktober 2026**, database berisi 4 catatan pembayaran siswa dengan total historis **Rp3.500.000**, dan seluruhnya berstatus `VOID`. Empat transaksi Buku Kas yang terhubung juga `VOID`; akibatnya **Pemasukan Pembayaran Siswa Dibukukan = Rp0** sampai ada pembayaran yang benar-benar berhasil dan belum dibatalkan. Jangan memulihkan status VOID tanpa bukti transaksi yang sah.
@@ -40,3 +41,5 @@ Per **28 Oktober 2026**, database berisi 4 catatan pembayaran siswa dengan total
 - [x] Data asli tidak diubah saat pengujian.
 
 Tidak dilakukan tes pembayaran nominal sungguhan pada data produksi agar tidak membuat catatan finansial fiktif.
+
+- [x] Simulasi pembacaan bertahap 1.025 transaksi: semua baris diterima utuh, tanpa duplikasi, melalui tiga panggilan API berurutan.
