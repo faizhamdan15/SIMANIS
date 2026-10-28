@@ -514,8 +514,15 @@ function printExpenses(){
 ========================================================== */
 function renderCategoryOptions(){
   const type=$("transactionType")?.value||"INCOME";
-  const list=categories.filter(c=>c.transaction_type===type||c.transaction_type==="BOTH");
+  const existing=rows.find(r=>r.id===$("transactionId").value);
+  const list=categories.filter(c=>
+    (c.transaction_type===type||c.transaction_type==="BOTH")&&
+    // Iuran siswa harus dibuat dari menu Pembayaran Siswa saja.
+    // Pertahankan kategori jika sedang mengedit data manual lama.
+    !(type==="INCOME"&&c.code==="IURAN"&&c.id!==existing?.category_id));
   if($("category"))$("category").innerHTML=list.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  const hint=$("incomeCategoryHint");
+  if(hint)hint.style.display=type==="INCOME"?"block":"none";
   $("categoryFilter").innerHTML='<option value="">Semua Kategori</option>'+categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
 }
 function renderMonthOptions(){
@@ -553,16 +560,19 @@ function isStudentPaymentTransaction(r){
   return !!linkedStudentPaymentByFinanceId(r.id);
 }
 function openLinkedStudentPayment(financeId){
-  const p=linkedStudentPaymentByFinanceId(financeId);
-  if(!p){alert("Data pembayaran siswa terkait tidak ditemukan.");return}
+  const payment=linkedStudentPaymentByFinanceId(financeId);
+  if(!payment){alert("Data pembayaran siswa terkait tidak ditemukan.");return}
+  const bill=bills.find(b=>b.id===payment.bill_id);
+  if(!bill){alert("Tagihan siswa tidak ditemukan dalam data yang dimuat.");return}
+  // Riwayat pembayaran tahun sebelumnya harus membuka rencana/tagihan asal.
+  const assignedPlan=feePlans.find(p=>p.id===bill.plan_id);
+  if(!assignedPlan){alert("Rencana Iuran Pendidikan untuk pembayaran ini belum tersedia.");return}
+  activePlan=assignedPlan;
   setTab("studentpay");
-  selectedBillId=p.bill_id;
-  const b=planBills().find(x=>x.id===p.bill_id);
-  if(b){
-    $("studentClassFilter").value=b.class_id_snapshot||"";
-    renderStudentSelect();
-    $("studentFilter").value=b.student_id||"";
-  }
+  selectedBillId=bill.id;
+  $("studentClassFilter").value=bill.class_id_snapshot||"";
+  renderStudentSelect();
+  $("studentFilter").value=bill.student_id||"";
   renderStudentModule();
   setTimeout(()=>$("studentDetail")?.scrollIntoView({behavior:"smooth",block:"start"}),50);
 }
@@ -613,6 +623,9 @@ async function save(e){
     if(!["INCOME","EXPENSE"].includes(submittedType))throw new Error("Jenis transaksi tidak valid.");
     if(!selectedCategory||![submittedType,"BOTH"].includes(selectedCategory.transaction_type)){
       throw new Error("Pilih kategori yang sesuai dengan jenis transaksi.");
+    }
+    if(!id&&submittedType==="INCOME"&&selectedCategory.code==="IURAN"){
+      throw new Error("Pembayaran Iuran Pendidikan harus dicatat melalui menu Pembayaran Siswa agar pemasukan dan tagihan otomatis sinkron.");
     }
     if(amount<=0)throw new Error("Nominal harus lebih dari 0.");if(!$("description").value.trim())throw new Error("Uraian wajib diisi.");if($("accountType").value==="BANK"&&!$("accountName").value.trim())throw new Error("Nama rekening/bank wajib diisi.");
     const file=$("receiptFile").files?.[0];let finalId=id;
