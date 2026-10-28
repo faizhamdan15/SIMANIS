@@ -172,6 +172,7 @@ function renderPlanCard(){
 
 function setTab(name){
   document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
+  $("tabRapbm").classList.toggle("hidden",name!=="rapbm");
   $("tabCashbook").classList.toggle("hidden",name!=="cashbook");
   $("tabIncome").classList.toggle("hidden",name!=="income");
   $("tabExpense").classList.toggle("hidden",name!=="expense");
@@ -1117,11 +1118,70 @@ $("paymentAccountType").addEventListener("change",togglePaymentBank);$("paymentF
     $("sideUserName").textContent=profile.full_name||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||"Pengguna";$("currentDate").textContent=localDateID();
     await loadMenu();if(!modulePerm.can_view)throw new Error("Akun tidak memiliki akses ke modul Keuangan.");
     await loadOfficialTreasurer();
-    await loadMaster();await loadData();
+    await loadMaster();await loadData();await loadRapbm();
     const params=new URLSearchParams(location.search),requestedTab=params.get("tab");
-    if(["cashbook","income","expense","studentpay","recap"].includes(requestedTab))setTab(requestedTab);
+    if(["rapbm","cashbook","income","expense","studentpay","recap"].includes(requestedTab))setTab(requestedTab);
     if(params.get("from")==="pkm"&&$("backPkmBtn"))$("backPkmBtn").style.display="inline-flex";
     $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"};
   }catch(err){console.error(err);alert("Modul Keuangan gagal dimuat: "+err.message)}
   finally{$("loading").style.display="none"}
 })();
+
+
+/* RAPBM: rencana tersimpan per kategori, realisasi dibaca dari buku kas yang sama. */
+let rapbmLines=[],rapbmYear=null;
+async function loadRapbm(){
+  const status=$("rapbmStatus"),body=$("rapbmRows");
+  try{
+    status.textContent="Memuat data rencana dan realisasi...";
+    const years=await api.from("academic_years").select("id,name,start_date,end_date").eq("name","2026/2027").limit(1);
+    if(years.error)throw years.error;
+    rapbmYear=years.data?.[0];
+    if(!rapbmYear)throw new Error("Tahun pelajaran 2026/2027 belum ditemukan.");
+    const result=await api.from("v_rapbm_realisasi").select("*").eq("academic_year_id",rapbmYear.id).order("transaction_type",{ascending:false}).order("category_name");
+    if(result.error)throw result.error;
+    rapbmLines=result.data||[];
+    renderRapbm();
+    status.textContent="Tahun Pelajaran 2026/2027 · "+rapbmYear.start_date+" s.d. "+rapbmYear.end_date+" · "+rapbmLines.length+" kategori";
+  }catch(err){status.textContent="Gagal memuat RAPBM: "+err.message;body.innerHTML='<tr><td colspan="7">RAPBM gagal dimuat. Pastikan akun memiliki izin Keuangan.</td></tr>'}
+}
+function renderRapbm(){
+  const sums=t=>rapbmLines.filter(r=>r.transaction_type===t).reduce((a,r)=>({planned:a.planned+Number(r.planned_amount||0),real:a.real+Number(r.realized_amount||0)}),{planned:0,real:0});
+  const inc=sums("INCOME"),exp=sums("EXPENSE");
+  const cards=[["Rencana Pemasukan",inc.planned],["Realisasi Pemasukan",inc.real],["Rencana Pengeluaran",exp.planned],["Realisasi Pengeluaran",exp.real]];
+  $("rapbmStats").innerHTML=cards.map(([label,value])=>'<div class="dash-stat" style="background:#fff;border:1px solid #dbe7df;border-radius:13px;padding:13px"><div style="font-size:10px;color:#60756b">'+esc(label)+'</div><div style="font-size:18px;font-weight:850;color:#075b3a;margin-top:7px">'+esc(money(value))+'</div></div>').join("");
+  $("rapbmRows").innerHTML=rapbmLines.map(r=>{
+    const planned=Number(r.planned_amount||0),real=Number(r.realized_amount||0),difference=planned-real,pct=planned>0?Math.round(real/planned*100):null;
+    return '<tr><td>'+(r.transaction_type==="INCOME"?"Pemasukan":"Pengeluaran")+'</td><td><b>'+esc(r.category_name)+'</b><br><small>'+esc(r.category_code)+'</small></td>'+
+    '<td><input type="text" inputmode="numeric" data-rapbm-amount="'+esc(r.category_id)+'" value="'+esc(r.has_plan?rupiahIntegerFormatter.format(planned):"")+'" placeholder="Belum dianggarkan" style="min-width:140px;width:100%;box-sizing:border-box;padding:8px;border:1px solid #ccdcd2;border-radius:8px" '+(!canUpdate()&&!canCreate()?"disabled":"")+'></td>'+
+    '<td>'+esc(money(real))+'</td><td style="color:'+(difference<0?"#a32929":"#16663e")+'">'+(r.has_plan?esc(money(difference)):"—")+'</td><td>'+(pct===null?"—":pct+"%")+'</td>'+
+    '<td><button type="button" data-rapbm-save="'+esc(r.category_id)+'" class="secondary-btn" style="width:auto;padding:7px 10px" '+(!canUpdate()&&!canCreate()?"disabled":"")+'>Simpan</button></td></tr>';
+  }).join("");
+  $("rapbmRows").querySelectorAll("[data-rapbm-save]").forEach(btn=>btn.addEventListener("click",()=>saveRapbmLine(btn.dataset.rapbmSave,btn)));
+  $("rapbmRows").querySelectorAll("[data-rapbm-amount]").forEach(el=>el.addEventListener("blur",()=>{const d=rupiahInputDigits(el.value);if(d!==null&&d!=="")el.value=rupiahIntegerFormatter.format(Number(d))}));
+}
+async function saveRapbmLine(categoryId,button){
+  const item=rapbmLines.find(r=>r.category_id===categoryId),el=[...document.querySelectorAll("[data-rapbm-amount]")].find(x=>x.dataset.rapbmAmount===categoryId);
+  if(!item||!el)return;
+  const digits=rupiahInputDigits(el.value),amount=Number(digits);
+  if(digits===null||digits===""||!Number.isSafeInteger(amount)||amount<0){alert("Isi rencana anggaran dengan bilangan rupiah yang valid (boleh 0).");return}
+  if(item.has_plan&&!canUpdate()||!item.has_plan&&!canCreate()){alert("Akun tidak memiliki izin mengubah rencana anggaran.");return}
+  button.disabled=true;button.textContent="Menyimpan...";
+  try{
+    const payload={academic_year_id:rapbmYear.id,category_id:categoryId,planned_amount:amount,updated_by:profile.id};
+    let request;
+    if(item.has_plan)request=api.from("rapbm_budget_lines").update(payload).eq("academic_year_id",rapbmYear.id).eq("category_id",categoryId).select("id");
+    else request=api.from("rapbm_budget_lines").insert({...payload,created_by:profile.id}).select("id");
+    const {error}=await request;
+    if(error)throw error;
+    await loadRapbm();
+  }catch(err){alert("Gagal menyimpan RAPBM: "+err.message)}
+  finally{button.disabled=false;button.textContent="Simpan"}
+}
+function printRapbm(){
+  const w=window.open("","_blank");if(!w){alert("Izinkan pop-up untuk mencetak RAPBM.");return}
+  const lines=rapbmLines.map((r,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(r.transaction_type==="INCOME"?"Pemasukan":"Pengeluaran")+'</td><td>'+esc(r.category_name)+'</td><td>'+esc(money(r.planned_amount))+'</td><td>'+esc(money(r.realized_amount))+'</td><td>'+esc(money(r.remaining_amount))+'</td></tr>').join("");
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>RAPBM 2026/2027</title><style>@page{size:A4 landscape;margin:12mm}body{font:11px Arial,sans-serif}h2,p{text-align:center}table{width:100%;border-collapse:collapse}th,td{border:1px solid #777;padding:7px;text-align:left}th{background:#eee}.sign{display:flex;justify-content:space-between;margin-top:45px}.sign div{width:260px;text-align:center}</style></head><body><h2>RAPBM MA NURUL ISLAM KARANGCEMPAKA</h2><p>Tahun Pelajaran 2026/2027 — Rencana dan Realisasi Anggaran</p><table><thead><tr><th>No</th><th>Jenis</th><th>Kategori</th><th>Rencana</th><th>Realisasi</th><th>Selisih</th></tr></thead><tbody>'+lines+'</tbody></table><div class="sign"><div>Mengetahui,<br>Kepala Madrasah</div><div>Bendahara<br><br><br><b>'+esc(financeTreasurerSignature())+'</b></div></div></body></html>');w.document.close();w.print();
+}
+$("rapbmRefresh").addEventListener("click",loadRapbm);
+$("rapbmPrint").addEventListener("click",printRapbm);
