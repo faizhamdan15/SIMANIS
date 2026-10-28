@@ -359,6 +359,7 @@ function renderFinance(){
     <p>Buku kas, bukti transaksi, pemasukan, pengeluaran, serta saldo kas/rekening.</p>
     <div class="focus">
       <a class="focus-item" style="text-decoration:none" href="keuangan.html?tab=cashbook&from=pkm"><b>Buku Kas</b><br><span style="font-size:8px;color:#718078">${financeTransactions.length} transaksi</span></a>
+       <a class="focus-item" style="text-decoration:none" href="keuangan.html?tab=income&from=pkm"><b>Pemasukan Madrasah</b><br><span style="font-size:8px;color:#718078">Iuran siswa + pemasukan lainnya · ${money(income)}</span></a>
       <a class="focus-item" style="text-decoration:none" href="keuangan.html?tab=expense&from=pkm"><b>Pengeluaran Madrasah</b><br><span style="font-size:8px;color:#718078">Total ${money(expense)} · catat kas keluar</span></a>
       <a class="focus-item" style="text-decoration:none" href="keuangan.html?tab=studentpay&from=pkm"><b>Pembayaran Siswa</b><br><span style="font-size:8px;color:#718078">Terbayar ${money(paid)}</span></a>
       <a class="focus-item" style="text-decoration:none" href="keuangan.html?tab=recap&from=pkm"><b>Rekap Pembayaran</b><br><span style="font-size:8px;color:#718078">Tagihan ${money(billed)}</span></a>
