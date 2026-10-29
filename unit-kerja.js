@@ -833,7 +833,7 @@ function filteredTuLetters(){
 function renderTuLetterTable(){
   const holder=$("tuLetterTable");if(!holder)return;
   const data=filteredTuLetters();
-  holder.innerHTML=`<div class="table-wrap"><table class="tablex"><thead><tr><th>Agenda</th><th>Jenis</th><th>No. Surat</th><th>Tanggal</th><th>Asal/Tujuan</th><th>Perihal</th><th>Klasifikasi</th><th>Prioritas</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${data.length?data.map(x=>`<tr>
+  holder.innerHTML=`<div class="table-wrap"><table class="tablex"><thead><tr><th>Agenda</th><th>Jenis</th><th>No. Surat</th><th>Tanggal</th><th>Asal/Tujuan</th><th>Perihal</th><th>Klasifikasi</th><th>Prioritas</th><th>Status</th><th>Berkas Surat</th><th>Aksi</th></tr></thead><tbody>${data.length?data.map(x=>`<tr>
    <td><b>${esc(x.agenda_code||"-")}</b></td>
    <td>${esc(x.letter_type==="INCOMING"?"MASUK":"KELUAR")}</td>
    <td>${esc(x.letter_number||"-")}</td>
@@ -843,9 +843,17 @@ function renderTuLetterTable(){
    <td>${esc(x.classification||"-")}</td>
    <td>${badge(x.priority||"BIASA")}</td>
    <td>${badge(x.status)}</td>
+   <td>${tuFiles.some(f=>f.letter_id===x.id)
+     ?`<button class="mini-btn" data-tu-open-primary="${x.id}">Buka Berkas (${tuFiles.filter(f=>f.letter_id===x.id).length})</button>`
+     :'<span style="color:#9a6552">Belum diunggah</span>'}</td>
    <td><button class="mini-btn" data-tu-detail="${x.id}">Detail</button> <button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td>
-  </tr>`).join(""):'<tr><td colspan="10"><div class="empty">Surat tidak ditemukan.</div></td></tr>'}</tbody></table></div>`;
+  </tr>`).join(""):'<tr><td colspan="11"><div class="empty">Surat tidak ditemukan.</div></td></tr>'}</tbody></table></div>`;
   holder.querySelectorAll("[data-tu-detail]").forEach(b=>b.onclick=()=>openTuLetterDetail(b.dataset.tuDetail));
+  holder.querySelectorAll("[data-tu-open-primary]").forEach(btn=>btn.onclick=()=>{
+    const attachments=tuFiles.filter(f=>f.letter_id===btn.dataset.tuOpenPrimary);
+    const file=attachments.find(f=>f.is_primary)||attachments[0];
+    if(file)openTuStoredFile(file.file_path);
+  });
   holder.querySelectorAll("[data-edit-specific]").forEach(b=>b.onclick=()=>openSpecific(b.dataset.editSpecific));
 }
 const TU_ALLOWED_EXT=new Set(["pdf","jpg","jpeg","png","webp","doc","docx"]);
