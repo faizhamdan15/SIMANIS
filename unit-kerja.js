@@ -5,10 +5,10 @@ const unitCode=new URLSearchParams(location.search).get("unit")||"";
 const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"};
 
 const UNITS={
- PKM_KURIKULUM:{name:"PKM Kurikulum",desc:"Kurikulum, pembelajaran, jadwal, penilaian, dan peningkatan mutu akademik.",icon:"book",specificLabel:"Supervisi",specificTab:"Supervisi Guru",table:"curriculum_supervisions"},
- PKM_KESISWAAN:{name:"PKM Kesiswaan",desc:"Pembinaan siswa, kedisiplinan, prestasi, kegiatan, dan layanan kesiswaan.",icon:"users",specificLabel:"Kasus/Pembinaan",specificTab:"Pembinaan Siswa",table:"student_guidance_cases"},
- PKM_BENDAHARA_SARPRAS:{name:"PKM Bendahara & Sarpras",desc:"Keuangan madrasah, aset, sarana-prasarana, dan pemeliharaan.",icon:"wallet",specificLabel:"Aset",specificTab:"Aset & Sarpras",table:"school_assets"},
- PKM_HUMASY:{name:"PKM Humasy",desc:"Hubungan masyarakat, publikasi, informasi, dan komunikasi kelembagaan.",icon:"megaphone",specificLabel:"Rencana Publikasi",specificTab:"Kalender Publikasi",table:"humas_publication_plans"},
+ PKM_KURIKULUM:{name:"WAKA Kurikulum",desc:"Kurikulum, pembelajaran, jadwal, penilaian, dan peningkatan mutu akademik.",icon:"book",specificLabel:"Supervisi",specificTab:"Supervisi Guru",table:"curriculum_supervisions"},
+ PKM_KESISWAAN:{name:"WAKA Kesiswaan",desc:"Pembinaan siswa, kedisiplinan, prestasi, kegiatan, dan layanan kesiswaan.",icon:"users",specificLabel:"Kasus/Pembinaan",specificTab:"Pembinaan Siswa",table:"student_guidance_cases"},
+ PKM_BENDAHARA_SARPRAS:{name:"WAKA Bendahara & Sarpras",desc:"Keuangan madrasah, aset, sarana-prasarana, dan pemeliharaan.",icon:"wallet",specificLabel:"Aset",specificTab:"Aset & Sarpras",table:"school_assets"},
+ PKM_HUMASY:{name:"WAKA Humasy",desc:"Hubungan masyarakat, publikasi, informasi, dan komunikasi kelembagaan.",icon:"megaphone",specificLabel:"Rencana Publikasi",specificTab:"Kalender Publikasi",table:"humas_publication_plans"},
  KEPALA_TU:{name:"Kepala TU",desc:"Administrasi, tata usaha, arsip, surat masuk, dan surat keluar.",icon:"briefcase",specificLabel:"Surat",specificTab:"Surat Masuk/Keluar",table:"office_letters"},
  KALAB_IPA:{name:"Kepala Laboratorium IPA",desc:"Inventaris alat & bahan, praktikum, peminjaman, stok, keselamatan, dan pengelolaan Laboratorium IPA.",icon:"flask",specificLabel:"Inventaris Lab",specificTab:"Inventaris Alat & Bahan",table:"lab_inventory",lab:"IPA"},
  KALAB_BISNIS:{name:"Kepala Laboratorium Bisnis",desc:"Inventaris, jadwal penggunaan, praktik bisnis, dan pengelolaan Laboratorium Bisnis.",icon:"chart",specificLabel:"Inventaris Lab",specificTab:"Inventaris & Penggunaan",table:"lab_inventory",lab:"BISNIS"}
@@ -1254,14 +1254,14 @@ async function printSummon(id){
   try{
     const s=summons.find(x=>x.id===id);if(!s)return;
     const brand=await api.db.rpc("get_public_system_settings",{})||{};
-    const signatory=profile.full_name||"PKM Kesiswaan";
+    const signatory=profile.full_name||"WAKA Kesiswaan";
     $("summonPrint").innerHTML=`<div class="kop"><h1>${esc(brand.school_name||"MA Nurul Islam")}</h1><h2>SURAT PANGGILAN ORANG TUA / WALI</h2><p>${esc([brand.address,brand.district,brand.regency].filter(Boolean).join(", "))}</p></div>
       <div class="meta"><p>Nomor: <b>${esc(s.summon_number||"-")}</b></p><p>Tanggal: ${dateID(s.summon_date)}</p></div>
       <p class="bodyp">Yth. Bapak/Ibu Orang Tua/Wali dari <b>${esc(s.students?.full_name||"-")}</b>,</p>
       <p class="bodyp">Dengan hormat, sehubungan dengan keperluan pembinaan dan pendampingan peserta didik, kami mengharap kehadiran Bapak/Ibu pada:</p>
       <table style="margin:5mm 0 5mm 10mm;border-collapse:collapse"><tr><td style="padding:1.5mm 8mm 1.5mm 0">Hari/Tanggal</td><td>: ${dateID(s.meeting_date)}</td></tr><tr><td style="padding:1.5mm 8mm 1.5mm 0">Pukul</td><td>: ${esc(s.meeting_time?String(s.meeting_time).slice(0,5):"-")}</td></tr><tr><td style="padding:1.5mm 8mm 1.5mm 0">Tempat</td><td>: ${esc(s.place||"MA Nurul Islam")}</td></tr><tr><td style="padding:1.5mm 8mm 1.5mm 0">Keperluan</td><td>: ${esc(s.reason)}</td></tr></table>
       <p class="bodyp">Demikian surat panggilan ini disampaikan. Atas perhatian dan kehadiran Bapak/Ibu, kami sampaikan terima kasih.</p>
-      <div class="sign"><div><p>Mengetahui,<br>Kepala Madrasah</p><div class="space"></div><b>${esc(brand.headmaster_name||"________________")}</b></div><div><p>PKM Kesiswaan</p><div class="space"></div><b>${esc(signatory)}</b></div></div>`;
+      <div class="sign"><div><p>Mengetahui,<br>Kepala Madrasah</p><div class="space"></div><b>${esc(brand.headmaster_name||"________________")}</b></div><div><p>WAKA Kesiswaan</p><div class="space"></div><b>${esc(signatory)}</b></div></div>`;
     document.body.classList.add("print-summon");setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove("print-summon"),300)},100);
   }catch(err){alert("Gagal mencetak surat: "+err.message)}
 }
