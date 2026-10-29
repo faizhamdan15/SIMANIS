@@ -92,7 +92,7 @@ async function loadOfficialTreasurer(){
    officialTreasurerName=financeTreasurerDisplayName(raw);
    if(!officialTreasurerName){
      node.textContent="Belum ada Bendahara aktif yang ditetapkan";
-     console.warn("Tidak ada pemegang aktif jabatan PKM Bendahara & Sarpras.");
+     console.warn("Tidak ada pemegang aktif jabatan WAKA Bendahara & Sarpras.");
      return;
    }
    node.textContent=officialTreasurerName;
