@@ -848,17 +848,44 @@ function renderTuLetterTable(){
   holder.querySelectorAll("[data-tu-detail]").forEach(b=>b.onclick=()=>openTuLetterDetail(b.dataset.tuDetail));
   holder.querySelectorAll("[data-edit-specific]").forEach(b=>b.onclick=()=>openSpecific(b.dataset.editSpecific));
 }
+const TU_ALLOWED_EXT=new Set(["pdf","jpg","jpeg","png","webp","doc","docx"]);
+function validateTuFile(file){
+  if(!file)throw new Error("Silakan pilih berkas surat.");
+  const ext=String(file.name||"").split(".").pop().toLowerCase();
+  if(!TU_ALLOWED_EXT.has(ext))throw new Error("Berkas harus berupa PDF, JPG, PNG, WEBP, DOC, atau DOCX.");
+  if(file.size<=0)throw new Error("Berkas surat kosong.");
+  if(file.size>15*1024*1024)throw new Error("Berkas maksimal 15 MB.");
+  return ext;
+}
 async function uploadTuLetterFile(file,letterId){
+  const ext=validateTuFile(file);
   const session=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG;
-  if(file.size>15*1024*1024)throw new Error("Ukuran file maksimal 15 MB.");
-  const ext=(file.name.split(".").pop()||"bin").replace(/[^a-z0-9]/gi,"").toLowerCase();
-  const path=`${letterId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  if(!session?.access_token)throw new Error("Sesi login telah berakhir.");
+  const path=`${letterId}/${Date.now()}-${globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2)}.${ext}`;
   const res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/tu-surat/${path}`,{
     method:"POST",
     headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":file.type||"application/octet-stream","x-upsert":"false"},
     body:file
   });
   const txt=await res.text();if(!res.ok)throw new Error(txt);return path;
+}
+async function deleteTuStoredFile(path){
+  if(!path)return;
+  const session=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG;
+  if(!session?.access_token)return;
+  const encoded=path.split("/").map(encodeURIComponent).join("/");
+  const response=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/tu-surat/${encoded}`,{
+    method:"DELETE",headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`}
+  });
+  if(!response.ok)console.warn("Berkas gagal dibersihkan:",await response.text());
+}
+async function openTuStoredFile(path){
+  const tab=window.open("","_blank");
+  try{
+    const url=await signedTuFileUrl(path);
+    if(tab)tab.location.href=url;
+    else window.location.href=url;
+  }catch(err){if(tab)tab.close();alert("Berkas surat gagal dibuka: "+err.message)}
 }
 async function signedTuFileUrl(path){
   const session=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG;
@@ -1498,7 +1525,7 @@ function openSpecific(id=""){
    ta("fCaption","Caption",x.caption_text||"")+
    ta("fNote","Catatan",x.note)
  );
- else if(unitCode==="KEPALA_TU")setFields(
+ else if(unitCode==="KEPALA_TU"){setFields(
    sel("fLetterType","Jenis Surat",[["INCOMING","Surat Masuk"],["OUTGOING","Surat Keluar"]],x.letter_type||"INCOMING")+
    inp("fNumber","Nomor Surat","text",x.letter_number)+
    inp("fLetterDate","Tanggal Surat","date",x.letter_date||today())+
@@ -1513,9 +1540,16 @@ function openSpecific(id=""){
    inp("fDueDate","Batas Tindak Lanjut","date",x.due_date||"")+
    sel("fStatus","Status",[["RECORDED","RECORDED"],["PROCESS","PROCESS"],["DONE","DONE"],["ARCHIVED","ARCHIVED"]],x.status||"RECORDED")+
    ta("fDisposition","Catatan Disposisi Awal",x.disposition)+
-   ta("fNote","Catatan",x.note)
+   ta("fNote","Catatan",x.note)+
+    `<label class="full"><span style="font-weight:800">Unggah Berkas Surat (opsional)</span><input id="fTuMainFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"><small style="display:block;margin-top:5px;color:#61756b">PDF/JPG/PNG/WEBP/DOC/DOCX, maksimal 15 MB. Berlaku untuk Surat Masuk dan Surat Keluar.</small></label>`+
+    (id?`<div class="full" style="padding:10px;background:#f5f9f6;border-radius:10px"><b style="font-size:10px">Berkas tersimpan</b><div style="margin-top:6px">${tuFiles.some(f=>f.letter_id===id)?tuFiles.filter(f=>f.letter_id===id).map(f=>`<button type="button" class="mini-btn" data-tu-edit-open-file="${esc(f.id)}">${esc(f.original_filename||f.document_label||"Buka berkas")}</button>`).join(" "):'<span style="font-size:9px;color:#7e8c83">Belum ada berkas.</span>'}</div></div>`:"")
  );
- else if(unitCode==="KALAB_IPA")setFields(
+  document.querySelectorAll("[data-tu-edit-open-file]").forEach(b=>b.onclick=()=>{
+    const file=tuFiles.find(f=>f.id===b.dataset.tuEditOpenFile);
+    if(file)openTuStoredFile(file.file_path);
+  });
+  }
+  else if(unitCode==="KALAB_IPA")setFields(
    inp("fCode","Kode Item","text",x.item_code)+
    inp("fName","Nama Item *","text",x.item_name)+
    sel("fItemType","Jenis",[["ALAT","Alat"],["BAHAN","Bahan"]],x.item_type||"ALAT")+
@@ -1938,6 +1972,36 @@ async function saveEntry(e){
   if(mode==="activity_member" && (!payload.student_id||!payload.academic_year_id))throw new Error("Siswa dan tahun pelajaran aktif wajib tersedia.");
   if(!["asset_maintenance","curr_doc","curr_verify","curr_calendar","case_followup","summon","activity_group","activity_member","humas_doc","humas_social","tu_disposition","tu_file","lab_safety","booking","biz_practice"].includes(mode) && !payload.title&&!payload.asset_name&&!payload.item_name&&!payload.activity&&!payload.subject&&!payload.teacher_id&&!payload.student_id)throw new Error("Data utama wajib diisi.");
   if(mode==="curr_calendar" && !payload.title)throw new Error("Nama kegiatan wajib diisi.");
+  if(mode==="specific"&&unitCode==="KEPALA_TU"){
+    const file=$("fTuMainFile")?.files?.[0]||null;
+    if(file)validateTuFile(file);
+    const saveBtn=$("entryForm").querySelector('button[type="submit"]');
+    if(saveBtn)saveBtn.disabled=true;
+    try{
+      const result=id
+        ?await restWrite(`office_letters?id=eq.${encodeURIComponent(id)}`,"PATCH",payload)
+        :await restWrite("office_letters","POST",payload);
+      const letterId=id||result?.[0]?.id;
+      if(!letterId)throw new Error("Database tidak mengembalikan ID surat.");
+      $("entryId").value=letterId;
+      if(file){
+        let path=null;
+        try{
+          path=await uploadTuLetterFile(file,letterId);
+          await restWrite("office_letter_files","POST",{
+            letter_id:letterId,file_path:path,original_filename:file.name,
+            mime_type:file.type||null,file_size:file.size,
+            document_label:"Berkas Surat Utama",is_primary:true
+          });
+        }catch(err){
+          if(path){try{await deleteTuStoredFile(path)}catch(e){console.warn(e)}}
+          $("entryMessage").textContent="Data surat sudah tersimpan, tetapi unggah file gagal: "+err.message+". Tekan Simpan lagi untuk mengulang unggahan pada surat yang sama.";
+          return;
+        }
+      }
+      closeModal();await loadData();return;
+    }finally{if(saveBtn)saveBtn.disabled=false}
+  }
   if(id)await restWrite(`${table}?id=eq.${encodeURIComponent(id)}`,"PATCH",payload);else await restWrite(table,"POST",payload);
   closeModal();await loadData()
  }catch(err){$("entryMessage").textContent="Gagal: "+err.message}
