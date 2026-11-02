@@ -270,7 +270,76 @@ function render(){
   teacherPersonal=personal||{teacher_linked:false,stats:{},contexts:[],today_schedule:[],attendance_tasks:[],grade_tasks:[],positions:[]};
   teacherOperational=operational||{teacher_linked:false,homeroom:null,notifications:[],quick_actions:[]};
   render();
+  initSuperAtt();
   $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"};
  }catch(err){console.error(err);alert("Dashboard gagal dimuat: "+err.message)}
  finally{$("loading").style.display="none"}
 })();
+
+
+/* Panel live absensi guru hanya ditampilkan kepada SUPER_ADMIN. */
+let superAttData=[],superAttFilter="checked",superAttLoading=false;
+function superAttWibDay(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}
+function superAttTime(value){
+  if(!value)return "—";
+  const d=new Date(value);
+  return Number.isNaN(d.getTime())?"—":new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",hour:"2-digit",minute:"2-digit",hour12:false}).format(d)+" WIB";
+}
+function superAttKind(r){
+  if(r.check_in&&r.check_out)return "complete";
+  if(r.check_in)return "entered";
+  if(["IZIN","SAKIT","DINAS"].includes(r.attendance_status))return "other";
+  return r.has_schedule?"pending":"other";
+}
+function superAttLabel(r){
+  const kind=superAttKind(r);
+  if(kind==="complete")return "Selesai";
+  if(kind==="entered")return r.attendance_status==="TERLAMBAT"?"Masuk · Terlambat":"Sudah Masuk";
+  if(kind==="pending")return "Belum Absen";
+  return ["IZIN","SAKIT","DINAS"].includes(r.attendance_status)?r.attendance_status:"Tidak Ada Jadwal";
+}
+function renderSuperAtt(){
+  if(profile?.role!=="SUPER_ADMIN")return;
+  const rows=superAttData;
+  $("adminAttTotal").textContent=rows.length.toLocaleString("id-ID");
+  $("adminAttChecked").textContent=rows.filter(x=>!!x.check_in).length.toLocaleString("id-ID");
+  $("adminAttComplete").textContent=rows.filter(x=>superAttKind(x)==="complete").length.toLocaleString("id-ID");
+  $("adminAttPending").textContent=rows.filter(x=>superAttKind(x)==="pending").length.toLocaleString("id-ID");
+  document.querySelectorAll("[data-att-filter]").forEach(btn=>{
+    const active=btn.dataset.attFilter===superAttFilter;
+    btn.classList.toggle("active",active);btn.setAttribute("aria-pressed",String(active));
+  });
+  const search=$("adminAttSearch").value.trim().toLocaleLowerCase("id-ID");
+  const visible=rows.filter(x=>(superAttFilter==="all"||(superAttFilter==="checked"&&!!x.check_in)||(superAttFilter==="complete"&&superAttKind(x)==="complete")||(superAttFilter==="pending"&&superAttKind(x)==="pending"))&&(!search||String(x.teacher_name||"").toLocaleLowerCase("id-ID").includes(search)));
+  visible.sort((a,b)=>superAttFilter==="checked"||superAttFilter==="complete"?(new Date(b.check_in||0)-new Date(a.check_in||0)):String(a.teacher_name||"").localeCompare(String(b.teacher_name||""),"id"));
+  const msg={checked:"Belum ada guru yang absen masuk.",complete:"Belum ada guru yang selesai absen masuk dan pulang.",pending:"Tidak ada guru terjadwal yang belum absen.",all:"Belum ada data guru."};
+  $("adminAttBody").innerHTML=visible.length?visible.map((r,i)=>{
+    const kind=superAttKind(r);
+    return `<tr><td>${i+1}</td><td><b>${esc(r.teacher_name||"-")}</b></td><td>${esc(superAttTime(r.check_in))}</td><td>${esc(superAttTime(r.check_out))}</td><td><span class="admin-att-state ${kind}">${esc(superAttLabel(r))}</span></td></tr>`;
+  }).join(""):`<tr><td colspan="5" class="admin-att-empty">${esc(search?"Tidak ada nama sesuai pencarian.":msg[superAttFilter])}</td></tr>`;
+}
+async function loadSuperAtt(){
+  if(profile?.role!=="SUPER_ADMIN"||superAttLoading)return;
+  superAttLoading=true;$("adminAttRefresh").disabled=true;$("adminAttError").style.display="none";
+  try{
+    const day=superAttWibDay(),data=await api.db.rpc("get_teacher_attendance_by_date",{p_date:day});
+    if(!Array.isArray(data))throw new Error("Format data absensi tidak sesuai.");
+    superAttData=data;
+    $("adminAttDate").textContent=new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date())+" · WIB";
+    renderSuperAtt();
+    $("adminAttUpdated").textContent="Pembaruan terakhir: "+superAttTime(new Date().toISOString())+" · Sumber: Modul Absensi Guru.";
+  }catch(error){
+    $("adminAttError").textContent="Gagal memuat data absensi: "+(error?.message||error);
+    $("adminAttError").style.display="block";
+    if(!superAttData.length)$("adminAttBody").innerHTML='<tr><td colspan="5" class="admin-att-empty">Data tidak dapat dimuat. Klik Muat Ulang.</td></tr>';
+  }finally{superAttLoading=false;$("adminAttRefresh").disabled=false}
+}
+function initSuperAtt(){
+  if(profile?.role!=="SUPER_ADMIN")return;
+  $("superAdminGuruAttendance").style.display="";
+  document.querySelectorAll("[data-att-filter]").forEach(btn=>btn.addEventListener("click",()=>{superAttFilter=btn.dataset.attFilter;renderSuperAtt()}));
+  $("adminAttSearch").addEventListener("input",renderSuperAtt);
+  $("adminAttRefresh").addEventListener("click",loadSuperAtt);
+  loadSuperAtt();
+  setInterval(()=>{if(!document.hidden)loadSuperAtt()},60000);
+}
