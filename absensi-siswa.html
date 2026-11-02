@@ -47,6 +47,37 @@
     .admin-recap-panel a.admin-manual-link{display:inline-block;margin-top:6px;font-size:11px;font-weight:800;color:#075b3a}
     .admin-recap-panel a.admin-manual-link.hidden{display:none}
     @media(max-width:640px){.admin-recap-row{align-items:stretch}.admin-recap-row label,.admin-recap-row button,.admin-recap-row a{width:100%;text-align:center}.admin-recap-row label{text-align:left}}
+
+    /* Pemantauan pengisian absensi siswa — hanya Super Admin */
+    #adminTeacherAttendanceMonitor[hidden],#adminTeacherMonitorError[hidden]{display:none!important}
+    .admin-teacher-monitor{border:1px solid #d9e9df;background:#fff;padding:18px;border-radius:16px;margin:0 0 17px;box-shadow:0 6px 17px rgba(5,79,50,.05)}
+    .admin-teacher-monitor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+    .admin-teacher-monitor-head h3{font-size:16px;margin:0;color:#075b3a}
+    .admin-teacher-monitor-head p{font-size:10px;color:#6c8075;margin:6px 0 0}
+    .admin-teacher-monitor-help{font-size:10px;color:#63786d;line-height:1.55;margin:0 0 13px}
+    .admin-teacher-monitor-reload{border:1px solid #c9dfd1;background:#eff8f2;border-radius:9px;color:#075b3a;padding:9px 13px;font-size:11px;font-weight:800;cursor:pointer}
+    .admin-teacher-monitor-reload:disabled{opacity:.65;cursor:wait}
+    .admin-teacher-monitor-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:0 0 14px}
+    .admin-teacher-monitor-stats>div{border:1px solid #e2eee6;background:#f8fbf9;border-radius:12px;padding:12px;min-width:0}
+    .admin-teacher-monitor-stats span{display:block;color:#657b6e;font-size:10px}
+    .admin-teacher-monitor-stats strong{display:block;color:#075b3a;font-size:22px;margin-top:5px}
+    .admin-teacher-monitor-filters{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px;margin-bottom:12px}
+    .admin-teacher-monitor-tabs{display:flex;flex-wrap:wrap;gap:6px}
+    .admin-teacher-monitor-tabs button{background:#fff;border:1px solid #d5e5db;border-radius:9px;font-size:10px;font-weight:800;color:#426250;padding:9px 12px;cursor:pointer}
+    .admin-teacher-monitor-tabs button.active{color:#fff;background:#0b7347;border-color:#0b7347}
+    #adminTeacherMonitorSearch{border:1px solid #d5e5db;border-radius:9px;padding:10px;font-size:10px;width:210px;max-width:100%}
+    .admin-teacher-monitor-table-wrap{border:1px solid #e1eae4;border-radius:11px;overflow:auto}
+    .admin-teacher-monitor-table{width:100%;min-width:870px;border-collapse:collapse}
+    .admin-teacher-monitor-table th{text-align:left;background:#f5f9f6;color:#536b5e;font-size:10px;padding:11px 9px}
+    .admin-teacher-monitor-table td{font-size:10px;padding:11px 9px;border-top:1px solid #e9f0eb;color:#284735;vertical-align:middle}
+    .admin-teacher-monitor-table td:nth-child(5),.admin-teacher-monitor-table td:nth-child(6){font-variant-numeric:tabular-nums;white-space:nowrap}
+    .admin-teacher-monitor-empty{text-align:center!important;color:#77877e!important;padding:22px!important}
+    .admin-teacher-monitor-status{border-radius:999px;padding:5px 9px;display:inline-block;white-space:nowrap;font-size:9px;font-weight:800;background:#fff3d8;color:#805600}
+    .admin-teacher-monitor-status.done{background:#e1f5e8;color:#136a3d}
+    .admin-teacher-monitor-status.partial{background:#eaf1fc;color:#245895}
+    .admin-teacher-monitor-updated{font-size:9px;color:#728277;margin-top:10px}
+    .admin-teacher-monitor-error{font-size:10px;color:#a2342a;background:#fff3f0;border:1px solid #f2cec7;padding:10px;border-radius:9px;margin-bottom:10px}
+    @media(max-width:760px){.admin-teacher-monitor-stats{grid-template-columns:repeat(2,minmax(0,1fr))}#adminTeacherMonitorSearch{width:100%}}
 </style>
 </head>
 <body>
@@ -181,6 +212,40 @@
       <div id="classInfo" class="class-info"><div><strong>Pilih kelas untuk mulai absensi</strong><br><span>Daftar kelas menyesuaikan hak akses akun.</span></div></div>
       <p class="student-sort-label" style="font-size:11px;color:#587363;margin:6px 0 14px">Urutan daftar: <strong>Nama Siswa (A–Z)</strong>. Nomor absen tetap mengikuti data kelas.</p>
 
+      <section id="adminTeacherAttendanceMonitor" class="admin-teacher-monitor" hidden aria-label="Monitoring guru mengabsen siswa">
+        <div class="admin-teacher-monitor-head">
+          <div>
+            <h3>Monitoring Guru yang Sudah Mengabsen Siswa</h3>
+            <p id="adminTeacherMonitorDate">Tanggal mengikuti pilihan tanggal Absensi Siswa di atas.</p>
+          </div>
+          <button type="button" id="adminTeacherMonitorRefresh" class="admin-teacher-monitor-reload">Muat Ulang</button>
+        </div>
+        <p class="admin-teacher-monitor-help">Status diambil dari arsip pengiriman guru, bukan absensi kehadiran guru. <b>Selesai</b> berarti semua siswa aktif di kelas tersebut sudah diberi status. Guru dengan beberapa kelas ditampilkan per kelas.</p>
+        <div class="admin-teacher-monitor-stats">
+          <div><span>Guru Sudah Mengirim</span><strong id="adminMonitorTeachersSubmitted">—</strong></div>
+          <div><span>Guru Tuntas Semua Kelas</span><strong id="adminMonitorTeachersComplete">—</strong></div>
+          <div><span>Pengiriman Kelas Lengkap</span><strong id="adminMonitorClassesComplete">—</strong></div>
+          <div><span>Kelas Belum Mengirim</span><strong id="adminMonitorClassesPending">—</strong></div>
+        </div>
+        <div class="admin-teacher-monitor-filters">
+          <div role="group" aria-label="Filter status pengiriman guru" class="admin-teacher-monitor-tabs">
+            <button type="button" data-monitor-filter="sent" class="active" aria-pressed="true">Sudah Mengabsen</button>
+            <button type="button" data-monitor-filter="complete" aria-pressed="false">Selesai</button>
+            <button type="button" data-monitor-filter="pending" aria-pressed="false">Belum Mengirim</button>
+            <button type="button" data-monitor-filter="all" aria-pressed="false">Semua</button>
+          </div>
+          <input id="adminTeacherMonitorSearch" type="search" placeholder="Cari nama guru atau kelas..." aria-label="Cari nama guru atau kelas">
+        </div>
+        <div id="adminTeacherMonitorError" class="admin-teacher-monitor-error" hidden role="alert"></div>
+        <div class="admin-teacher-monitor-table-wrap">
+          <table class="admin-teacher-monitor-table">
+            <thead><tr><th>No.</th><th>Nama Guru</th><th>Kelas</th><th>Mata Pelajaran</th><th>Siswa Diabsen</th><th>Waktu Kirim</th><th>Status</th></tr></thead>
+            <tbody id="adminTeacherMonitorRows"><tr><td colspan="7" class="admin-teacher-monitor-empty">Memuat data guru...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="adminTeacherMonitorUpdated" class="admin-teacher-monitor-updated">—</div>
+      </section>
+
       <section id="adminRecapPanel" class="admin-recap-panel hidden" aria-label="Download Rekap Absensi Siswa Super Admin">
         <h3>Rekap Absensi Siswa — Super Admin</h3>
         <p>Pilih bulan dan kelas pada bagian atas untuk mengunduh rekap kehadiran siswa. Bisa juga unduh <strong>seluruh kelas sekaligus</strong> dalam satu file CSV Excel. Rekap hanya menghitung presensi yang sudah disimpan; hari tanpa catatan tidak dianggap alfa.</p>
@@ -219,6 +284,6 @@
 <!-- Cache-busting khusus diagnosis white overlay V8. -->
 <script src="config.js?v=20260927-v8"></script>
 <script src="sdk-loader.js?v=20260927-v8"></script>
-<script src="absensi-siswa.js?v=20261026-admin-rekap-kelas-v1"></script>
+<script src="absensi-siswa.js?v=20261102-superadmin-monitor-guru-v1"></script>
 </body>
 </html>
