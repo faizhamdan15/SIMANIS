@@ -93,29 +93,6 @@
   @media(max-width:620px){.dash-hero{align-items:flex-start;flex-direction:column}.dash-stats{grid-template-columns:1fr 1fr}.quick-grid,.news-grid-v2,.finance-box{grid-template-columns:1fr 1fr}.period-pill{white-space:normal}}
   @media(max-width:430px){.dash-stats{grid-template-columns:1fr 1fr}.quick-grid,.news-grid-v2,.finance-box{grid-template-columns:1fr}}
 
-  .admin-att-note{font-size:10px;color:#718078;margin:-4px 0 13px;line-height:1.5}
-  .admin-att-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:14px}
-  .admin-att-stats>div{background:#f7faf8;border:1px solid #e3ebe7;border-radius:11px;padding:11px;min-width:0}
-  .admin-att-stats span{display:block;font-size:9px;color:#687b71;line-height:1.4}
-  .admin-att-stats strong{display:block;font-size:23px;color:#075b3a;margin-top:5px}
-  .admin-att-toolbar{display:flex;gap:9px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-  .admin-att-toolbar input{border:1px solid #d8e6dd;border-radius:9px;padding:9px;font-size:10px;max-width:100%}
-  .admin-att-filters{display:flex;flex-wrap:wrap;gap:6px}
-  .admin-att-filters button,.admin-att-reload{border:1px solid #d8e6dd;border-radius:9px;background:white;color:#075b3a;cursor:pointer;font-size:10px;font-weight:800;padding:8px 10px}
-  .admin-att-filters button.active{background:#0b7347;color:white;border-color:#0b7347}
-  .admin-att-reload{background:#eaf6ef}.admin-att-reload:disabled{opacity:.6}
-  .admin-att-table-wrap{overflow:auto;border:1px solid #e1eae5;border-radius:12px}
-  .admin-att-table{width:100%;border-collapse:collapse;min-width:570px}
-  .admin-att-table th{padding:10px;background:#f7faf8;text-align:left;font-size:9px;color:#63766b}
-  .admin-att-table td{border-top:1px solid #eaf0ed;padding:10px;font-size:10px;color:#244635}
-  .admin-att-empty{text-align:center;color:#6e8176!important;padding:20px!important}
-  .admin-att-state{border-radius:20px;padding:5px 9px;font-size:9px;font-weight:800;white-space:nowrap;display:inline-block;background:#f1f4f2;color:#65786c}
-  .admin-att-state.complete{background:#e2f4e8;color:#146b3f}
-  .admin-att-state.entered{background:#e8f0fd;color:#275c99}
-  .admin-att-state.pending{background:#fff2d8;color:#8e5a12}
-  .admin-att-updated{font-size:9px;color:#718078;margin:10px 0 0}
-  .admin-att-error{font-size:10px;color:#9b3d2f;padding:9px;background:#fff0ed;border-radius:9px}
-  @media(max-width:700px){.admin-att-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-att-toolbar input{width:100%}}
 </style>
 </head>
 <body>
@@ -190,34 +167,6 @@
         </section>
       </section>
 
-      <section id="superAdminGuruAttendance" class="dash-card" style="display:none;margin-bottom:14px">
-        <div class="dash-title"><div><h3>Pemantauan Absensi Guru &amp; Staf</h3><span id="adminAttDate">Hari ini · WIB</span></div>
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><button id="adminAttRefresh" type="button" class="admin-att-reload">Muat Ulang</button><a href="absensi-guru.html">Buka Absensi Guru →</a></div>
-        </div>
-        <p class="admin-att-note">Sudah Absen: telah absen masuk. Selesai: telah absen masuk dan pulang. Data diperbarui tiap 60 detik.</p>
-        <div class="admin-att-stats">
-          <div><span>Guru/Staf Aktif</span><strong id="adminAttTotal">—</strong></div>
-          <div><span>Sudah Absen Masuk</span><strong id="adminAttChecked">—</strong></div>
-          <div><span>Selesai Masuk &amp; Pulang</span><strong id="adminAttComplete">—</strong></div>
-          <div><span>Belum Absen (Terjadwal)</span><strong id="adminAttPending">—</strong></div>
-        </div>
-        <div class="admin-att-toolbar">
-          <div id="adminAttFilters" class="admin-att-filters" role="group" aria-label="Filter absensi guru">
-            <button type="button" data-att-filter="checked" class="active" aria-pressed="true">Sudah Absen</button>
-            <button type="button" data-att-filter="complete" aria-pressed="false">Selesai</button>
-            <button type="button" data-att-filter="pending" aria-pressed="false">Belum Absen</button>
-            <button type="button" data-att-filter="all" aria-pressed="false">Semua</button>
-          </div>
-          <input type="search" id="adminAttSearch" placeholder="Cari nama guru..." aria-label="Cari nama guru">
-        </div>
-        <p id="adminAttError" class="admin-att-error" style="display:none" role="alert"></p>
-        <div class="admin-att-table-wrap"><table class="admin-att-table">
-          <thead><tr><th>No.</th><th>Nama Guru/Staf</th><th>Masuk</th><th>Pulang</th><th>Status</th></tr></thead>
-          <tbody id="adminAttBody"><tr><td colspan="5" class="admin-att-empty">Memuat data...</td></tr></tbody>
-        </table></div>
-        <p id="adminAttUpdated" class="admin-att-updated"></p>
-      </section>
-
       <div id="madrasahSnapshotTitle" class="dash-title" style="margin:2px 0 8px"><h3>Ringkasan Madrasah</h3><span>Informasi umum</span></div>
       <section class="dash-stats">
         <article class="dash-stat"><div class="dash-stat-head"><span>Siswa Aktif</span><span class="dash-stat-icon" data-icon="users"></span></div><div id="statStudents" class="dash-stat-value">-</div><div class="dash-stat-sub">Data siswa aktif</div></article>
@@ -282,6 +231,6 @@
 
 <script src="config.js"></script>
 <script src="sdk-loader.js"></script>
-<script src="dashboard.js?v=20261102-absensi-guru-superadmin"></script>
+<script src="dashboard.js?v=20261102-fix-superadmin-siswa-v2"></script>
 </body>
 </html>
