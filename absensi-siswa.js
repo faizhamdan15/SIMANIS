@@ -431,6 +431,7 @@ function adminRecapInit(){
 $("attendanceDate").value=localISODate();
 $("classFilter").addEventListener("change",()=>chooseClass($("classFilter").value));
 $("attendanceDate").addEventListener("change",async()=>{
+   if(String(profile?.role).toUpperCase()==="SUPER_ADMIN")void refreshAdminTeacherMonitor();
   await refreshTodayProgress();
   renderTodayClasses();
   if(isTeacherMode){
@@ -449,7 +450,7 @@ $("statusFilter").addEventListener("change",renderTable);
 $("markAllPresent").addEventListener("click",()=>markRows("ALL_PRESENT"));
 $("markEmptyPresent").addEventListener("click",()=>markRows("EMPTY_PRESENT"));
 $("markEmptyAbsent").addEventListener("click",()=>markRows("EMPTY_ABSENT"));
-$("reloadBtn").addEventListener("click",async()=>{await loadAttendance();await refreshTodayProgress();renderTodayClasses()});
+$("reloadBtn").addEventListener("click",async()=>{await loadAttendance();await refreshTodayProgress();renderTodayClasses();if(String(profile?.role).toUpperCase()==="SUPER_ADMIN")void refreshAdminTeacherMonitor()});
 $("saveBtn").addEventListener("click",saveAttendance);
 
 (async function boot(){
@@ -460,6 +461,7 @@ $("saveBtn").addEventListener("click",saveAttendance);
     profile=await loadProfile(user);
     applyTeacherUI();
     adminRecapInit();
+    initAdminTeacherMonitor();
     $("sideUserName").textContent=profile.full_name||user.email||"Pengguna";
     $("sideUserRole").textContent=formatRole(profile.role);
     $("headerUser").textContent=profile.full_name||user.email||"Pengguna";
@@ -475,3 +477,87 @@ $("saveBtn").addEventListener("click",saveAttendance);
     $("loading")?.classList.add("hidden")
   }
 })();
+
+/* Pengisian absensi SISWA per guru & kelas, sumber arsip pengiriman yang dilindungi RPC. */
+let adminTeacherMonitorData=[],adminTeacherMonitorFilter="sent",adminTeacherMonitorBusy=false;
+function adminTeacherMonitorWib(value){
+  if(!value)return "—";
+  const d=new Date(value);
+  return Number.isNaN(d.getTime())?"—":new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:false}).format(d)+" WIB";
+}
+function renderAdminTeacherMonitor(){
+  if(String(profile?.role).toUpperCase()!=="SUPER_ADMIN")return;
+  const all=adminTeacherMonitorData;
+  const group=new Map();
+  for(const r of all){
+    if(!group.has(r.teacher_id))group.set(r.teacher_id,[]);
+    group.get(r.teacher_id).push(r);
+  }
+  const isSent=r=>r.attendance_state==="SELESAI"||r.attendance_state==="SEBAGIAN";
+  $("adminMonitorTeachersSubmitted").textContent=[...group.values()].filter(entries=>entries.some(isSent)).length.toLocaleString("id-ID");
+  $("adminMonitorTeachersComplete").textContent=[...group.values()].filter(entries=>entries.length>0&&entries.every(r=>r.attendance_state==="SELESAI")).length.toLocaleString("id-ID");
+  $("adminMonitorClassesComplete").textContent=all.filter(r=>r.attendance_state==="SELESAI").length.toLocaleString("id-ID");
+  $("adminMonitorClassesPending").textContent=all.filter(r=>r.attendance_state==="BELUM_MENGIRIM").length.toLocaleString("id-ID");
+  document.querySelectorAll("[data-monitor-filter]").forEach(btn=>{
+    const active=btn.dataset.monitorFilter===adminTeacherMonitorFilter;
+    btn.classList.toggle("active",active);
+    btn.setAttribute("aria-pressed",String(active));
+  });
+  const search=$("adminTeacherMonitorSearch").value.trim().toLocaleLowerCase("id-ID");
+  const filtered=all.filter(r=>{
+    const st=r.attendance_state;
+    const matches=adminTeacherMonitorFilter==="all"||
+      (adminTeacherMonitorFilter==="sent"&&isSent(r))||
+      (adminTeacherMonitorFilter==="complete"&&st==="SELESAI")||
+      (adminTeacherMonitorFilter==="pending"&&st==="BELUM_MENGIRIM");
+    return matches&&(!search||[r.teacher_name,r.class_name,r.subject_names].some(t=>String(t||"").toLocaleLowerCase("id-ID").includes(search)));
+  });
+  filtered.sort((a,b)=>{
+    if(adminTeacherMonitorFilter==="sent"||adminTeacherMonitorFilter==="complete"){
+      const diff=(new Date(b.submitted_at||0))-(new Date(a.submitted_at||0));
+      if(diff)return diff;
+    }
+    return String(a.teacher_name||"").localeCompare(String(b.teacher_name||""),"id")||String(a.class_name||"").localeCompare(String(b.class_name||""),"id");
+  });
+  const messages={sent:"Belum ada guru mengirim absensi pada tanggal ini.",complete:"Belum ada kelas dengan pengisian lengkap.",pending:"Semua kelas pada jadwal telah dikirim.",all:"Belum ada jadwal atau arsip absensi pada tanggal ini."};
+  $("adminTeacherMonitorRows").innerHTML=filtered.length?filtered.map((r,i)=>{
+    const st=r.attendance_state;
+    const cls=st==="SELESAI"?"done":st==="SEBAGIAN"?"partial":"";
+    const label=st==="SELESAI"?"Selesai":st==="SEBAGIAN"?"Sebagian":"Belum Mengirim";
+    const count=st==="BELUM_MENGIRIM"?"—":Number(r.marked_count||0)+" / "+Number(r.student_count||0);
+    return `<tr><td>${i+1}</td><td><strong>${esc(r.teacher_name||"-")}</strong></td><td>${esc(r.class_name||"-")}</td><td>${esc(r.subject_names||"-")}</td><td>${esc(count)}</td><td>${esc(adminTeacherMonitorWib(r.submitted_at))}</td><td><span class="admin-teacher-monitor-status ${cls}">${esc(label)}</span></td></tr>`;
+  }).join(""):`<tr><td colspan="7" class="admin-teacher-monitor-empty">${esc(search?"Tidak ditemukan nama guru, kelas, atau mata pelajaran yang cocok.":messages[adminTeacherMonitorFilter])}</td></tr>`;
+}
+async function refreshAdminTeacherMonitor(){
+  if(String(profile?.role).toUpperCase()!=="SUPER_ADMIN"||adminTeacherMonitorBusy)return;
+  const btn=$("adminTeacherMonitorRefresh");adminTeacherMonitorBusy=true;btn.disabled=true;
+  $("adminTeacherMonitorError").hidden=true;
+  try{
+    const date=$("attendanceDate").value||localISODate();
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw Error("Tanggal absensi tidak valid.");
+    const result=await api.db.rpc("superadmin_student_attendance_teacher_status",{p_date:date});
+    if(!Array.isArray(result))throw Error("Format data pengiriman absensi tidak sesuai.");
+    // Jangan tampilkan hasil tanggal lama jika tanggal berubah selama permintaan berlangsung.
+    if($("attendanceDate").value!==date)return;
+    adminTeacherMonitorData=result;
+    $("adminTeacherMonitorDate").textContent="Tanggal absensi: "+new Intl.DateTimeFormat("id-ID",{day:"numeric",month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(date+"T12:00:00Z"));
+    renderAdminTeacherMonitor();
+    $("adminTeacherMonitorUpdated").textContent="Diperbarui "+adminTeacherMonitorWib(new Date().toISOString())+" · Rekap guru per kelas yang terjadwal.";
+  }catch(err){
+    $("adminTeacherMonitorError").textContent="Gagal memuat laporan guru: "+(err?.message||String(err));
+    $("adminTeacherMonitorError").hidden=false;
+    $("adminTeacherMonitorRows").innerHTML='<tr><td colspan="7" class="admin-teacher-monitor-empty">Data belum dapat dimuat. Klik Muat Ulang.</td></tr>';
+  }finally{adminTeacherMonitorBusy=false;btn.disabled=false}
+}
+function initAdminTeacherMonitor(){
+  if(String(profile?.role).toUpperCase()!=="SUPER_ADMIN")return;
+  $("adminTeacherAttendanceMonitor").hidden=false;
+  document.querySelectorAll("[data-monitor-filter]").forEach(btn=>btn.addEventListener("click",()=>{
+    adminTeacherMonitorFilter=btn.dataset.monitorFilter;
+    renderAdminTeacherMonitor();
+  }));
+  $("adminTeacherMonitorSearch").addEventListener("input",renderAdminTeacherMonitor);
+  $("adminTeacherMonitorRefresh").addEventListener("click",refreshAdminTeacherMonitor);
+  void refreshAdminTeacherMonitor();
+  setInterval(()=>{if(!document.hidden)void refreshAdminTeacherMonitor()},60000);
+}
