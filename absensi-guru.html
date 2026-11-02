@@ -61,7 +61,12 @@
 
     @media(max-width:850px){.att-toolbar{grid-template-columns:1fr 1fr}.att-table-wrap{display:none}.att-cards{display:grid;gap:10px}}
     @media(max-width:520px){.att-toolbar{grid-template-columns:1fr}}
-  </style>
+  
+    #scannerOnlyNotice[hidden]{display:none!important}
+    .scanner-only-notice{background:#eaf6ef;border:1px solid #bdddc9;border-radius:12px;color:#0c5c38;padding:12px 15px;margin:0 0 14px;font-size:11px;line-height:1.55}
+    .scanner-only-notice strong{display:block;font-size:12px;margin-bottom:3px}
+    .scanner-required-label{display:inline-flex;background:#eaf6ef;color:#0c5c38;border-radius:8px;padding:7px 9px;font-size:9px;font-weight:800}
+</style>
 </head>
 <body>
 <div id="loading" class="loading-overlay">Memuat Absensi Guru...</div>
@@ -74,7 +79,12 @@
   <section class="content">
     <header class="topbar"><div><h1>SIMANIS</h1><p>Sistem Informasi MA Nurul Islam · Absensi Guru</p></div><div class="topbar-right"><strong id="headerUser">-</strong><span id="currentDate">-</span></div></header>
     <main class="main">
-      <section class="page-head"><div><h2>Absensi Guru & Staf</h2><p>Guru mengikuti jadwal pelajaran. Staf TU dapat menggunakan jadwal kerja harian; hari tanpa jadwal tidak dihitung alfa.</p></div>
+      <section class="page-head">
+      <div id="scannerOnlyNotice" class="scanner-only-notice" hidden role="note">
+        <strong>Absensi guru wajib menggunakan scanner kartu</strong>
+        Silakan scan kartu pada perangkat scanner madrasah untuk absen masuk dan pulang. Halaman ini hanya menampilkan hasil kehadiran. Jika terdapat kendala pemindaian, hubungi petugas TU.
+      </div>
+      <div><h2>Absensi Guru & Staf</h2><p>Guru mengikuti jadwal pelajaran. Staf TU dapat menggunakan jadwal kerja harian; hari tanpa jadwal tidak dihitung alfa.</p></div>
         <div class="staff-work-access">
           <button id="monthlyRecapToggle" type="button" class="staff-work-toggle" aria-controls="monthlyRecapPanel" aria-expanded="false">📊 Rekap Absensi Bulanan</button>
           <button id="staffWorkToggle" type="button" class="staff-work-toggle" aria-controls="staffWorkPanel" aria-expanded="false">Atur Jadwal Kerja TU</button>
@@ -177,6 +187,6 @@
   </div><div class="modal-actions"><button type="button" id="clearBtn" class="secondary-btn">Hapus Catatan</button><button type="button" id="cancelBtn" class="secondary-btn">Batal</button><button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button></div></form>
 </div></div>
 
-<script src="config.js"></script><script src="sdk-loader.js"></script><script src="absensi-guru.js?v=20261025-rekap-bulanan-v1"></script>
+<script src="config.js"></script><script src="sdk-loader.js"></script><script src="absensi-guru.js?v=20261102-scanner-only-v1"></script>
 </body>
 </html>
