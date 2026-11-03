@@ -66,6 +66,47 @@
     .scanner-only-notice{background:#eaf6ef;border:1px solid #bdddc9;border-radius:12px;color:#0c5c38;padding:12px 15px;margin:0 0 14px;font-size:11px;line-height:1.55}
     .scanner-only-notice strong{display:block;font-size:12px;margin-bottom:3px}
     .scanner-required-label{display:inline-flex;background:#eaf6ef;color:#0c5c38;border-radius:8px;padding:7px 9px;font-size:9px;font-weight:800}
+
+    .attendance-analytics{background:#fff;border:1px solid #dfeae3;border-radius:17px;padding:17px;margin-bottom:17px;box-shadow:0 5px 17px rgba(7,91,58,.04)}
+    .attendance-analytics-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:14px}
+    .attendance-analytics-heading h3{font-size:16px;margin:0;color:#075b3a}
+    .attendance-analytics-heading p{font-size:10px;margin:5px 0 0;color:#697f71;line-height:1.55}
+    .attendance-analytics-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .attendance-analytics-controls label{font-size:10px;color:#4d6858;font-weight:800}
+    .attendance-analytics-controls input{border:1px solid #cddfd3;border-radius:9px;padding:10px;background:white;font-size:11px;color:#17492f}
+    .attendance-analytics-controls button{border:0;background:#075b3a;color:white;font-size:11px;font-weight:800;border-radius:9px;padding:11px 13px;cursor:pointer}
+    .attendance-analytics-controls button:disabled{opacity:.6;cursor:wait}
+    .attendance-analytics-error{background:#fff1ee;color:#a2352d;border-radius:8px;padding:10px;font-size:11px;margin-bottom:12px}
+    .attendance-analytics-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin-bottom:14px}
+    .attendance-analytics-summary .att-stat-mini{background:#f7faf8;border:1px solid #e1ede5;border-radius:12px;padding:11px;min-width:0}
+    .attendance-analytics-summary .att-stat-mini small{font-size:9px;color:#667b6d;display:block;line-height:1.35}
+    .attendance-analytics-summary .att-stat-mini strong{display:block;font-size:21px;line-height:1.2;color:#075b3a;margin-top:6px}
+    .attendance-analytics-summary .att-stat-mini em{display:block;font-size:9px;font-style:normal;color:#7b8d81;margin-top:4px}
+    .attendance-analytics-placeholder{grid-column:1/-1;background:#f8faf9;border-radius:10px;padding:20px;text-align:center;color:#718879;font-size:11px}
+    .attendance-analytics-panels{display:grid;grid-template-columns:1.45fr 1fr;gap:12px}
+    .attendance-analytics-graph-card,.attendance-analytics-breakdown-card{border:1px solid #e4eee7;border-radius:12px;padding:13px;min-width:0}
+    .attendance-analytics-subhead{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:11px}
+    .attendance-analytics-subhead b{font-size:11px;color:#164a32}
+    .attendance-analytics-subhead span{font-size:9px;color:#718676}
+    .attendance-analytics-chart-wrap{width:100%;overflow-x:auto;overflow-y:hidden}
+    .attendance-analytics-chart{min-width:100%;height:184px;display:flex;gap:5px;align-items:flex-end;padding:8px 0 19px;border-bottom:1px solid #d9e5db;box-sizing:border-box}
+    .att-trend-col{flex:1 0 20px;max-width:38px;min-width:20px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;position:relative}
+    .att-trend-track{width:72%;height:140px;border-radius:6px 6px 0 0;background:#edf4ee;display:flex;align-items:flex-end;overflow:hidden}
+    .att-trend-fill{width:100%;background:linear-gradient(180deg,#17a667,#075b3a);min-height:0;border-radius:6px 6px 0 0}
+    .att-trend-col[data-none="true"] .att-trend-track{background:#f7f8f7}
+    .att-trend-col span{position:absolute;bottom:-17px;font-size:8px;color:#677d6e;font-variant-numeric:tabular-nums}
+    .attendance-analytics-graph-card p{color:#7c8e81;font-size:9px;line-height:1.5;margin:11px 0 0}
+    .attendance-analytics-breakdown{display:grid;gap:9px}
+    .att-break-row{display:grid;grid-template-columns:90px minmax(0,1fr) 34px;gap:8px;align-items:center}
+    .att-break-row label{font-size:9px;color:#4f6a5a}
+    .att-break-bg{height:9px;background:#edf3ef;border-radius:99px;overflow:hidden}
+    .att-break-bar{height:100%;border-radius:99px}
+    .att-break-row b{font-size:10px;font-variant-numeric:tabular-nums;text-align:right;color:#194f33}
+    .attendance-analytics-legend{margin-top:12px;font-size:9px;color:#7a6e52;line-height:1.55;background:#fff9ec;border:1px solid #f2e6c9;padding:9px;border-radius:9px}
+    .attendance-analytics-footnote{font-size:9px;color:#7b8e82;margin-top:10px}
+    @media(max-width:1100px){.attendance-analytics-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:800px){.attendance-analytics-panels{grid-template-columns:1fr}}
+    @media(max-width:570px){.attendance-analytics-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.attendance-analytics-controls{width:100%}.attendance-analytics-controls input{flex:1;min-width:0}.att-break-row{grid-template-columns:75px minmax(0,1fr) 28px}}
 </style>
 </head>
 <body>
@@ -153,6 +194,38 @@
         </div>
         <p class="monthly-recap-note" style="margin-top:13px"><strong>*Alfa otomatis adalah bagian dari total Alfa</strong>, yakni jadwal yang sudah lewat tetapi belum memiliki catatan absensi; perlu diperiksa sebelum digunakan sebagai dasar keputusan resmi. Persentase kehadiran = (Hadir + Terlambat) ÷ Hari Terjadwal × 100%. Jadwal lampau mengikuti data jadwal yang masih tersimpan di SIMANIS.</p>
       </section>
+      <section class="attendance-analytics" id="attendanceAnalyticsPanel" aria-label="Statistik absensi guru">
+        <div class="attendance-analytics-heading">
+          <div>
+            <h3>Statistik Kehadiran Guru &amp; Staf</h3>
+            <p id="attStatsScope">Rekap kehadiran menurut hari terjadwal, berdasarkan data scanner dan koreksi administratif.</p>
+          </div>
+          <div class="attendance-analytics-controls">
+            <label for="attStatsMonth">Periode</label>
+            <input id="attStatsMonth" type="month" aria-label="Pilih bulan statistik kehadiran">
+            <button type="button" id="attStatsRefresh">Tampilkan</button>
+          </div>
+        </div>
+        <div id="attStatsError" class="attendance-analytics-error" style="display:none" role="alert"></div>
+        <div class="attendance-analytics-summary" id="attStatsCards" aria-live="polite">
+          <div class="attendance-analytics-placeholder">Memuat statistik kehadiran...</div>
+        </div>
+        <div class="attendance-analytics-panels">
+          <div class="attendance-analytics-graph-card">
+            <div class="attendance-analytics-subhead"><b>Grafik Kehadiran Harian</b><span id="attStatsPeriod">—</span></div>
+            <div class="attendance-analytics-chart-wrap">
+              <div class="attendance-analytics-chart" id="attStatsChart" aria-label="Persentase kehadiran tiap tanggal"></div>
+            </div>
+            <p>Persentase = (Hadir + Terlambat) ÷ hari terjadwal × 100%. Arahkan kursor pada batang untuk melihat rinciannya.</p>
+          </div>
+          <div class="attendance-analytics-breakdown-card">
+            <div class="attendance-analytics-subhead"><b>Komposisi Kehadiran</b><span id="attStatsScheduled">—</span></div>
+            <div id="attStatsBreakdown" class="attendance-analytics-breakdown"></div>
+            <div class="attendance-analytics-legend">Hari tanpa jadwal tidak dihitung. Alfa otomatis berasal dari hari terjadwal yang belum mempunyai catatan dan <strong>harus diverifikasi</strong> sebelum digunakan untuk keputusan resmi. Hari berjalan yang belum diabsen dicatat sebagai menunggu.</div>
+          </div>
+        </div>
+        <div class="attendance-analytics-footnote" id="attStatsUpdated">Pilih periode untuk melihat data.</div>
+      </section>
       <section class="stats">
         <article class="stat"><div class="stat-head"><span>Terjadwal</span><span class="stat-icon">📚</span></div><div id="statScheduled" class="stat-value">-</div><div class="stat-sub">Guru/staf memiliki jadwal</div></article>
         <article class="stat"><div class="stat-head"><span>Hadir</span><span class="stat-icon">✓</span></div><div id="statPresent" class="stat-value">-</div><div class="stat-sub">Hadir + terlambat</div></article>
@@ -187,6 +260,6 @@
   </div><div class="modal-actions"><button type="button" id="clearBtn" class="secondary-btn">Hapus Catatan</button><button type="button" id="cancelBtn" class="secondary-btn">Batal</button><button type="submit" id="saveBtn" class="primary-btn" style="width:auto">Simpan</button></div></form>
 </div></div>
 
-<script src="config.js"></script><script src="sdk-loader.js"></script><script src="absensi-guru.js?v=20261102-scanner-only-v1"></script>
+<script src="config.js"></script><script src="sdk-loader.js"></script><script src="absensi-guru.js?v=20261103-stats-v1"></script>
 </body>
 </html>
