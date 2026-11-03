@@ -457,4 +457,92 @@ async function initMonthlyRecap(){
 $("attendanceDate").value=todayYMD();
 $("attendanceDate").onchange=loadAttendance;$("searchInput").oninput=render;$("scheduleFilter").onchange=render;$("statusFilter").onchange=render;$("attendanceStatus").onchange=toggleTimeFields;$("closeModalBtn").onclick=closeModal;$("cancelBtn").onclick=closeModal;$("attendanceForm").onsubmit=saveAttendance;$("clearBtn").onclick=clearAttendance;$("attendanceModal").onclick=e=>{if(e.target===$("attendanceModal"))closeModal()};
 
-(async function boot(){try{api=await window.simanisReady;const session=await api.auth.getSession();if(!session){location.replace("index.html");return}const user=await api.auth.getUser();if(!user){location.replace("index.html");return}profile=await loadProfile(user);$("scannerOnlyNotice").hidden=isAdmin();$("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();if(!isAdmin()){$("clearBtn").classList.add("hidden")}await initStaffWorkPanel();await initMonthlyRecap();await loadMenu();await loadAttendance();setInterval(()=>{if(document.visibilityState==="visible"&&$("attendanceDate").value===todayYMD())loadAttendance()},5000);$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}}catch(err){console.error(err);alert("Absensi Guru gagal dimuat: "+(err.message||err))}finally{$("loading").classList.add("hidden")}})();
+(async function boot(){try{api=await window.simanisReady;const session=await api.auth.getSession();if(!session){location.replace("index.html");return}const user=await api.auth.getUser();if(!user){location.replace("index.html");return}profile=await loadProfile(user);$("scannerOnlyNotice").hidden=isAdmin();$("sideUserName").textContent=profile.full_name||user.email||"Pengguna";$("sideUserRole").textContent=formatRole(profile.role);$("headerUser").textContent=profile.full_name||user.email||"Pengguna";$("currentDate").textContent=localDateID();if(!isAdmin()){$("clearBtn").classList.add("hidden")}await initStaffWorkPanel();await initMonthlyRecap();initTeacherAttendanceStatistics();await loadMenu();await loadAttendance();setInterval(()=>{if(document.visibilityState==="visible"&&$("attendanceDate").value===todayYMD())loadAttendance()},5000);$("logoutBtn").onclick=async()=>{await api.auth.signOut();location.replace("index.html")}}catch(err){console.error(err);alert("Absensi Guru gagal dimuat: "+(err.message||err))}finally{$("loading").classList.add("hidden")}})();
+
+
+/* Grafik statistik: tetap read-only, tidak menambahkan jalur check-in mandiri. */
+let teacherAttendanceStatsBusy=false;
+function statInt(n){return Number(n||0).toLocaleString("id-ID")}
+function statPct(n){return Number(n||0).toLocaleString("id-ID",{maximumFractionDigits:1,minimumFractionDigits:1})+"%"}
+function statsMiniCard(label,value,detail){
+ return '<div class="att-stat-mini"><small>'+esc(label)+'</small><strong>'+esc(String(value))+'</strong><em>'+esc(detail)+'</em></div>';
+}
+function renderTeacherAttendanceStatistics(payload){
+ const totals=payload?.totals||{},series=Array.isArray(payload?.daily)?payload.daily:[];
+ const personal=payload.scope==="PRIBADI",unit=personal?"hari":"guru-hari";
+ $("attStatsScope").textContent=personal?"Statistik kehadiran pribadi pada hari yang terjadwal. Absensi dilakukan melalui scanner kartu.":"Ringkasan seluruh guru/staf berdasarkan unit guru-hari terjadwal. Absensi dilakukan melalui scanner kartu.";
+ const expected=Number(totals.scheduled||0);
+ $("attStatsCards").innerHTML=[
+  statsMiniCard("Persentase Kehadiran",expected?statPct(totals.attendance_rate):"—",statInt(expected)+" "+unit+" terjadwal"),
+  statsMiniCard("Hadir + Terlambat",statInt(totals.present),unit+" hadir"),
+  statsMiniCard("Datang Tepat Waktu",statInt(totals.on_time),"status Hadir"),
+  statsMiniCard("Terlambat",statInt(totals.late),statInt(totals.late_minutes)+" total menit"),
+  statsMiniCard("Izin / Sakit / Dinas",statInt(Number(totals.leave||0)+Number(totals.sick||0)+Number(totals.duty||0)),unit+" berizin"),
+  statsMiniCard("Belum Tercatat",statInt(Number(totals.pending||0)+Number(totals.auto_absence||0)),statInt(totals.auto_absence)+" perlu verifikasi")
+ ].join("");
+ const key=$("attStatsMonth").value;
+ const month=new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(key+"-01T12:00:00Z"));
+ $("attStatsPeriod").textContent=month;
+ $("attStatsScheduled").textContent=statInt(expected)+" "+unit;
+ const presentDays=series.filter(r=>Number(r.scheduled||0)>0);
+ const chart=$("attStatsChart");
+ if(!presentDays.length){
+  chart.innerHTML='<div class="attendance-analytics-placeholder">Belum ada hari terjadwal pada periode ini.</div>';
+  chart.style.minWidth="100%";
+ }else{
+  chart.style.minWidth=Math.max(100,presentDays.length*27)+"px";
+  chart.innerHTML=presentDays.map(r=>{
+   const date=String(r.date||""),day=date.slice(-2),pct=Math.min(100,Math.max(0,Number(r.rate||0)));
+   const desc=day+" "+month+": "+statPct(pct)+" · hadir "+statInt(r.present)+" dari "+statInt(r.scheduled)+" terjadwal";
+   return '<div class="att-trend-col" data-none="'+(Number(r.scheduled||0)===0)+'" title="'+esc(desc)+'" aria-label="'+esc(desc)+'"><div class="att-trend-track"><div class="att-trend-fill" style="height:'+pct+'%"></div></div><span>'+esc(day)+'</span></div>';
+  }).join("");
+ }
+ const groups=[
+  ["Hadir",totals.on_time,"#0b7347"],
+  ["Terlambat",totals.late,"#e8a23c"],
+  ["Izin",totals.leave,"#5c9bda"],
+  ["Sakit",totals.sick,"#9474b9"],
+  ["Dinas",totals.duty,"#379d9b"],
+  ["Alfa tercatat",totals.official_absence,"#b84c4c"],
+  ["Alfa otomatis*",totals.auto_absence,"#c28c64"],
+  ["Menunggu",totals.pending,"#a6b5ab"]
+ ];
+ $("attStatsBreakdown").innerHTML=groups.map(([label,num,color])=>{
+  const v=Number(num||0),pct=expected?Math.min(100,100*v/expected):0;
+  return '<div class="att-break-row"><label>'+esc(label)+'</label><div class="att-break-bg"><div class="att-break-bar" style="width:'+pct+'%;background:'+color+'"></div></div><b>'+statInt(v)+'</b></div>';
+ }).join("");
+ $("attStatsUpdated").textContent="Data diperbarui "+new Intl.DateTimeFormat("id-ID",{timeZone:"Asia/Jakarta",hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date())+" WIB · Statistik otomatis sesuai catatan SIMANIS.";
+}
+async function refreshTeacherAttendanceStatistics(){
+ if(teacherAttendanceStatsBusy)return;
+ const key=$("attStatsMonth").value;
+ if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(key))return;
+ teacherAttendanceStatsBusy=true;
+ const btn=$("attStatsRefresh");btn.disabled=true;btn.textContent="Memuat...";
+ $("attStatsError").style.display="none";
+ try{
+  const [year,month]=key.split("-").map(Number);
+  const data=await api.db.rpc("get_teacher_attendance_statistics",{p_year:year,p_month:month});
+  if(!data||typeof data!=="object"||!Array.isArray(data.daily))throw Error("Format statistik tidak sesuai.");
+  if($("attStatsMonth").value!==key)return;
+  renderTeacherAttendanceStatistics(data);
+ }catch(e){
+  $("attStatsError").textContent="Gagal memuat statistik: "+(e?.message||e);
+  $("attStatsError").style.display="block";
+  $("attStatsCards").innerHTML='<div class="attendance-analytics-placeholder">Statistik belum dapat ditampilkan. Gunakan tombol Tampilkan untuk mencoba lagi.</div>';
+ }finally{
+  teacherAttendanceStatsBusy=false;
+  btn.disabled=false;btn.textContent="Tampilkan";
+ }
+}
+function initTeacherAttendanceStatistics(){
+ const input=$("attStatsMonth");
+ input.value=todayYMD().slice(0,7);
+ input.max=input.value;
+ input.onchange=refreshTeacherAttendanceStatistics;
+ $("attStatsRefresh").onclick=refreshTeacherAttendanceStatistics;
+ void refreshTeacherAttendanceStatistics();
+ setInterval(()=>{
+  if(document.visibilityState==="visible"&&input.value===todayYMD().slice(0,7))void refreshTeacherAttendanceStatistics();
+ },60000);
+}
