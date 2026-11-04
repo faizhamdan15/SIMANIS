@@ -12,7 +12,12 @@ function setMessage(text,ok=false){
   const el=$("loginMessage");el.textContent=text||"";el.classList.toggle("ok",!!ok);
 }
 $("togglePassword").onclick=()=>{
-  const p=$("password"),show=p.type==="password";p.type=show?"text":"password";$("togglePassword").textContent=show?"Sembunyikan":"Lihat";
+  const p=$("password"),button=$("togglePassword");
+  const show=p.type==="password";
+  p.type=show?"text":"password";
+  button.textContent=show?"👁 Sembunyikan":"👁 Tampilkan";
+  button.setAttribute("aria-pressed",String(show));
+  button.setAttribute("aria-label",show?"Sembunyikan password":"Tampilkan password");
 };
 
 (async()=>{
