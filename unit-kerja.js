@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-let api,profile,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],financeTransactions=[],financeBills=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[],summons=[],activityGroups=[],activityMembers=[],studentAffairsRecap={summary:{},class_recap:[],student_recap:[]},humasDocs=[],humasSocial=[],humasNews=[],humasRecap={summary:{},months:[],channels:[]},letterClasses=[],tuDispositions=[],tuFiles=[],tuRecap={summary:{},months:[],classifications:[]},labBookings=[],labLoans=[],labMovements=[],labSafety=[],labRecap={summary:{},low_stock:[],condition_summary:[],monthly_usage:[]},bizPractices=[],bizTransactions=[],bizMovements=[],bizRecap={summary:{},low_stock:[],monthly:[],payments:[]};
+let api,profile,tuCanDelete=false,myModules=[],programs=[],logs=[],specific=[],teachers=[],students=[],classes=[],semesters=[],assets=[],assetMutations=[],assetMaintenance=[],financeTransactions=[],financeBills=[],docTypes=[],teacherDocs=[],calendarEvents=[],teacherRecap=[],rubricItems=[],summons=[],activityGroups=[],activityMembers=[],studentAffairsRecap={summary:{},class_recap:[],student_recap:[]},humasDocs=[],humasSocial=[],humasNews=[],humasRecap={summary:{},months:[],channels:[]},letterClasses=[],tuDispositions=[],tuFiles=[],tuRecap={summary:{},months:[],classifications:[]},labBookings=[],labLoans=[],labMovements=[],labSafety=[],labRecap={summary:{},low_stock:[],condition_summary:[],monthly_usage:[]},bizPractices=[],bizTransactions=[],bizMovements=[],bizRecap={summary:{},low_stock:[],monthly:[],payments:[]};
 const unitCode=new URLSearchParams(location.search).get("unit")||"";
 
 const ROUTES={DASHBOARD:"dashboard.html",ADMINISTRASI_KEPALA:"administrasi.html",DATA_SISWA:"siswa.html",DATA_GURU:"guru.html",KELAS:"kelas.html",MATA_PELAJARAN:"mapel.html",JADWAL:"jadwal.html",ABSENSI_GURU:"absensi-guru.html",ABSENSI_SISWA:"absensi-siswa.html",NILAI:"nilai.html",PRESTASI:"prestasi.html",BERITA:"berita.html",PENGUMUMAN:"pengumuman.html",AGENDA:"agenda.html",KEUANGAN:"keuangan.html",PORTAL_WALI:"wali-admin.html",PENGATURAN:"pengaturan.html"};
@@ -892,14 +892,50 @@ async function uploadTuLetterFile(file,letterId){
   const txt=await res.text();if(!res.ok)throw new Error(tuUploadError(res.status,txt));return path;
 }
 async function deleteTuStoredFile(path){
-  if(!path)return;
+  if(!path)throw Error("Lokasi berkas tidak ditemukan.");
   const session=await api.auth.getSession(),cfg=window.SIMANIS_CONFIG;
-  if(!session?.access_token)return;
+  if(!session?.access_token)throw Error("Sesi login telah berakhir.");
   const encoded=path.split("/").map(encodeURIComponent).join("/");
   const response=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/tu-surat/${encoded}`,{
     method:"DELETE",headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`}
   });
-  if(!response.ok)console.warn("Berkas gagal dibersihkan:",await response.text());
+  if(response.status===404)return;
+  if(!response.ok){const raw=await response.text();let data;try{data=JSON.parse(raw)}catch(_){}throw Error("Gagal menghapus berkas dari Storage: "+(data?.message||data?.error||raw||"HTTP "+response.status));}
+}
+
+async function requireTuDelete(){
+  if(!tuCanDelete||unitCode!=="KEPALA_TU"||!(await api.db.rpc("has_module_permission",{p_module_code:"KEPALA_TU",p_action:"delete"})))
+    throw Error("Akun tidak memiliki izin menghapus arsip surat.");
+}
+async function deleteTuFile(id){
+  const f=tuFiles.find(x=>x.id===id);
+  if(!f)return alert("Berkas tidak ditemukan. Muat ulang halaman.");
+  if(!confirm("Hapus berkas '"+(f.original_filename||f.document_label||"Surat")+"' secara permanen?\nData surat akan tetap tersimpan."))return;
+  try{
+    await requireTuDelete();
+    await deleteTuStoredFile(f.file_path);
+    const removed=await restWrite("office_letter_files?id=eq."+encodeURIComponent(id),"DELETE");
+    if(!removed?.some(x=>x.id===id))throw Error("Metadata berkas belum terhapus, silakan ulangi.");
+    closeModal();
+    await loadData();
+    alert("Berkas berhasil dihapus. Surat tetap tersimpan.");
+  }catch(err){alert("Gagal menghapus berkas: "+err.message);try{await loadData()}catch(_){}}
+}
+async function deleteTuLetter(id){
+  const letter=specific.find(x=>x.id===id);
+  if(!letter)return alert("Surat tidak ditemukan. Muat ulang halaman.");
+  const type=letter.letter_type==="INCOMING"?"Surat Masuk":"Surat Keluar";
+  if(!confirm("Hapus "+type+" "+(letter.agenda_code||"")+" — "+(letter.subject||"")+"?\n\nSemua file dan disposisi terkait akan ikut dihapus permanen."))return;
+  try{
+    await requireTuDelete();
+    const files=await api.db.select("office_letter_files","select=id,file_path&letter_id=eq."+encodeURIComponent(id));
+    for(const file of files)await deleteTuStoredFile(file.file_path);
+    const removed=await restWrite("office_letters?id=eq."+encodeURIComponent(id),"DELETE");
+    if(!removed?.some(x=>x.id===id))throw Error("Surat belum terhapus, silakan ulangi.");
+    closeModal();
+    await loadData();
+    alert(type+" berhasil dihapus.");
+  }catch(err){alert("Gagal menghapus surat: "+err.message+"\nJika file telah dihapus tetapi data surat masih ada, silakan coba lagi.");try{await loadData()}catch(_){}}
 }
 async function openTuStoredFile(path){
   const tab=window.open("","_blank");
@@ -2036,6 +2072,7 @@ $("entryForm").onsubmit=saveEntry;$("entryClose").onclick=closeModal;$("entryCan
  api=await window.simanisReady;const user=await api.auth.getUser();if(!user){location.href="index.html";return}
  profile=await loadProfile(user);$("sideUserName").textContent=profile.full_name;$("sideUserRole").textContent=roleLabel(profile.role);$("headerUser").textContent=profile.full_name;$("currentDate").textContent=localDateID();
  if(!UNITS[unitCode])throw new Error("Parameter unit kerja tidak valid.");if(!await checkAccess())throw new Error("Akun ini tidak ditugaskan pada unit kerja tersebut.");
+  if(unitCode==="KEPALA_TU"){try{tuCanDelete=!!(await api.db.rpc("has_module_permission",{p_module_code:"KEPALA_TU",p_action:"delete"}))}catch(err){console.warn("Gagal memeriksa izin hapus:",err);tuCanDelete=false}}
  await loadMenu();await loadUnitFinanceResponsible();await loadMasters();renderHeader();renderTabs();await loadData();
  const requestedTab=new URLSearchParams(location.search).get("tab");if(requestedTab&&document.querySelector(`[data-tab="${requestedTab}"]`))setTab(requestedTab);
  const assetParam=new URLSearchParams(location.search).get("asset");
