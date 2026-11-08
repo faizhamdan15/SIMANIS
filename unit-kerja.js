@@ -857,6 +857,20 @@ function renderTuLetterTable(){
   holder.querySelectorAll("[data-edit-specific]").forEach(b=>b.onclick=()=>openSpecific(b.dataset.editSpecific));
 }
 const TU_ALLOWED_EXT=new Set(["pdf","jpg","jpeg","png","webp","doc","docx"]);
+const TU_MIME_TYPES={
+  pdf:"application/pdf",jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",webp:"image/webp",
+  doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+};
+function tuFileMime(ext){return TU_MIME_TYPES[ext]||"application/octet-stream"}
+function tuUploadError(status,raw){
+  let data=null;try{data=JSON.parse(raw)}catch(_){}
+  const cause=data?.message||data?.error||data?.error_description||raw||"Tidak diketahui";
+  if(status===401)return "Sesi login tidak berlaku. Silakan masuk kembali ke SIMANIS.";
+  if(status===403)return "Akses unggah ditolak. Pastikan akun memiliki izin Kepala TU.";
+  if(status===413)return "Ukuran file melampaui batas penyimpanan (maksimal 15 MB).";
+  if(status===415||/mime type|mimetype|content.type|not allowed/i.test(cause))return "Format file tidak diterima server. Gunakan PDF, JPG, PNG, WEBP, DOC atau DOCX.";
+  return "Penyimpanan berkas ditolak (HTTP "+status+"): "+cause;
+}
 function validateTuFile(file){
   if(!file)throw new Error("Silakan pilih berkas surat.");
   const ext=String(file.name||"").split(".").pop().toLowerCase();
@@ -872,10 +886,10 @@ async function uploadTuLetterFile(file,letterId){
   const path=`${letterId}/${Date.now()}-${globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2)}.${ext}`;
   const res=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,"")}/storage/v1/object/tu-surat/${path}`,{
     method:"POST",
-    headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":file.type||"application/octet-stream","x-upsert":"false"},
+    headers:{apikey:cfg.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${session.access_token}`,"Content-Type":tuFileMime(ext),"x-upsert":"false"},
     body:file
   });
-  const txt=await res.text();if(!res.ok)throw new Error(txt);return path;
+  const txt=await res.text();if(!res.ok)throw new Error(tuUploadError(res.status,txt));return path;
 }
 async function deleteTuStoredFile(path){
   if(!path)return;
@@ -1735,7 +1749,7 @@ async function saveEntry(e){
       letter_id:letterId,
       file_path:path,
       original_filename:file.name,
-      mime_type:file.type||null,
+      mime_type:tuFileMime(validateTuFile(file)),
       file_size:file.size,
       document_label:v("fLabel")||null,
       is_primary:v("fPrimary")==="true"
@@ -1998,7 +2012,7 @@ async function saveEntry(e){
           path=await uploadTuLetterFile(file,letterId);
           await restWrite("office_letter_files","POST",{
             letter_id:letterId,file_path:path,original_filename:file.name,
-            mime_type:file.type||null,file_size:file.size,
+            mime_type:tuFileMime(validateTuFile(file)),file_size:file.size,
             document_label:"Berkas Surat Utama",is_primary:true
           });
         }catch(err){
