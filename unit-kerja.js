@@ -846,7 +846,7 @@ function renderTuLetterTable(){
    <td>${tuFiles.some(f=>f.letter_id===x.id)
      ?`<button class="mini-btn" data-tu-open-primary="${x.id}">Buka Berkas (${tuFiles.filter(f=>f.letter_id===x.id).length})</button>`
      :'<span style="color:#9a6552">Belum diunggah</span>'}</td>
-   <td><button class="mini-btn" data-tu-detail="${x.id}">Detail</button> <button class="mini-btn" data-edit-specific="${x.id}">Edit</button></td>
+   <td><button class="mini-btn" data-tu-detail="${x.id}">Detail</button> <button class="mini-btn" data-edit-specific="${x.id}">Edit</button>${tuCanDelete?` <button type="button" class="mini-btn tu-delete-btn" data-tu-delete-letter="${x.id}">Hapus</button>`:""}</td>
   </tr>`).join(""):'<tr><td colspan="11"><div class="empty">Surat tidak ditemukan.</div></td></tr>'}</tbody></table></div>`;
   holder.querySelectorAll("[data-tu-detail]").forEach(b=>b.onclick=()=>openTuLetterDetail(b.dataset.tuDetail));
   holder.querySelectorAll("[data-tu-open-primary]").forEach(btn=>btn.onclick=()=>{
@@ -855,6 +855,7 @@ function renderTuLetterTable(){
     if(file)openTuStoredFile(file.file_path);
   });
   holder.querySelectorAll("[data-edit-specific]").forEach(b=>b.onclick=()=>openSpecific(b.dataset.editSpecific));
+  holder.querySelectorAll("[data-tu-delete-letter]").forEach(b=>b.onclick=()=>deleteTuLetter(b.dataset.tuDeleteLetter));
 }
 const TU_ALLOWED_EXT=new Set(["pdf","jpg","jpeg","png","webp","doc","docx"]);
 const TU_MIME_TYPES={
@@ -985,13 +986,14 @@ async function openTuLetterDetail(id){
           <button type="button" class="secondary-btn" id="tuUploadBtn">+ Arsip File</button>
           <button type="button" class="secondary-btn" id="tuPrintDispoBtn">Cetak Lembar Disposisi</button>
           <button type="button" class="secondary-btn" id="tuEditBtn">Edit Surat</button>
+          ${tuCanDelete?'<button type="button" class="mini-btn tu-delete-btn" id="tuDeleteLetterBtn">Hapus Surat</button>':""}
         </div>
       </div>
       <div>
         <h4 style="font-size:10px;margin:0 0 7px">Riwayat Disposisi</h4>
         <div class="dispo-list">${dispositions.length?dispositions.map(d=>`<div class="dispo-row"><b>${dateID(d.disposition_date)} · ${esc(d.to_name)}</b><p>${esc(d.instruction)}</p><p>Status: ${esc(d.status)}${d.due_date?` · Batas ${dateID(d.due_date)}`:""}</p>${d.result?`<p>Hasil: ${esc(d.result)}</p>`:""}</div>`).join(""):'<div class="empty">Belum ada disposisi.</div>'}</div>
         <h4 style="font-size:10px;margin:10px 0 7px">Arsip Digital</h4>
-        <div class="file-list-tu">${files.length?files.map(f=>`<div class="file-row-tu"><div><b>${esc(f.document_label||f.original_filename||"Dokumen")}</b><p>${esc(f.original_filename||"-")}</p></div><button type="button" class="mini-btn" data-tu-open-file="${f.id}">Buka</button></div>`).join(""):'<div class="empty">Belum ada file.</div>'}</div>
+        <div class="file-list-tu">${files.length?files.map(f=>`<div class="file-row-tu"><div><b>${esc(f.document_label||f.original_filename||"Dokumen")}</b><p>${esc(f.original_filename||"-")}</p></div><span class="tu-file-actions"><button type="button" class="mini-btn" data-tu-open-file="${f.id}">Buka</button>${tuCanDelete?`<button type="button" class="mini-btn tu-delete-btn" data-tu-delete-file="${f.id}">Hapus</button>`:""}</span></div>`).join(""):'<div class="empty">Belum ada file.</div>'}</div>
       </div>
     </div>`);
     const saveBtn=$("entryForm").querySelector('button[type="submit"]');if(saveBtn)saveBtn.style.display="none";
@@ -999,7 +1001,9 @@ async function openTuLetterDetail(id){
     $("tuUploadBtn").onclick=()=>openTuFileUpload(id);
     $("tuPrintDispoBtn").onclick=()=>printDispositionSheet(l,dispositions);
     $("tuEditBtn").onclick=()=>openSpecific(id);
+    if(tuCanDelete)$("tuDeleteLetterBtn").onclick=()=>deleteTuLetter(id);
     document.querySelectorAll("[data-tu-open-file]").forEach(b=>b.onclick=async()=>{const f=files.find(x=>x.id===b.dataset.tuOpenFile);if(!f)return;const url=await signedTuFileUrl(f.file_path);window.open(url,"_blank","noopener")});
+    document.querySelectorAll("[data-tu-delete-file]").forEach(b=>b.onclick=()=>deleteTuFile(b.dataset.tuDeleteFile));
   }catch(err){alert("Gagal membuka detail surat: "+err.message)}
 }
 function openTuDisposition(id="",letterId=""){
@@ -1047,8 +1051,9 @@ function renderTuDispositions(){
   document.querySelectorAll("[data-edit-dispo]").forEach(b=>b.onclick=()=>openTuDisposition(b.dataset.editDispo));
 }
 function renderTuArchive(){
-  $("panelLetterarchive").innerHTML=`<article class="cardx"><div class="file-list-tu">${tuFiles.length?tuFiles.map(f=>`<div class="file-row-tu"><div><b>${esc(f.office_letters?.agenda_code||"-")} · ${esc(f.document_label||f.original_filename||"Dokumen")}</b><p>${esc(f.office_letters?.subject||"-")} · ${esc(f.original_filename||"-")}</p></div><button class="mini-btn" data-archive-open="${f.id}">Buka</button></div>`).join(""):'<div class="empty">Belum ada arsip digital.</div>'}</div></article>`;
+  $("panelLetterarchive").innerHTML=`<article class="cardx"><div class="file-list-tu">${tuFiles.length?tuFiles.map(f=>`<div class="file-row-tu"><div><b>${esc(f.office_letters?.agenda_code||"-")} · ${esc(f.document_label||f.original_filename||"Dokumen")}</b><p>${esc(f.office_letters?.subject||"-")} · ${esc(f.original_filename||"-")}</p></div><span class="tu-file-actions"><button class="mini-btn" data-archive-open="${f.id}">Buka</button>${tuCanDelete?`<button type="button" class="mini-btn tu-delete-btn" data-archive-delete="${f.id}">Hapus</button>`:""}</span></div>`).join(""):'<div class="empty">Belum ada arsip digital.</div>'}</div></article>`;
   document.querySelectorAll("[data-archive-open]").forEach(b=>b.onclick=async()=>{try{const f=tuFiles.find(x=>x.id===b.dataset.archiveOpen);const url=await signedTuFileUrl(f.file_path);window.open(url,"_blank","noopener")}catch(err){alert("Gagal membuka arsip: "+err.message)}});
+  document.querySelectorAll("[data-archive-delete]").forEach(b=>b.onclick=()=>deleteTuFile(b.dataset.archiveDelete));
 }
 function renderTuRecap(){
   const s=tuRecap.summary||{},months=tuRecap.months||[],names=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"],max=Math.max(1,...months.flatMap(m=>[Number(m.incoming||0),Number(m.outgoing||0)]));
