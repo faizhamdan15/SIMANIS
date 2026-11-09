@@ -119,6 +119,23 @@ async function checkDirectAI(){
   }
 }
 
+async function refreshQuotaInfo(){
+ const el=$("quotaInfo");
+ try{
+   const session=await api.auth.getSession();
+   if(!session?.access_token){el.textContent="Masuk kembali untuk melihat sisa kuota harian.";return}
+   const r=await fetch("/api/simanis-ai?usage=1",{
+     method:"GET",headers:{"Authorization":"Bearer "+session.access_token},cache:"no-store"
+   });
+   if(!r.ok)throw new Error("quota status unavailable");
+   const q=await r.json();
+   const left=Number(q.remaining),limit=Number(q.daily_limit);
+   if(!Number.isFinite(left)||!Number.isFinite(limit))throw Error("invalid quota status");
+   el.textContent="Sisa kuota hari ini: "+left+" dari "+limit+" generasi. Penggunaan berhasil dihitung; permintaan AI yang gagal akan dikembalikan. Kuota ini terpisah dari batas Google Gemini.";
+ }catch(error){
+   el.textContent="Sisa kuota belum dapat ditampilkan. Hubungi admin jika proses AI menampilkan pesan pembatasan.";
+ }
+}
 function setDocumentButtons(on){["saveBtn","finalBtn","wordBtn","pdfBtn"].forEach(k=>$(k).disabled=!on)}
 function currentContext(){return contexts.find(x=>x.class_id+"|"+x.subject_id===$("context").value)}
 function phaseFor(c){const cl=classes.find(x=>x.id===c?.class_id);if(cl)return Number(cl.grade_level)===10?"E":"F";return /^X(?:\s|$|[-_0-9])/.test(c?.class_name||"")?"E":"F"}
@@ -335,7 +352,7 @@ async function generateDirect(){
     else status(data.truncated?"Dokumen terpotong; lengkapi dulu sebelum final.":"Draf AI selesai. Total alokasi "+(meetings*jpSession)+" JP. Periksa CP, materi, seluruh pertemuan, rubrik dan kunci sebelum disimpan.");
     $("result").focus();
   }catch(e){status("Gagal membuat dokumen langsung: "+e.message,true)}
-  finally{setDirectBusy(false)}
+  finally{setDirectBusy(false);await refreshQuotaInfo()}
 }
 
 async function copyPrompt(){
@@ -573,6 +590,7 @@ async function init(){
     await loadContexts();
     await loadHistory();
     await checkDirectAI();
+    await refreshQuotaInfo();
     $("logoutBtn").onclick=async()=>{await api.auth.signOut();location.href="index.html"};
     $("context").onchange=async()=>{
       $("manualCP").value="";$("manualCPUrl").value="";
